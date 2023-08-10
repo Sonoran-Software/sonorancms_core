@@ -1168,9 +1168,9 @@ function manuallySendPayload()
 					for _, item in pairs(v.inventory) do
 						local QBItems = QBCore.Shared.Items
 						local QBItem = {}
-						if item.name then
-							QBItem = QBItems[item.name:lower()]
-						end
+						-- if item.name then
+						-- 	QBItem = QBItems[item.name:lower()]
+						-- end
 						if item then
 							table.insert(playerInventory,
 							             {slot = item.slot, name = item.name, amount = item.amount, label = item.label or QBItem.label or 'Unknown', description = item.description or '', weight = item.weight or 0,
