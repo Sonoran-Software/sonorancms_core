@@ -62,7 +62,7 @@ SetHttpHandler(function(req, res)
 					res.send(json.encode({error = 'Invalid request type'}))
 					return
 				end
-					if not path or path ~= '/upload' then
+				if not path or path ~= '/upload' then
 					res.send(json.encode({error = 'Invalid path'}))
 					return
 				end
@@ -74,7 +74,7 @@ SetHttpHandler(function(req, res)
 				if imageCb then
 					res.send(json.encode({success = true, file = imageCb.error}))
 				else
-					res.send(json.encode({success = false, error = 'Failed to save image. Error: ' ..  imageCb.error}))
+					res.send(json.encode({success = false, error = 'Failed to save image. Error: ' .. imageCb.error}))
 				end
 			end)
 		end
@@ -191,7 +191,7 @@ local function sendConsole(level, color, message)
 		source = info.source:gsub('@@sonorancms/', '') .. ':' .. info.linedefined
 	end
 	local msg = ('[%s][%s:%s%s^7]%s %s^0'):format(time, debugging and source or 'SonoranCMS', color, level, color, message)
-	if (debugging and level == 'DEBUG') or (not debugging and level ~= 'DEBUG') then
+	if (debugging and level == 'DEBUG') or (not debugging and level ~= 'DEBUG') or level == 'ERROR' or level == 'WARNING' or level == 'INFO' then
 		print(msg)
 	end
 	if (level == 'ERROR' or level == 'WARNING') and IsDuplicityVersion() then
@@ -219,6 +219,8 @@ AddEventHandler('SonoranCMS::core:writeLog', function(level, message)
 		infoLog(message)
 	elseif level == 'error' then
 		errorLog(message)
+	elseif level == 'warn' then
+		warnLog(message)
 	else
 		debugLog(message)
 	end

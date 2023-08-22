@@ -1107,7 +1107,7 @@ CreateThread(function()
 		if not Config.critErrorGamestate then
 			manuallySendPayload()
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Skipping QBCore Game Panel payload send due to critical error. If you do not use the QBCore Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping QBCore Game Panel payload send due to critical error. If you do not use the QBCore Game Panel you can ignore this.')
 		end
 		Wait(60000)
 	end
@@ -1116,27 +1116,27 @@ end)
 --- Manually send the GAMESTATE payload
 function manuallySendPayload()
 	if GetResourceState('qb-core') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Skipping payload send due to qb-core not being started. If you do not use the QBCore Game Panel you can ignore this.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-core not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
-	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Skipping payload send due to qb-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
+	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
 	if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'error',
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 		             'qb-garages, qs-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the QBCore Game Panel you can ignore this.')
 	end
 	if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'error',
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 		             'Skipping payload send due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
 	if Config.critErrorGamestate then
-		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Skipping QBCore Game Panel payload send due to critical error. If you do not use the QBCore Game Panel you can ignore this.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping QBCore Game Panel payload send due to critical error. If you do not use the QBCore Game Panel you can ignore this.')
 		return
 	else
 		-- Getting System Info
@@ -1308,7 +1308,19 @@ function manuallySendPayload()
 			-- Request the garage data from qb-garages
 			local QBGarages = {}
 			if GetResourceState('qb-garages') == 'started' then
-				QBGarages = exports['qb-garages']:getAllGarages()
+				-- Safely check if the export exists
+				local success, garageData = pcall(function()
+					local garages = {}
+					if GetResourceState('qb-garages') == 'started' then
+						return exports['qb-garages']:getAllGarages()
+					end
+					return garages
+				end)
+				if success then
+					QBGarages = garageData
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from qb-garages, the export getAllGarages() is not available. Please update your qb-garages resource.')
+				end
 			elseif GetResourceState('cd_garage') == 'started' then
 				local CDConfig = exports['cd_garage']:GetConfig()
 				for _, v in pairs(CDConfig.Locations) do
