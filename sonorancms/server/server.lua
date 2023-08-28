@@ -70,7 +70,14 @@ SetHttpHandler(function(req, res)
 					res.send(json.encode({error = 'Invalid data'}))
 					return
 				end
-				local imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('qb-inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
+				local imageCb = nil
+				if GetResourceState('qb-inventory') == 'started' then
+					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('qb-inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
+				elseif GetResourceState('ps-inventory') == 'started' then
+					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('ps-inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
+				elseif GetResourceState('ox_inventory') == 'started' then
+					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('ox_inventory') .. '/web/images/' .. decoded.data.name, decoded.data.name)
+				end
 				if imageCb then
 					res.send(json.encode({success = true, file = imageCb.error}))
 				else
