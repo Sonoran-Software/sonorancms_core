@@ -1120,8 +1120,8 @@ function manuallySendPayload()
 		Config.critErrorGamestate = true
 		return
 	end
-	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
+	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
@@ -1174,8 +1174,7 @@ function manuallySendPayload()
 						if item and QBItem and next(QBItem) ~= nil then
 							table.insert(playerInventory,
 							             {slot = item.slot, name = item.name, amount = item.amount, label = item.label or QBItem.label or 'Unknown', description = item.description or '', weight = item.weight or 0,
-								type = item.type, unique = item.unique or false, image = item.image or QBItem.image or '', info = item.info or {}, shouldClose = item.shouldClose or false,
-								combinable = v.combinable and {accept = item.combinable.accept, reward = item.combinable.reward, anim = item.combinable.anim} or nil})
+								type = item.type, unique = item.unique or false, image = item.image or QBItem.image or '', info = item.info or {}, shouldClose = item.shouldClose or false, combinable = v.combinable or nil})
 						else
 							TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. item.label .. ' does not exist in qb-core. Item data: ' .. json.encode(item))
 						end
