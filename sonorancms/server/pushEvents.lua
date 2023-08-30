@@ -1176,7 +1176,7 @@ function manuallySendPayload()
 							             {slot = item.slot, name = item.name, amount = item.amount, label = item.label or QBItem.label or 'Unknown', description = item.description or '', weight = item.weight or 0,
 								type = item.type, unique = item.unique or false, image = item.image or QBItem.image or '', info = item.info or {}, shouldClose = item.shouldClose or false, combinable = v.combinable or nil})
 						else
-							TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. item.label .. ' does not exist in qb-core. Item data: ' .. json.encode(item))
+							TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: An item does not exist in qb-core. Item data: ' .. json.encode(item))
 						end
 					end
 					local charInfo = {firstname = v.charinfo.firstname, lastname = v.charinfo.lastname, dob = v.charinfo.birthdate, offline = true, name = v.charinfo.firstname .. ' ' .. v.charinfo.lastname,
