@@ -1380,7 +1380,7 @@ function manuallySendPayload()
 			for _, v in pairs(QBItems) do
 				local item = {name = v.name, label = v.label or 'Unknown', weight = v.weight or 0, type = v.type, image = v.image or '', description = v.description or '', unique = v.unique or false,
 					useable = v.useable or false, ammoType = v.ammoType or nil, shouldClose = v.shouldClose or false,
-					combinable = v.combinable and {accept = v.combinable.accept, reward = v.combinable.reward, anim = v.combinable.anim} or nil}
+					combinable = v.combinable or nil}
 				table.insert(formattedQBItems, item)
 			end
 			-- Request the hardcoded items from the qb-core shared file (shared/items.lua)
