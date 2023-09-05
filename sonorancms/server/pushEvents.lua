@@ -1134,9 +1134,9 @@ function manuallySendPayload()
 		Config.critErrorGamestate = true
 		return
 	end
-	if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' then
+	if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages') ~= 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-		             'qb-garages, qs-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the QBCore Game Panel you can ignore this.')
+		             'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the QBCore Game Panel you can ignore this.')
 	end
 	if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
@@ -1359,6 +1359,20 @@ function manuallySendPayload()
 					return
 				end
 				filterGarages(loadedGarages)
+			elseif GetResourceState('jg-advancedgarages') == 'started' then
+				-- Safely check if the export exists
+				local success, garageData = pcall(function()
+					local garages = {}
+					if GetResourceState('jg-advancedgarages') == 'started' then
+						return exports['jg-advancedgarages']:getAllGarages()
+					end
+					return garages
+				end)
+				if success then
+					QBGarages = garageData
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
+				end
 			end
 			-- Request all items from QBShared
 			local QBItems = QBCore.Shared.Items
