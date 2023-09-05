@@ -56,7 +56,11 @@ end
 ---@param combinableData table
 ---@return string
 local function sortByKey(a, b, key)
-	return a[key] < b[key]
+	if a and b then
+		return a[key] < b[key]
+	else
+		return nil
+	end
 end
 
 --- Encodes the combinale array for items to be correct
@@ -65,7 +69,11 @@ end
 local function sortArrayBy(array, key)
 	if array then
 		table.sort(array, function(a, b)
-			return sortByKey(a, b, key)
+			if a and b then
+				return sortByKey(a, b, key)
+			else
+				return nil
+			end
 		end)
 	else
 		return nil
@@ -1121,7 +1129,8 @@ function manuallySendPayload()
 		return
 	end
 	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
