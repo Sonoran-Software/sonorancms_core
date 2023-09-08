@@ -1120,6 +1120,9 @@ CreateThread(function()
 						PlayerData.job = json.decode(PlayerData.job)
 						PlayerData.job.name = data.data.job
 						PlayerData.job.grade = data.data.grade
+						PlayerData.job.onduty = data.data.onDuty
+						PlayerData.job.isboss = data.data.isBoss or false
+						PlayerData.job.label = data.data.label
 						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ?', {PlayerData.job, data.data.citizenId})
 					end
 				end)
