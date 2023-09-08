@@ -56,7 +56,11 @@ end
 ---@param combinableData table
 ---@return string
 local function sortByKey(a, b, key)
-	return a[key] < b[key]
+	if a and b then
+		return a[key] < b[key]
+	else
+		return nil
+	end
 end
 
 --- Encodes the combinale array for items to be correct
@@ -65,7 +69,11 @@ end
 local function sortArrayBy(array, key)
 	if array then
 		table.sort(array, function(a, b)
-			return sortByKey(a, b, key)
+			if a and b then
+				return sortByKey(a, b, key)
+			else
+				return nil
+			end
 		end)
 	else
 		return nil
@@ -1095,6 +1103,32 @@ CreateThread(function()
 			end)
 		end
 	end)
+	-- Editng a characters job and grade
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_CHAR_JOB', function(data)
+		if data ~= nil then
+			local QBCore = exports['qb-core']:GetCoreObject()
+			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
+			if QBPlayer then
+				QBPlayer.Functions.SetJob(data.data.job, data.data.grade)
+			else
+				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {data.data.citizenId}, function(row)
+					if not row then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
+						return
+					else
+						local PlayerData = row
+						PlayerData.job = json.decode(PlayerData.job)
+						PlayerData.job.name = data.data.job
+						PlayerData.job.grade = data.data.grade
+						PlayerData.job.onduty = data.data.onDuty
+						PlayerData.job.isboss = data.data.isBoss or false
+						PlayerData.job.label = data.data.label
+						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ?', {PlayerData.job, data.data.citizenId})
+					end
+				end)
+			end
+		end
+	end)
 end)
 
 CreateThread(function()
@@ -1121,13 +1155,15 @@ function manuallySendPayload()
 		return
 	end
 	if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the QBCore Game Panel you can ignore this.')
 		Config.critErrorGamestate = true
 		return
 	end
-	if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' then
+	if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
+					~= 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-		             'qb-garages, qs-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the QBCore Game Panel you can ignore this.')
+		             'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the QBCore Game Panel you can ignore this.')
 	end
 	if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
@@ -1350,14 +1386,28 @@ function manuallySendPayload()
 					return
 				end
 				filterGarages(loadedGarages)
+			elseif GetResourceState('jg-advancedgarages') == 'started' then
+				-- Safely check if the export exists
+				local success, garageData = pcall(function()
+					local garages = {}
+					if GetResourceState('jg-advancedgarages') == 'started' then
+						return exports['jg-advancedgarages']:getAllGarages()
+					end
+					return garages
+				end)
+				if success then
+					QBGarages = garageData
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'error',
+					             'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
+				end
 			end
 			-- Request all items from QBShared
 			local QBItems = QBCore.Shared.Items
 			local formattedQBItems = {}
 			for _, v in pairs(QBItems) do
 				local item = {name = v.name, label = v.label or 'Unknown', weight = v.weight or 0, type = v.type, image = v.image or '', description = v.description or '', unique = v.unique or false,
-					useable = v.useable or false, ammoType = v.ammoType or nil, shouldClose = v.shouldClose or false,
-					combinable = v.combinable and {accept = v.combinable.accept, reward = v.combinable.reward, anim = v.combinable.anim} or nil}
+					useable = v.useable or false, ammoType = v.ammoType or nil, shouldClose = v.shouldClose or false, combinable = v.combinable or nil}
 				table.insert(formattedQBItems, item)
 			end
 			-- Request the hardcoded items from the qb-core shared file (shared/items.lua)
