@@ -1363,7 +1363,7 @@ function manuallySendPayload()
 					             {name = v.Garage_ID, label = v.Garage_ID, takeVehicle = {v.x_1, v.y_1, v.z_1}, spawnPoint = {v.x_2, v.y_2, v.z_2, v.h_2}, putVehicle = {v.x_1, v.y_1, v.z_1}, showBlip = v.EnableBlip,
 						blipName = v.Garage_ID, blipNumber = 357, blipColor = 3, type = 'public', vehicle = v.Type})
 				end
-			elseif GetResourceState('qs-advancedgarages') ~= 'started' then
+			elseif GetResourceState('qs-advancedgarages') == 'started' then
 				local originalData = LoadResourceFile('qs-advancedgarages', './config/config.lua')
 				local function filterGarages(garages)
 					for k, v in pairs(garages) do
