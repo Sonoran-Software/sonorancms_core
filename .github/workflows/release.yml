@@ -67,7 +67,7 @@ jobs:
           echo "Creating a new release $RELEASE_NAME"
             RESPONSE=$(curl -X POST "https://api.github.com/repos/${{ github.repository }}/releases" \
               -H "Authorization: token $GITHUB_TOKEN" \
-              -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\",\"target_commitish\":\"master\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true}")
+              -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\",\"target_commitish\":\"master\"}")
           
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           
