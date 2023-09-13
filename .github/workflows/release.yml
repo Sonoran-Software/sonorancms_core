@@ -18,6 +18,7 @@ jobs:
         run: |
           VERSION=$(grep -oP "version '\K\d+\.\d+\.\d+" sonorancms/fxmanifest.lua)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Grabbed version number of $VERSION, will be used for this release..."
         shell: bash
 
       - name: Create Release Directory
