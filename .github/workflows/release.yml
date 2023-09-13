@@ -36,7 +36,7 @@ jobs:
           echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"
         shell: bash
 
-      - name: Create or Update Release
+      - name: Create or Recreate Release
         id: create-update-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,17 +46,18 @@ jobs:
           RELEASE_TAG="$VERSION"
           
           # Check if the release already exists
-          if ! curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG"; then
-            echo "Creating a new release $RELEASE_NAME"
+          if curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG"; then
+          echo "Deleting existing release $RELEASE_NAM"
+          RELEASE_ID=$(curl -X GET "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
+            -H "Authorization: token $GITHUB_TOKEN" | jq -r '.id')
+          curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            -H "Authorization: token $GITHUB_TOKEN"
+          fi
+
+          echo "Creating a new release $RELEASE_NAME"
             RESPONSE=$(curl -X POST "https://api.github.com/repos/${{ github.repository }}/releases" \
               -H "Authorization: token $GITHUB_TOKEN" \
               -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\"}")
-          else
-            echo "Updating existing release $RELEASE_NAME"
-            RESPONSE=$(curl "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -X PATCH -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\"}")
-          fi
           
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           
