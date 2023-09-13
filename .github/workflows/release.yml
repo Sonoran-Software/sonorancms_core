@@ -55,11 +55,11 @@ jobs:
           fi
 
           # Check if the tag exists, and if it does, delete it
-          if git show-ref --tags --verify --quiet "refs/tags/$RELEASE_TAG"; then
-            echo "Tag $RELEASE_TAG exists"
-            git tag -d $RELEASE_TAG
-            git push origin :refs/tags/$RELEASE_TAG
-            echo "Tag $RELEASE_TAG deleted"
+          if curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"; then
+            echo "Deleting existing tag $RELEASE_TAG"
+            REF_SHA=$(curl -sSL "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" | jq -r '.object.sha')
+            curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" \
+              -H "Authorization: token $GITHUB_TOKEN"
           else
             echo "Tag $RELEASE_TAG does not exist"
           fi
