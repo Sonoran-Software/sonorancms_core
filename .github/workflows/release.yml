@@ -17,7 +17,7 @@ jobs:
         id: extract-version
         run: |
           VERSION=$(grep -oP "version '\K\d+\.\d+\.\d+" sonorancms/fxmanifest.lua)
-          echo "version=$VERSION" >> $GITHUB_STATE
+          echo "::set-output name=version::$VERSION"
         shell: bash
 
       - name: Create Release Directory
