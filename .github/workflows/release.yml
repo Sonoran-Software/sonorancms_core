@@ -1,0 +1,69 @@
+name: Sonoran CMS Core Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Extract Version
+        id: extract-version
+        run: |
+          VERSION=$(grep -oP "version '\K\d+\.\d+\.\d+" sonorancms/fxmanifest.lua)
+          echo "::set-output name=version::$VERSION"
+        shell: bash
+
+      - name: Create Release Directory
+        id: create-release-dir
+        run: |
+          mkdir release
+          echo "Created release directory"
+        shell: bash
+
+      - name: Zip Directories
+        id: zip-dirs
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
+          zip -r "sonorancms_core-$VERSION.zip" sonorancms/ sonorancms_updatehelper/
+          mv "sonorancms_core-$VERSION.zip" release/
+          echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"
+        shell: bash
+
+      - name: Create or Update Release
+        id: create-update-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
+          RELEASE_NAME="v$VERSION"
+          RELEASE_TAG="$VERSION"
+          
+          # Check if the release already exists
+          if ! curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG"; then
+            echo "Creating a new release $RELEASE_NAME"
+            RESPONSE=$(curl -X POST "https://api.github.com/repos/${{ github.repository }}/releases" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\"}")
+          else
+            echo "Updating existing release $RELEASE_NAME"
+            RESPONSE=$(curl "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -X PATCH -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\"}")
+          fi
+          
+          RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
+          
+          # Upload the zip file as a release asset
+          UPLOAD_URL="https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=sonorancms_core-$VERSION.zip"
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Content-Type: application/zip" \
+               --data-binary "@release/sonorancms_core-$VERSION.zip" \
+               "$UPLOAD_URL"
+        shell: bash
