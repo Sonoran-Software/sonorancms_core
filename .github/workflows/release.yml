@@ -17,7 +17,7 @@ jobs:
         id: extract-version
         run: |
           VERSION=$(grep -oP "version '\K\d+\.\d+\.\d+" sonorancms/fxmanifest.lua)
-          echo "::set-output name=version::$VERSION"
+          echo "version=$VERSION" >> $GITHUB_STATE
         shell: bash
 
       - name: Create Release Directory
@@ -57,9 +57,6 @@ jobs:
           # Check if the tag exists, and if it does, delete it
           if curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"; then
             echo "Deleting existing tag $RELEASE_TAG"
-            REF_SHA=$(curl -sSL "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" | jq -r '.object.sha')
-            curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" \
-              -H "Authorization: token $GITHUB_TOKEN"
             git push --delete origin $RELEASE_TAG
             git tag -d $RELEASE_TAG
           fi
