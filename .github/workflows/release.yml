@@ -47,7 +47,7 @@ jobs:
           
           # Check if the release already exists
           if curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG"; then
-            echo "Deleting existing release $RELEASE_NAM"
+            echo "Deleting existing release $RELEASE_NAME"
             RELEASE_ID=$(curl -X GET "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
               -H "Authorization: token $GITHUB_TOKEN" | jq -r '.id')
             curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" \
