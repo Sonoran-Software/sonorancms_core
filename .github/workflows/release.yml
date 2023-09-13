@@ -72,6 +72,7 @@ jobs:
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           
           # Upload the zip file as a release asset
+          echo "Uploading zip to release $RELEASE_NAME"
           UPLOAD_URL="https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=sonorancms_core-$VERSION.zip"
           curl -H "Authorization: token $GITHUB_TOKEN" \
                -H "Content-Type: application/zip" \
