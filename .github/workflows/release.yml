@@ -32,7 +32,10 @@ jobs:
         id: zip-dirs
         run: |
           VERSION=${{ steps.extract-version.outputs.version }}
-          zip -r "sonorancms_core-$VERSION.zip" sonorancms/ sonorancms_updatehelper/
+          mkdir [sonorancms]
+          mv sonorancms [sonorancms]/sonorancms
+          mv sonorancms_updatehelper [sonorancms]/sonorancms_updatehelper
+          zip -r "sonorancms_core-$VERSION.zip" [sonorancms]/
           mv "sonorancms_core-$VERSION.zip" release/
           echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"
         shell: bash
