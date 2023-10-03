@@ -1538,14 +1538,15 @@ AddEventHandler('QBCore:CallCommand', function(command, args)
 	serverLogger(source, 'QBCore::CallCommand', {command = command, args = args})
 end)
 
-AddEventHandler('QBCore:ToggleDuty', function()
-	local Player = QBCore.Functions.GetPlayer(source)
-	if Player.PlayerData.job.onduty then
-		serverLogger(source, 'QBCore::ToggleDuty', {job = Player.PlayerData.job.name, duty = false})
-	else
-		serverLogger(source, 'QBCore::ToggleDuty', {job = Player.PlayerData.job.name, duty = true})
-	end
-end)
+-- Disabled for time being, not safe for net in certain cases
+-- AddEventHandler('QBCore:ToggleDuty', function()
+-- 	local Player = QBCore.Functions.GetPlayer(source)
+-- 	if Player.PlayerData.job.onduty then
+-- 		serverLogger(source, 'QBCore::ToggleDuty', {job = Player.PlayerData.job.name, duty = false})
+-- 	else
+-- 		serverLogger(source, 'QBCore::ToggleDuty', {job = Player.PlayerData.job.name, duty = true})
+-- 	end
+-- end)
 
 -- Disabled for time being, too spammy
 -- AddEventHandler('QBCore:Server:SetMetaData', function(meta, data)
