@@ -1431,6 +1431,17 @@ function manuallySendPayload()
 					return
 				end
 				validItems = filterItems(loadedItems)
+				-- Compile a list of aces and principals
+				ExecuteCommand('list_aces')
+				local aceOutput = GetConsoleBuffer()
+				local aceList = {}
+				for line in aceOutput:gmatch('[^\r\n]+') do
+					local ace, obj, allow = line:match("(%S+) -> (%S+) = (%S+)")
+					if ace and obj and allow then
+						table.insert(aceList, {ace = ace, obj = obj, allow = allow == "ALLOW"})
+					end
+				end
+				print('ace shit', json.encode(aceList))
 				Wait(5000)
 				apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 					players = activePlayers, characters = qbCharacters, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, characterVehicles = characterVehicles, jobs = jobTable,
@@ -1477,6 +1488,16 @@ function manuallySendPayload()
 				if resource_name then
 					local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
 					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path})
+				end
+			end
+			-- Compile a list of aces and principals
+			ExecuteCommand('list_aces')
+			local aceOutput = GetConsoleBuffer()
+			local aceList = {}
+			for line in aceOutput:gmatch('[^\r\n]+') do
+				local ace = line:match('ace ([^:]+):')
+				if ace then
+					print('Found ace: ' .. json.encode(ace))
 				end
 			end
 			Wait(5000)
@@ -1551,6 +1572,20 @@ end)
 
 AddEventHandler('onResourceStart', function(resource)
 	serverLogger(0, 'onResourceStart', resource)
+	if resource == 'sonorancms_whitelist' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS Whitelist resource started. Please stop this resource as it will conflict with the bundled core whitelist.')
+		-- Safely try to stop the old Sonoran CMS whitelist resource
+		local success, _ = pcall(function()
+			if GetResourceState('sonorancms_whitelist') == 'started' then
+				return ExecuteCommand('stop sonorancms_whitelist')
+			end
+		end)
+		if success then
+			TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS Whitelist resource.')
+		else
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS Whitelist resource. Please stop it manually.')
+		end
+	end
 end)
 
 AddEventHandler('onServerResourceStart', function(resource)
