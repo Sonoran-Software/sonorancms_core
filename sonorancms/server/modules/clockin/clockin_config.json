@@ -1,0 +1,13 @@
+{
+    "enableCommand": true,
+    "command": "clockin",
+    "useAcePermissions": false,
+    "qbcore": {
+        "use": false,
+        "autoClockInJobs": [
+            "police",
+            "ems",
+            "fire"
+        ]
+    }
+}
