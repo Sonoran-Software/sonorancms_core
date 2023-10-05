@@ -1441,6 +1441,16 @@ function manuallySendPayload()
 						table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
 					end
 				end
+				Wait(1000)
+				ExecuteCommand('list_principals')
+				local principalOutput = GetConsoleBuffer()
+				local principalList = {}
+				for line in principalOutput:gmatch('[^\r\n]+') do
+					local principal, parent = line:match('(.-)%s--> (.-)%s')
+					if principal and parent then
+						table.insert(aceList, {principal = principal, parent = parent})
+					end
+				end
 				Wait(5000)
 				apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 					players = activePlayers, characters = qbCharacters, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, characterVehicles = characterVehicles, jobs = jobTable,
@@ -1489,17 +1499,27 @@ function manuallySendPayload()
 					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path})
 				end
 			end
-				-- Compile a list of aces and principals
-				ExecuteCommand('list_aces')
-				local aceOutput = GetConsoleBuffer()
-				local aceList = {}
-				for line in aceOutput:gmatch('[^\r\n]+') do
-					local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
-					if ace and obj and allow then
-						table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
-					end
+			-- Compile a list of aces and principals
+			ExecuteCommand('list_aces')
+			local aceOutput = GetConsoleBuffer()
+			local aceList = {}
+			for line in aceOutput:gmatch('[^\r\n]+') do
+				local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
+				if ace and obj and allow then
+					table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
 				end
-						Wait(5000)
+			end
+			Wait(1000)
+			ExecuteCommand('list_principals')
+			local principalOutput = GetConsoleBuffer()
+			local principalList = {}
+			for line in principalOutput:gmatch('[^\r\n]+') do
+				local principal, parent = line:match('(.-)%s--> (.-)%s')
+				if principal and parent then
+					table.insert(aceList, {principal = principal, parent = parent})
+				end
+			end
+			Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList}
 			-- Disabled for time being, too spammy
@@ -1603,7 +1623,7 @@ Citizen.CreateThread(function()
 				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS %s resource. Please stop it manually.', resource)
 			end
 		end
-		Wait(3600*1000)
+		Wait(3600 * 1000)
 	end
 end)
 
