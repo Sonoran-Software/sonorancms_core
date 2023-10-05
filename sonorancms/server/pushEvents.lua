@@ -1436,9 +1436,9 @@ function manuallySendPayload()
 				local aceOutput = GetConsoleBuffer()
 				local aceList = {}
 				for line in aceOutput:gmatch('[^\r\n]+') do
-					local ace, obj, allow = line:match("(%S+) -> (%S+) = (%S+)")
+					local ace, obj, allow = line:match('(%S+) -> (%S+) = (%S+)')
 					if ace and obj and allow then
-						table.insert(aceList, {ace = ace, obj = obj, allow = allow == "ALLOW"})
+						table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
 					end
 				end
 				print('ace shit', json.encode(aceList))
@@ -1572,19 +1572,39 @@ end)
 
 AddEventHandler('onResourceStart', function(resource)
 	serverLogger(0, 'onResourceStart', resource)
-	if resource == 'sonorancms_whitelist' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS Whitelist resource started. Please stop this resource as it will conflict with the bundled core whitelist.')
-		-- Safely try to stop the old Sonoran CMS whitelist resource
+	if resource == 'sonorancms_whitelist' or resource == 'sonorancms_clockin' or resource == 'sonorancms_ace_perms' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS %s resource started. Please stop this resource as it will conflict with the bundled core %s.', resource, resource)
+		-- Safely try to stop the old Sonoran CMS plugin resources
 		local success, _ = pcall(function()
-			if GetResourceState('sonorancms_whitelist') == 'started' then
-				return ExecuteCommand('stop sonorancms_whitelist')
+			if GetResourceState(resource) == 'started' then
+				return ExecuteCommand('stop %s', resource)
 			end
 		end)
 		if success then
-			TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS Whitelist resource.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS %s resource.', resource)
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS Whitelist resource. Please stop it manually.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS %s resource. Please stop it manually.', resource)
 		end
+	end
+end)
+
+Citizen.CreateThread(function()
+	while true do
+		for resource in {'sonorancms_whitelist', 'sonorancms_clockin', 'sonorancms_ace_perms'} do
+			-- Safely try to stop the old Sonoran CMS plugin resources
+			local success, _ = pcall(function()
+				if GetResourceState(resource) == 'started' then
+					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS %s resource started. Please stop this resource as it will conflict with the bundled core %s.', resource, resource);
+					return ExecuteCommand('stop %s', resource)
+				end
+			end)
+			if success then
+				TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS %s resource.', resource)
+			else
+				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS %s resource. Please stop it manually.', resource)
+			end
+		end
+		Wait(3600*1000)
 	end
 end)
 
@@ -1642,3 +1662,4 @@ end)
 RegisterNetEvent('SonoranCMS::ServerLogger::QBClientUsedItem', function(item)
 	serverLogger(source, 'QBCore:Command:ClientUsedItem', item)
 end)
+
