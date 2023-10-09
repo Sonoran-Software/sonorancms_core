@@ -1275,7 +1275,7 @@ function manuallySendPayload()
 					local resource_name = GetResourceByFindIndex(i)
 					if resource_name then
 						local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path})
+						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), descriptiion = GetResourceMetadata(resource_name, 'description', 0)})
 					end
 				end
 				-- Request all the saved player vehicles from the database
@@ -1541,7 +1541,7 @@ function manuallySendPayload()
 				local resource_name = GetResourceByFindIndex(i)
 				if resource_name then
 					local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path})
+					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), descriptiion = GetResourceMetadata(resource_name, 'description', 0)})
 				end
 			end
 			-- Compile a list of aces and principals
@@ -1566,7 +1566,7 @@ function manuallySendPayload()
 			end
 			Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
-				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, aces = aceList, principals = principalList}
+				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, config = {version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, aces = aceList, principals = principalList, errors = errors}
 			-- Disabled for time being, too spammy
 			-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 			-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
