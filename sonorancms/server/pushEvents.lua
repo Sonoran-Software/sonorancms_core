@@ -1129,6 +1129,28 @@ CreateThread(function()
 			end
 		end
 	end)
+	-- Adding an ace perm to a user
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_ACE', function(data)
+		if data ~= nil then
+			ExecuteCommand(('add_ace %s %s %s'):format(data.principal, data.ace, data.allow and 'allow' or 'deny'))
+		end
+	end)
+	-- Removing an ace perm from a user
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_ACE', function(data)
+		if data ~= nil then
+			ExecuteCommand(('remove_ace %s %s %s'):format(data.principal, data.ace, data.allow and 'allow' or 'deny'))
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_PRINCIPAL', function(data)
+		if data ~= nil then
+			ExecuteCommand(('add_principal %s %s %s'):format(data.principal, data.ace, data.allow and 'allow' or 'deny'))
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_PRINCIPAL', function(data)
+		if data ~= nil then
+			ExecuteCommand(('remove_principal %s %s %s'):format(data.principal, data.ace, data.allow and 'allow' or 'deny'))
+		end
+	end)
 end)
 
 CreateThread(function()
@@ -1544,7 +1566,7 @@ function manuallySendPayload()
 			end
 			Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
-				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList}
+				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, aces = aceList, principals = principalList}
 			-- Disabled for time being, too spammy
 			-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 			-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
