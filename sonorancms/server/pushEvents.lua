@@ -1275,7 +1275,7 @@ function manuallySendPayload()
 					local resource_name = GetResourceByFindIndex(i)
 					if resource_name then
 						local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), descriptiion = GetResourceMetadata(resource_name, 'description', 0)})
+						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), description = GetResourceMetadata(resource_name, 'description', 0)})
 					end
 				end
 				-- Request all the saved player vehicles from the database
@@ -1541,7 +1541,7 @@ function manuallySendPayload()
 				local resource_name = GetResourceByFindIndex(i)
 				if resource_name then
 					local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), descriptiion = GetResourceMetadata(resource_name, 'description', 0)})
+					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), description = GetResourceMetadata(resource_name, 'description', 0)})
 				end
 			end
 			-- Compile a list of aces and principals
