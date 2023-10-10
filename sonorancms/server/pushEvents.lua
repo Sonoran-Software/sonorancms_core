@@ -1635,9 +1635,10 @@ AddEventHandler('onResourceStarting', function(resource)
 end)
 
 AddEventHandler('onResourceStart', function(resource)
+	print('onResourceStart', resource)
 	serverLogger(0, 'onResourceStart', resource)
 	if resource == 'sonorancms_whitelist' or resource == 'sonorancms_clockin' or resource == 'sonorancms_ace_perms' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS %s resource started. Please stop this resource as it will conflict with the bundled core %s.', resource, resource)
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource ..' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
 		-- Safely try to stop the old Sonoran CMS plugin resources
 		local success, _ = pcall(function()
 			if GetResourceState(resource) == 'started' then
@@ -1645,9 +1646,9 @@ AddEventHandler('onResourceStart', function(resource)
 			end
 		end)
 		if success then
-			TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS %s resource.', resource)
+			TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS ' .. resource .. ' resource.')
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS %s resource. Please stop it manually.', resource)
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS ' .. resource .. ' resource. Please stop it manually.')
 		end
 	end
 end)
@@ -1660,14 +1661,14 @@ Citizen.CreateThread(function()
 			-- Safely try to stop the old Sonoran CMS plugin resources
 			local success, _ = pcall(function()
 				if GetResourceState(resource) == 'started' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS %s resource started. Please stop this resource as it will conflict with the bundled core %s.', resource, resource);
+					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource ..' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
 					return ExecuteCommand('stop %s', resource)
 				end
 			end)
 			if success then
-				TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS %s resource.', resource)
+				TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS ' .. resource .. ' resource.')
 			else
-				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS %s resource. Please stop it manually.', resource)
+				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS ' .. resource .. ' resource. Please stop it manually.')
 			end
 		end
 		Wait(3600 * 1000)
