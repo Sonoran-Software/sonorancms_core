@@ -1642,7 +1642,7 @@ AddEventHandler('onResourceStart', function(resource)
 		-- Safely try to stop the old Sonoran CMS plugin resources
 		local success, _ = pcall(function()
 			if GetResourceState(resource) == 'started' then
-				return ExecuteCommand('stop %s', resource)
+				return ExecuteCommand('stop ' .. resource .. '')
 			end
 		end)
 		if success then
@@ -1662,7 +1662,7 @@ Citizen.CreateThread(function()
 			local success, _ = pcall(function()
 				if GetResourceState(resource) == 'started' then
 					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource ..' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
-					return ExecuteCommand('stop %s', resource)
+					return ExecuteCommand('stop ' .. resource .. '')
 				end
 			end)
 			if success then
