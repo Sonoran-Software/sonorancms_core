@@ -1172,11 +1172,9 @@ end)
 --- Manually send the GAMESTATE payload
 function manuallySendPayload()
 	local errors = {}
-	if GetResourceState('sonorancms_whitelist') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-		             'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_whitelist resource before continuing.')
-					 table.insert(errors, {code = "ERR_WHITELIST_STARTED", message = "sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_whitelist resource before continuing."})
-
+	if GetCurrentResourceName() ~= 'sonorancms' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms')
+		table.insert(errors, {code = "ERR_RESOURCE_NAME", message = "The current resource name is " .. GetCurrentResourceName() .. " however it should be named sonorancms. Please rename this resource to sonorancms"})
 	end
 	if GetResourceState('sonorancms_ace_perms') == 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
