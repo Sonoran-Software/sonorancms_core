@@ -1187,14 +1187,53 @@ function manuallySendPayload()
 	end
 	if GetResourceState('sonorancms_ace_perms') == 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-		             'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_ace_perms resource before continuing.')
+		             'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_ace_perms resource before continuing.')
 		table.insert(errors, {code = 'ERR_ACE_PERMS_STARTED',
-			message = 'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_ace_perms resource before continuing.'})
+			message = 'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_ace_perms resource before continuing.'})
+			pcall(function()
+				if GetResourceState('sonorancms_ace_perms') == 'started' then
+					ExecuteCommand('stop sonorancms_ace_perms')
+					Wait(1000)
+					if GetResourceState('sonorancms_ace_perms') == 'started' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					end
+				end
+			end)
 	end
 	if GetResourceState('sonorancms_clockin') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.')
 		table.insert(errors, {code = 'ERR_CLOCKIN_STARTED',
-			message = 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing.'})
+			message = 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.'})
+			pcall(function()
+				if GetResourceState('sonorancms_clockin') == 'started' then
+					ExecuteCommand('stop sonorancms_clockin')
+					Wait(1000)
+					if GetResourceState('sonorancms_clockin') == 'started' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					end
+				end
+			end)
+	end
+	if GetResourceState('sonorancms_whitelist') == 'started' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		             'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_whitelist resource before continuing.')
+		table.insert(errors, {code = 'ERR_ACE_PERMS_STARTED',
+			message = 'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_whitelist resource before continuing.'})
+			pcall(function()
+				if GetResourceState('sonorancms_whitelist') == 'started' then
+					ExecuteCommand('stop sonorancms_whitelist')
+					Wait(1000)
+					if GetResourceState('sonorancms_whitelist') == 'started' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					end
+				end
+			end)
 	end
 	if GetResourceState('qb-core') == 'started' then
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
