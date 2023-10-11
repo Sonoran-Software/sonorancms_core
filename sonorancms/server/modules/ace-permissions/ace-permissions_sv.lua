@@ -247,7 +247,11 @@ end
 exports('getRankList', getRankList)
 
 local function setRankList(data)
-	SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(data))
+	local rankData = {}
+	rankData.mappings = data
+	SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json', json.encode(rankData))
+	Wait(2000)
+	initialize();
 end
 exports('setRankList', setRankList)
 initialize();

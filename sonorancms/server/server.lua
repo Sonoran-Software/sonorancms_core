@@ -164,9 +164,7 @@ CreateThread(function()
 		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file!')
 		return
 	end
-	RegisterNetEvent('SonoranCMS::Started')
 	Wait(5000)
-	TriggerEvent('SonoranCMS::Started')
 	local versionfile = json.decode(LoadResourceFile(GetCurrentResourceName(), '/version.json'))
 	local fxversion = versionfile.testedFxServerVersion
 	local currentFxVersion = getServerVersion()

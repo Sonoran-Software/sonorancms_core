@@ -2,12 +2,32 @@
     "mappings": [
         {
             "ranks": [
-                "fbfb47ec-083c-4ed8-bb9f-3593cef856ad",
-                "c1757dfc-c6bf-43ec-a276-5467fc3da716",
-                "a586bcf8-d9d5-465f-bf3f-4ed90cc445d2",
-                "199c44a4-dcb7-4b4a-8844-31ab7ee0c421"
+                "b1494237-59fd-44fb-9a1a-bf14e3328c2d",
+                "015a36c0-daa2-4625-a07c-70c7ce3c3169",
+                "95b515c8-e8ee-4fcf-bc79-83a1af2bbcf4",
+                "2c456100-c6ff-4412-83df-ef0e22ba15dc",
+                "a9ede9e0-d19a-4706-abd3-dede6c257ad6"
+            ],
+            "principal": "group.test"
+        },
+        {
+            "ranks": [
+                "015a36c0-daa2-4625-a07c-70c7ce3c3169",
+                "95b515c8-e8ee-4fcf-bc79-83a1af2bbcf4"
             ],
             "principal": "group.admin"
+        },
+        {
+            "ranks": [
+                "2c456100-c6ff-4412-83df-ef0e22ba15dc",
+                "b1494237-59fd-44fb-9a1a-bf14e3328c2d",
+                "a9ede9e0-d19a-4706-abd3-dede6c257ad6",
+                "082288e8-dfc0-44d6-8b69-a46d6230743d",
+                "1df70720-048b-4f61-bf48-c4930d536440",
+                "755b3398-555c-46c3-b007-e961682a9aab",
+                "095f50a6-d250-447a-828c-5b37bab7a7ea"
+            ],
+            "principal": "group.leo"
         }
     ]
 }
