@@ -1151,6 +1151,14 @@ CreateThread(function()
 			ExecuteCommand(('remove_principal %s %s %s'):format(data.principal, data.ace, data.allow and 'allow' or 'deny'))
 		end
 	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ACE_MAPPING', function(data)
+		print('Received push event: ' .. data.type .. ' setting ace mapping')
+		if data ~= nil then
+			exports('sonorancms'):setRankList(data.data)
+			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting ace mapping')
+			manuallySendPayload()
+		end
+	end)
 end)
 
 CreateThread(function()
@@ -1174,17 +1182,19 @@ function manuallySendPayload()
 	local errors = {}
 	if GetCurrentResourceName() ~= 'sonorancms' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms')
-		table.insert(errors, {code = "ERR_RESOURCE_NAME", message = "The current resource name is " .. GetCurrentResourceName() .. " however it should be named sonorancms. Please rename this resource to sonorancms"})
+		table.insert(errors, {code = 'ERR_RESOURCE_NAME',
+			message = 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms'})
 	end
 	if GetResourceState('sonorancms_ace_perms') == 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 		             'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_ace_perms resource before continuing.')
-					 table.insert(errors, {code = "ERR_ACE_PERMS_STARTED", message = "sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_ace_perms resource before continuing."})
+		table.insert(errors, {code = 'ERR_ACE_PERMS_STARTED',
+			message = 'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_ace_perms resource before continuing.'})
 	end
 	if GetResourceState('sonorancms_clockin') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-		             'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing.')
-					 table.insert(errors, {code = "ERR_CLOCKIN_STARTED", message = "sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing."})
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing.')
+		table.insert(errors, {code = 'ERR_CLOCKIN_STARTED',
+			message = 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please stop the sonorancms_clockin resource before continuing.'})
 	end
 	if GetResourceState('qb-core') == 'started' then
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
@@ -1197,7 +1207,8 @@ function manuallySendPayload()
 						~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the SonoranCMS Game Panel you can ignore this.')
-							table.insert(errors, {code = "ERR_GARAGE_NOT_STARTED", message = "qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently."})
+			table.insert(errors,
+			             {code = 'ERR_GARAGE_NOT_STARTED', message = 'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently.'})
 		end
 		if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
@@ -1273,7 +1284,8 @@ function manuallySendPayload()
 					local resource_name = GetResourceByFindIndex(i)
 					if resource_name then
 						local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), description = GetResourceMetadata(resource_name, 'description', 0)})
+						table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0),
+							description = GetResourceMetadata(resource_name, 'description', 0)})
 					end
 				end
 				-- Request all the saved player vehicles from the database
@@ -1343,7 +1355,7 @@ function manuallySendPayload()
 				local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
 				if not loadedJobs or next(loadedJobs) == nil then
 					print('Error: QBShared.Jobs table is missing or empty.')
-					table.insert(errors, {code = "ERR_JOBS_NOT_LOADED", message = "QBShared.Jobs table is missing or empty."})
+					table.insert(errors, {code = 'ERR_JOBS_NOT_LOADED', message = 'QBShared.Jobs table is missing or empty.'})
 					return
 				end
 				validJobs = filterJobs(loadedJobs)
@@ -1372,7 +1384,7 @@ function manuallySendPayload()
 				local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
 				if not loadedGangs or next(loadedGangs) == nil then
 					print('Error: QBShared.Gangs table is missing or empty.')
-					table.insert(errors, {code = "ERR_GANGS_NOT_LOADED", message = "QBShared.Gangs table is missing or empty."})
+					table.insert(errors, {code = 'ERR_GANGS_NOT_LOADED', message = 'QBShared.Gangs table is missing or empty.'})
 					return
 				end
 				validGangs = filterGangs(loadedGangs)
@@ -1391,7 +1403,7 @@ function manuallySendPayload()
 						QBGarages = garageData
 					else
 						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from qb-garages, the export getAllGarages() is not available. Please update your qb-garages resource.')
-						table.insert(errors, {code = "ERR_GARAGE_EXPORT_NOT_FOUND", message = "qb-garages export getAllGarages() is not available."})
+						table.insert(errors, {code = 'ERR_GARAGE_EXPORT_NOT_FOUND', message = 'qb-garages export getAllGarages() is not available.'})
 					end
 				elseif GetResourceState('cd_garage') == 'started' then
 					local CDConfig = exports['cd_garage']:GetConfig()
@@ -1420,7 +1432,7 @@ function manuallySendPayload()
 					local loadedGarages = tempEnv.Config.Garages
 					if not loadedGarages or next(loadedGarages) == nil then
 						print('Error: Config.Garages table is missing or empty in qs-advancedgarages Config.')
-						table.insert(errors, {code = "ERR_GARAGE_EXPORT_NOT_FOUND", message = "qs-advancedgarages Config.Garages table is missing or empty."})
+						table.insert(errors, {code = 'ERR_GARAGE_EXPORT_NOT_FOUND', message = 'qs-advancedgarages Config.Garages table is missing or empty.'})
 						return
 					end
 					filterGarages(loadedGarages)
@@ -1470,34 +1482,37 @@ function manuallySendPayload()
 				local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
 				if not loadedItems or next(loadedItems) == nil then
 					print('Error: QBShared.Items table is missing or empty.')
-					table.insert(errors, {code = "ERR_ITEMS_NOT_LOADED", message = "QBShared.Items table is missing or empty."})
+					table.insert(errors, {code = 'ERR_ITEMS_NOT_LOADED', message = 'QBShared.Items table is missing or empty.'})
 					return
 				end
 				validItems = filterItems(loadedItems)
 				-- Compile a list of aces and principals
-				ExecuteCommand('list_aces')
-				local aceOutput = GetConsoleBuffer()
-				local aceList = {}
-				for line in aceOutput:gmatch('[^\r\n]+') do
-					local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
-					if ace and obj and allow then
-						table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
-					end
-				end
-				Wait(5000)
-				ExecuteCommand('list_principals')
-				local principalOutput = GetConsoleBuffer()
-				local principalList = {}
-				for line in principalOutput:gmatch('[^\r\n]+') do
-					local parent, principal = line:match('(.-)%s-<- (.-)%s')
-					if principal and parent then
-						table.insert(principalList, {principal = principal, parent = parent})
-					end
-				end
+				-- ExecuteCommand('list_aces')
+				-- local aceOutput = GetConsoleBuffer()
+				-- local aceList = {}
+				-- for line in aceOutput:gmatch('[^\r\n]+') do
+				-- 	local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
+				-- 	if ace and obj and allow then
+				-- 		table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
+				-- 	end
+				-- end
+				-- Wait(5000)
+				-- ExecuteCommand('list_principals')
+				-- local principalOutput = GetConsoleBuffer()
+				-- local principalList = {}
+				-- for line in principalOutput:gmatch('[^\r\n]+') do
+				-- 	local parent, principal = line:match('(.-)%s-<- (.-)%s')
+				-- 	if principal and parent then
+				-- 		table.insert(principalList, {principal = principal, parent = parent})
+				-- 	end
+				-- end
+				local acePermList = exports['sonorancms']:getRankList()
+				acePermList = json.decode(acePermList)
 				Wait(5000)
 				apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 					players = activePlayers, characters = qbCharacters, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, characterVehicles = characterVehicles, jobs = jobTable,
-					gangs = gangTable, fileJobs = validJobs, fileGangs = validGangs, items = formattedQBItems, fileItems = validItems, garages = QBGarages, config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, aces = aceList, principals = principalList, errors = errors}
+					gangs = gangTable, fileJobs = validJobs, fileGangs = validGangs, items = formattedQBItems, fileItems = validItems, garages = QBGarages,
+					config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, errors = errors, aceMappings = acePermList.mappings}
 				-- Disabled for time being, too spammy
 				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 				-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
@@ -1539,32 +1554,36 @@ function manuallySendPayload()
 				local resource_name = GetResourceByFindIndex(i)
 				if resource_name then
 					local path = GetResourcePath(resource_name):match('.*/resources/(.*)')
-					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0), description = GetResourceMetadata(resource_name, 'description', 0)})
+					table.insert(resourceList, {name = resource_name, state = GetResourceState(resource_name), path = path, version = GetResourceMetadata(resource_name, 'version', 0),
+						description = GetResourceMetadata(resource_name, 'description', 0)})
 				end
 			end
 			-- Compile a list of aces and principals
-			ExecuteCommand('list_aces')
-			local aceOutput = GetConsoleBuffer()
-			local aceList = {}
-			for line in aceOutput:gmatch('[^\r\n]+') do
-				local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
-				if ace and obj and allow then
-					table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
-				end
-			end
-			Wait(5000)
-			ExecuteCommand('list_principals')
-			local principalOutput = GetConsoleBuffer()
-			local principalList = {}
-			for line in principalOutput:gmatch('[^\r\n]+') do
-				local parent, principal = line:match('(.-)%s-<- (.-)%s')
-				if principal and parent then
-					table.insert(principalList, {principal = principal, parent = parent})
-				end
-			end
-			Wait(5000)
+			-- ExecuteCommand('list_aces')
+			-- local aceOutput = GetConsoleBuffer()
+			-- local aceList = {}
+			-- for line in aceOutput:gmatch('[^\r\n]+') do
+			-- 	local ace, obj, allow = line:match('(.-)%s--> (.-)%s-=%s-(%S+)')
+			-- 	if ace and obj and allow then
+			-- 		table.insert(aceList, {ace = ace, obj = obj, allow = (allow == 'ALLOW')})
+			-- 	end
+			-- end
+			-- Wait(5000)
+			-- ExecuteCommand('list_principals')
+			-- local principalOutput = GetConsoleBuffer()
+			-- local principalList = {}
+			-- for line in principalOutput:gmatch('[^\r\n]+') do
+			-- 	local parent, principal = line:match('(.-)%s-<- (.-)%s')
+			-- 	if principal and parent then
+			-- 		table.insert(principalList, {principal = principal, parent = parent})
+			-- 	end
+			-- end
+			local acePermList = exports['sonorancms']:getRankList()
+			acePermList = json.decode(acePermList)
+		Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
-				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, config = {version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, aces = aceList, principals = principalList, errors = errors}
+				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, config = {version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)},
+				errors = errors, aceMappings = acePermList.mappings}
 			-- Disabled for time being, too spammy
 			-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 			-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
@@ -1633,10 +1652,9 @@ AddEventHandler('onResourceStarting', function(resource)
 end)
 
 AddEventHandler('onResourceStart', function(resource)
-	print('onResourceStart', resource)
 	serverLogger(0, 'onResourceStart', resource)
 	if resource == 'sonorancms_whitelist' or resource == 'sonorancms_clockin' or resource == 'sonorancms_ace_perms' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource ..' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource .. ' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
 		-- Safely try to stop the old Sonoran CMS plugin resources
 		local success, _ = pcall(function()
 			if GetResourceState(resource) == 'started' then
@@ -1659,7 +1677,7 @@ Citizen.CreateThread(function()
 			-- Safely try to stop the old Sonoran CMS plugin resources
 			local success, _ = pcall(function()
 				if GetResourceState(resource) == 'started' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource ..' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
+					TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'SonoranCMS ' .. resource .. ' resource started. Please stop this resource as it will conflict with the bundled core' .. resource .. '.')
 					return ExecuteCommand('stop ' .. resource .. '')
 				end
 			end)

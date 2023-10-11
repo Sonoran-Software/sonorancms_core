@@ -3,6 +3,17 @@ local loaded_list = {}
 
 function initialize()
 	cache = json.decode(LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json'))
+	local rankMappings = json.decode(LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json'))
+	local function findPrincipalByRank(rank)
+		for _, mapping in ipairs(rankMappings.mappings) do
+			for _, r in ipairs(mapping.ranks) do
+				if r == rank then
+					return mapping.principal
+				end
+			end
+		end
+		return nil -- Return nil if the rank is not found
+	end
 	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', 'sonoran_permissions::rankupdate')
 	RegisterNetEvent('sonoran_permissions::rankupdate', function(data)
 		local ppermissiondata = data.data.primaryRank
@@ -31,19 +42,19 @@ function initialize()
 				end
 			end
 			if ppermissiondata ~= '' or ppermissiondata ~= nil then
-				if Config.rank_mapping[ppermissiondata] ~= nil then
+				if findPrincipalByRank(ppermissiondata) ~= nil then
 					for _, b in pairs(identifier) do
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[ppermissiondata])
+						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata))
 						if loaded_list[b] == nil then
-							loaded_list[b] = {[ppermissiondata] = Config.rank_mapping[ppermissiondata]}
+							loaded_list[b] = {[ppermissiondata] = findPrincipalByRank(ppermissiondata)}
 						else
-							loaded_list[b][ppermissiondata] = Config.rank_mapping[ppermissiondata]
+							loaded_list[b][ppermissiondata] = findPrincipalByRank(ppermissiondata)
 						end
 						if cache[b] == nil then
-							cache[b] = {[ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[ppermissiondata]}
+							cache[b] = {[ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata)}
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						else
-							cache[b][ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[ppermissiondata]
+							cache[b][ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata)
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						end
 					end
@@ -51,19 +62,19 @@ function initialize()
 			end
 			if ppermissiondatas ~= nil then
 				for _, v in pairs(ppermissiondatas) do
-					if Config.rank_mapping[v] ~= nil then
+					if findPrincipalByRank(v) ~= nil then
 						for _, b in pairs(identifier) do
-							ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[v])
+							ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v))
 							if loaded_list[b] == nil then
-								loaded_list[b] = {[v] = Config.rank_mapping[v]}
+								loaded_list[b] = {[v] = findPrincipalByRank(v)}
 							else
-								loaded_list[b][v] = Config.rank_mapping[v]
+								loaded_list[b][v] = findPrincipalByRank(v)
 							end
 							if cache[b] == nil then
-								cache[b] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[v]}
+								cache[b] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v)}
 								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 							else
-								cache[b][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. Config.rank_mapping[v]
+								cache[b][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v)
 								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 							end
 						end
@@ -104,18 +115,18 @@ function initialize()
 					end
 				end
 				for _, v in pairs(ppermissiondata) do
-					if Config.rank_mapping[v] ~= nil then
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v])
+					if findPrincipalByRank(v) ~= nil then
+						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v))
 						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = Config.rank_mapping[v]}
+							loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
 						else
-							loaded_list[identifier][v] = Config.rank_mapping[v]
+							loaded_list[identifier][v] = findPrincipalByRank(v)
 						end
 						if cache[identifier] == nil then
-							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v]}
+							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)}
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						else
-							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v]
+							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						end
 					end
@@ -127,9 +138,9 @@ function initialize()
 						if string.sub(v, 1, string.len('')) == 'add_principal' then
 							ExecuteCommand(v)
 							if loaded_list[identifier] == nil then
-								loaded_list[identifier] = {[v] = Config.rank_mapping[v]}
+								loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
 							else
-								loaded_list[identifier][v] = Config.rank_mapping[v]
+								loaded_list[identifier][v] = findPrincipalByRank(v)
 							end
 						end
 					end
@@ -171,18 +182,18 @@ function initialize()
 					end
 				end
 				for _, v in pairs(ppermissiondata) do
-					if Config.rank_mapping[v] ~= nil then
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v])
+					if findPrincipalByRank(v) ~= nil then
+						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v))
 						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = Config.rank_mapping[v]}
+							loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
 						else
-							loaded_list[identifier][v] = Config.rank_mapping[v]
+							loaded_list[identifier][v] = findPrincipalByRank(v)
 						end
 						if cache[identifier] == nil then
-							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v]}
+							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)}
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						else
-							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. Config.rank_mapping[v]
+							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)
 							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
 						end
 					end
@@ -193,9 +204,9 @@ function initialize()
 						if string.sub(v, 1, string.len('')) == 'add_principal' then
 							ExecuteCommand(v)
 							if loaded_list[identifier] == nil then
-								loaded_list[identifier] = {[v] = Config.rank_mapping[v]}
+								loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
 							else
-								loaded_list[identifier][v] = Config.rank_mapping[v]
+								loaded_list[identifier][v] = findPrincipalByRank(v)
 							end
 						end
 					end
@@ -230,9 +241,13 @@ function initialize()
 end
 
 local function getRankList()
-    local config = LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json')
-    return config
+	local config = LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json')
+	return config
 end
 exports('getRankList', getRankList)
 
+local function setRankList(data)
+	SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(data))
+end
+exports('setRankList', setRankList)
 initialize();

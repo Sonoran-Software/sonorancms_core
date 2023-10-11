@@ -1,3 +1,13 @@
 {
-    "9dd1fea1-2360-4be2-923b-71b0c87944d0": "group.admin"
+    "mappings": [
+        {
+            "ranks": [
+                "fbfb47ec-083c-4ed8-bb9f-3593cef856ad",
+                "c1757dfc-c6bf-43ec-a276-5467fc3da716",
+                "a586bcf8-d9d5-465f-bf3f-4ed90cc445d2",
+                "199c44a4-dcb7-4b4a-8844-31ab7ee0c421"
+            ],
+            "principal": "group.admin"
+        }
+    ]
 }
