@@ -1,0 +1,5 @@
+
+{
+    "enabled": false,
+    "comment": "This is the default configuration file for the plugin. Please set to true to enable the plugin."
+}
