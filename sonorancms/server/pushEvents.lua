@@ -1159,6 +1159,24 @@ CreateThread(function()
 			manuallySendPayload()
 		end
 	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TIME', function(data)
+		if data ~= nil then
+			if GetResourceState('qb-weathersync') == 'started' then
+				TriggerServerEvent("qb-weathersync:server:setTime", data.data.time, data.data.time)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			end
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TIME', function(data)
+		if data ~= nil then
+			if GetResourceState('qb-weathersync') == 'started' then
+				TriggerServerEvent("qb-weathersync:server:setTime", data.data.time, data.data.time)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			end
+		end
+	end)
 end)
 
 CreateThread(function()

@@ -4,6 +4,7 @@ local warningMessage = nil
 local secondsCount = 10
 local breakOff = false
 local notReset = true
+local lastWeather = 
 RegisterNetEvent('SonoranCMS::core::RequestGamePool', function()
 	local returnVehicleData = {}
 	for _, v in pairs(GetGamePool('CVehicle')) do
@@ -261,6 +262,11 @@ CreateThread(function()
 		if IsPedShooting(playerped) then
 			TriggerServerEvent('SonoranCMS::ServerLogger::PlayerShot', fivemfivemDeathHashTable[GetSelectedPedWeapon(playerped)])
 		end
+		if lastWeather ~= CurrentWeather then
+			lastWeather = CurrentWeather
+			SetWeatherTypeOverTime(CurrentWeather, 15.0)
+			Wait(15000)
+		end
 	end
 end)
 
@@ -274,4 +280,9 @@ end)
 
 AddEventHandler('QBCore:Client:UseItem', function(item)
 	TriggerServerEvent('SonoranCMS::ServerLogger::QBClientUsedItem', item)
+end)
+
+
+RegisterNetEvent('SonoranCMS::core::SetEnviorment', function(data)
+
 end)
