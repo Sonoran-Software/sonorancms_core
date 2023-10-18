@@ -1,6 +1,13 @@
 local vehicleGamePool = {}
 local tonumber = tonumber
 local loggerBuffer = {}
+local CurrentWeather = 'EXTRASUNNY'
+local baseTime = 8
+local timeOffset = 0
+local freezeTime = false
+local blackout = false
+local newWeatherTimer = 10
+local dynamicWeather = true
 local explosionTypes = {'GRENADE', 'GRENADELAUNCHER', 'STICKYBOMB', 'MOLOTOV', 'ROCKET', 'TANKSHELL', 'HI_OCTANE', 'CAR', 'PLANE', 'PETROL_PUMP', 'BIKE', 'DIR_STEAM', 'DIR_FLAME', 'DIR_WATER_HYDRANT',
 	'DIR_GAS_CANISTER', 'BOAT', 'SHIP_DESTROY', 'TRUCK', 'BULLET', 'SMOKEGRENADELAUNCHER', 'SMOKEGRENADE', 'BZGAS', 'FLARE', 'GAS_CANISTER', 'EXTINGUISHER', 'PROGRAMMABLEAR', 'TRAIN', 'BARREL',
 	'PROPANE', 'BLIMP', 'DIR_FLAME_EXPLODE', 'TANKER', 'PLANE_ROCKET', 'VEHICLE_BULLET', 'GAS_TANK', 'BIRD_CRAP', 'RAILGUN', 'BLIMP2', 'FIREWORK', 'SNOWBALL', 'PROXMINE', 'VALKYRIE_CANNON',
@@ -78,6 +85,51 @@ local function sortArrayBy(array, key)
 	else
 		return nil
 	end
+end
+
+-- CREDIT: https://github.com/qbcore-framework/qb-weathersync/blob/74dadb90b9bdfc0a7ce492a406a769fcf9c96596/server/server.lua#L42C16-L42C32
+--- Sets the next weather stage
+local function nextWeatherStage()
+	if CurrentWeather == 'CLEAR' or CurrentWeather == 'CLOUDS' or CurrentWeather == 'EXTRASUNNY' then
+		CurrentWeather = (math.random(1, 5) > 2) and 'CLEARING' or 'OVERCAST' -- 60/40 chance
+	elseif CurrentWeather == 'CLEARING' or CurrentWeather == 'OVERCAST' then
+		local new = math.random(1, 6)
+		if new == 1 then
+			CurrentWeather = (CurrentWeather == 'CLEARING') and 'FOGGY' or 'RAIN'
+		elseif new == 2 then
+			CurrentWeather = 'CLOUDS'
+		elseif new == 3 then
+			CurrentWeather = 'CLEAR'
+		elseif new == 4 then
+			CurrentWeather = 'EXTRASUNNY'
+		elseif new == 5 then
+			CurrentWeather = 'SMOG'
+		else
+			CurrentWeather = 'FOGGY'
+		end
+	elseif CurrentWeather == 'THUNDER' or CurrentWeather == 'RAIN' then
+		CurrentWeather = 'CLEARING'
+	elseif CurrentWeather == 'SMOG' or CurrentWeather == 'FOGGY' then
+		CurrentWeather = 'CLEAR'
+	else
+		CurrentWeather = 'CLEAR'
+	end
+	local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+	TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+end
+
+-- CREDIT: https://github.com/qbcore-framework/qb-weathersync/blob/74dadb90b9bdfc0a7ce492a406a769fcf9c96596/server/server.lua#L31C1-L31C1
+--- Sets time offset based on minutes provided
+--- @param minute number - Minutes to offset by
+local function shiftToMinute(minute)
+	timeOffset = timeOffset - (((baseTime + timeOffset) % 60) - minute)
+end
+
+-- CREDIT: https://github.com/qbcore-framework/qb-weathersync/blob/74dadb90b9bdfc0a7ce492a406a769fcf9c96596/server/server.lua#L37
+--- Sets time offset based on hour provided
+--- @param hour number - Hour to offset by
+local function shiftToHour(hour)
+	timeOffset = timeOffset - ((((baseTime + timeOffset) / 60) % 24) - hour) * 60
 end
 
 CreateThread(function()
@@ -1162,17 +1214,70 @@ CreateThread(function()
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TIME', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent("qb-weathersync:server:setTime", data.data.time, data.data.time)
+				TriggerServerEvent('qb-weathersync:server:setTime', data.data.time, data.data.time)
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			else
+				shiftToHour(tonumber(data.data.hour))
+				shiftToMinute(tonumber(data.data.minute))
+				manuallySendPayload()
+				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+			end
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_WEATHER', function(data)
+		if data ~= nil then
+			if GetResourceState('qb-weathersync') == 'started' then
+				TriggerServerEvent('qb-weathersync:server:setWeather', data.data.weatherState)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			else
+				CurrentWeather = data.data.weatherState
+				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
 				manuallySendPayload()
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TIME', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_FREEZE_WEATHER', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent("qb-weathersync:server:setTime", data.data.time, data.data.time)
+				TriggerServerEvent('qb-weathersync:server:toggleDynamicWeather', data.data.freezeWeather)
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			else
+				dynamicWeather = data.data.freezeWeather
+				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				manuallySendPayload()
+			end
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_FREEZE_TIME', function(data)
+		if data ~= nil then
+			if GetResourceState('qb-weathersync') == 'started' then
+				TriggerServerEvent('qb-weathersync:server:toggleFreezeTime', data.data.freezeTime)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			else
+				freezeTime = data.data.freezeTime
+				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				manuallySendPayload()
+			end
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TOGGLE_BLACKOUT', function(data)
+		if data ~= nil then
+			if GetResourceState('qb-weathersync') == 'started' then
+				TriggerServerEvent('qb-weathersync:server:toggleBlackout', data.data.blackout)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				manuallySendPayload()
+			else
+				blackout = data.data.blackout
+				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
 				manuallySendPayload()
 			end
 		end
@@ -1208,50 +1313,51 @@ function manuallySendPayload()
 		             'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_ace_perms resource before continuing.')
 		table.insert(errors, {code = 'ERR_ACE_PERMS_STARTED',
 			message = 'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_ace_perms resource before continuing.'})
-			pcall(function()
+		pcall(function()
+			if GetResourceState('sonorancms_ace_perms') == 'started' then
+				ExecuteCommand('stop sonorancms_ace_perms')
+				Wait(1000)
 				if GetResourceState('sonorancms_ace_perms') == 'started' then
-					ExecuteCommand('stop sonorancms_ace_perms')
-					Wait(1000)
-					if GetResourceState('sonorancms_ace_perms') == 'started' then
-						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					else
-						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					end
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
-			end)
+			end
+		end)
 	end
 	if GetResourceState('sonorancms_clockin') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		             'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.')
 		table.insert(errors, {code = 'ERR_CLOCKIN_STARTED',
 			message = 'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.'})
-			pcall(function()
+		pcall(function()
+			if GetResourceState('sonorancms_clockin') == 'started' then
+				ExecuteCommand('stop sonorancms_clockin')
+				Wait(1000)
 				if GetResourceState('sonorancms_clockin') == 'started' then
-					ExecuteCommand('stop sonorancms_clockin')
-					Wait(1000)
-					if GetResourceState('sonorancms_clockin') == 'started' then
-						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					else
-						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					end
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
-			end)
+			end
+		end)
 	end
 	if GetResourceState('sonorancms_whitelist') == 'started' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 		             'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_whitelist resource before continuing.')
 		table.insert(errors, {code = 'ERR_ACE_PERMS_STARTED',
 			message = 'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_whitelist resource before continuing.'})
-			pcall(function()
+		pcall(function()
+			if GetResourceState('sonorancms_whitelist') == 'started' then
+				ExecuteCommand('stop sonorancms_whitelist')
+				Wait(1000)
 				if GetResourceState('sonorancms_whitelist') == 'started' then
-					ExecuteCommand('stop sonorancms_whitelist')
-					Wait(1000)
-					if GetResourceState('sonorancms_whitelist') == 'started' then
-						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					else
-						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
-					end
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
+				else
+					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
-			end)
+			end
+		end)
 	end
 	if GetResourceState('qb-core') == 'started' then
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
@@ -1794,3 +1900,47 @@ RegisterNetEvent('SonoranCMS::ServerLogger::QBClientUsedItem', function(item)
 	serverLogger(source, 'QBCore:Command:ClientUsedItem', item)
 end)
 
+-- CREDIT: https://github.com/qbcore-framework/qb-weathersync/blob/74dadb90b9bdfc0a7ce492a406a769fcf9c96596/server/server.lua#L282
+CreateThread(function()
+	local previous = 0
+	while true do
+		Wait(0)
+		local newBaseTime = os.time(os.date('!*t')) / 2 + 360 -- Set the server time depending of OS time
+		if (newBaseTime % 60) ~= previous then -- Check if a new minute is passed
+			previous = newBaseTime % 60 -- Only update time with plain minutes, seconds are handled in the client
+			if freezeTime then
+				timeOffset = timeOffset + baseTime - newBaseTime
+			end
+			baseTime = newBaseTime
+		end
+	end
+end)
+
+CreateThread(function()
+	while true do
+		Wait(2000)
+		local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+		TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+	end
+end)
+
+CreateThread(function()
+	while true do
+		Wait(300000)
+		local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+		TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+	end
+end)
+
+CreateThread(function()
+	while true do
+		newWeatherTimer = newWeatherTimer - 1
+		Wait((1000 * 60) * 10)
+		if newWeatherTimer == 0 then
+			if dynamicWeather then
+				nextWeatherStage()
+			end
+			newWeatherTimer = 10
+		end
+	end
+end)
