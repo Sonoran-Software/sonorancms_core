@@ -333,10 +333,10 @@ AddEventHandler('QBCore:Client:UseItem', function(item)
 	TriggerServerEvent('SonoranCMS::ServerLogger::QBClientUsedItem', item)
 end)
 
-RegisterNetEvent('SonoranCMS::core::SetEnviorment', function(data)
-	CurrentWeather = data.weather.currentWeather
-	blackout = data.weather.blackout
-	freezeTime = data.time.freezeTime
-	timeOffset = data.time.timeOffset
-	baseTime = data.time.baseTime
+RegisterNetEvent('SonoranCMS::core::SetEnvironment', function(data)
+	CurrentWeather = data.currentWeather
+	blackout = data.blackout
+	freezeTime = data.freezeTime
+	timeOffset = data.timeOffset
+	baseTime = data.baseTime
 end)

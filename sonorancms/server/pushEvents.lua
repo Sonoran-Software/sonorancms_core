@@ -115,7 +115,7 @@ local function nextWeatherStage()
 		CurrentWeather = 'CLEAR'
 	end
 	local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-	TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+	TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, data)
 end
 
 -- CREDIT: https://github.com/qbcore-framework/qb-weathersync/blob/74dadb90b9bdfc0a7ce492a406a769fcf9c96596/server/server.lua#L31C1-L31C1
@@ -1211,73 +1211,76 @@ CreateThread(function()
 			manuallySendPayload()
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TIME', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_TIME', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:setTime', data.data.time, data.data.time)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				TriggerEvent('qb-weathersync:server:setTime', data.data.hour, data.data.minute)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment time to ' .. data.data.hour .. ':' .. data.data.minute)
 				manuallySendPayload()
 			else
 				shiftToHour(tonumber(data.data.hour))
 				shiftToMinute(tonumber(data.data.minute))
 				manuallySendPayload()
-				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				local environmentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_WEATHER', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_WEATHER', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:setWeather', data.data.weatherState)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				TriggerEvent('qb-weathersync:server:setWeather', data.data.weatherState)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
 				manuallySendPayload()
 			else
 				CurrentWeather = data.data.weatherState
-				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				local environmentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
 				manuallySendPayload()
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_FREEZE_WEATHER', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_FREEZE_WEATHER', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleDynamicWeather', data.data.freezeWeather)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				TriggerEvent('qb-weathersync:server:toggleDynamicWeather', data.data.freezeWeather)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting weather freeze to ' .. json.encode(data.data.freezeWeather))
 				manuallySendPayload()
 			else
 				dynamicWeather = data.data.freezeWeather
-				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				local environmentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting weather freeze to ' .. json.encode(data.data.freezeWeather))
 				manuallySendPayload()
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_FREEZE_TIME', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_FREEZE_TIME', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleFreezeTime', data.data.freezeTime)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
+				TriggerEvent('qb-weathersync:server:toggleFreezeTime', data.data.freezeTime)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting time freeze to ' .. json.encode(data.data.freezeTime))
 				manuallySendPayload()
 			else
 				freezeTime = data.data.freezeTime
-				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				local environmentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting time freeze to ' .. json.encode(data.data.freezeTime))
 				manuallySendPayload()
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIORMENT_TOGGLE_BLACKOUT', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_TOGGLE_BLACKOUT', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleBlackout', data.data.blackout)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
-				manuallySendPayload()
+				TriggerEvent('qb-weathersync:server:toggleBlackout', data.data.blackout)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting blackout to ' .. json.encode(data.data.blackout))
 			else
 				blackout = data.data.blackout
-				local enviormentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-				TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, enviormentData)
+				local environmentData = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
+				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting blackout to ' .. json.encode(data.data.blackout))
 				manuallySendPayload()
 			end
 		end
@@ -1920,7 +1923,7 @@ CreateThread(function()
 	while true do
 		Wait(2000)
 		local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-		TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+		TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, data)
 	end
 end)
 
@@ -1928,7 +1931,7 @@ CreateThread(function()
 	while true do
 		Wait(300000)
 		local data = {currentWeather = CurrentWeather, blackout = blackout, freezeTime = freezeTime, timeOffset = timeOffset, baseTime = baseTime}
-		TriggerClientEvent('SonoranCMS::core::SetEnviorment', -1, data)
+		TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, data)
 	end
 end)
 
