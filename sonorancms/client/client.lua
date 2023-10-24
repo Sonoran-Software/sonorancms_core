@@ -4,6 +4,15 @@ local warningMessage = nil
 local secondsCount = 10
 local breakOff = false
 local notReset = true
+local CurrentWeather = 'EXTRASUNNY'
+local lastWeather = CurrentWeather
+local baseTime = 8
+local timeOffset = 0
+local timer = 0
+local freezeTime = false
+local blackout = false
+local blackoutVehicle = false
+
 RegisterNetEvent('SonoranCMS::core::RequestGamePool', function()
 	local returnVehicleData = {}
 	for _, v in pairs(GetGamePool('CVehicle')) do
@@ -247,6 +256,9 @@ end
 local deathFlag = false
 local IsEntityDead = IsEntityDead
 CreateThread(function()
+	local hour
+	local minute = 0
+	local second = 0
 	while true do
 		Wait(100)
 		local ped = PlayerPedId()
@@ -261,17 +273,70 @@ CreateThread(function()
 		if IsPedShooting(playerped) then
 			TriggerServerEvent('SonoranCMS::ServerLogger::PlayerShot', fivemfivemDeathHashTable[GetSelectedPedWeapon(playerped)])
 		end
+		if GetResourceState('qb-weathersync') ~= 'started' then
+			if lastWeather ~= CurrentWeather then
+				lastWeather = CurrentWeather
+				SetWeatherTypeOverTime(CurrentWeather, 15.0)
+				Wait(15000)
+			end
+			Wait(100)
+			SetArtificialLightsState(blackout)
+			SetArtificialLightsStateAffectsVehicles(blackoutVehicle)
+			ClearOverrideWeather()
+			ClearWeatherTypePersist()
+			SetWeatherTypePersist(lastWeather)
+			SetWeatherTypeNow(lastWeather)
+			SetWeatherTypeNowPersist(lastWeather)
+			if lastWeather == 'XMAS' then
+				SetForceVehicleTrails(true)
+				SetForcePedFootstepsTracks(true)
+			else
+				SetForceVehicleTrails(false)
+				SetForcePedFootstepsTracks(false)
+			end
+			if lastWeather == 'RAIN' then
+				SetRainLevel(0.3)
+			elseif lastWeather == 'THUNDER' then
+				SetRainLevel(0.5)
+			else
+				SetRainLevel(0.0)
+			end
+			local newBaseTime = baseTime
+			if GetGameTimer() - 22 > timer then
+				second = second + 1
+				timer = GetGameTimer()
+			end
+			if freezeTime then
+				timeOffset = timeOffset + baseTime - newBaseTime
+				second = 0
+			end
+			baseTime = newBaseTime
+			hour = math.floor(((baseTime + timeOffset) / 60) % 24)
+			if minute ~= math.floor((baseTime + timeOffset) % 60) then
+				minute = math.floor((baseTime + timeOffset) % 60)
+				second = 0
+			end
+			NetworkOverrideClockTime(hour, minute, second)
+		end
 	end
 end)
 
-AddEventHandler("QBCore:Command:SpawnVehicle", function(vehicle)
+AddEventHandler('QBCore:Command:SpawnVehicle', function(vehicle)
 	TriggerServerEvent('SonoranCMS::ServerLogger::QBSpawnVehicle', vehicle)
 end)
 
-AddEventHandler("QBCore:Command:DeleteVehicle", function()
+AddEventHandler('QBCore:Command:DeleteVehicle', function()
 	TriggerServerEvent('SonoranCMS::ServerLogger::QBDeleteVehicle')
 end)
 
 AddEventHandler('QBCore:Client:UseItem', function(item)
 	TriggerServerEvent('SonoranCMS::ServerLogger::QBClientUsedItem', item)
+end)
+
+RegisterNetEvent('SonoranCMS::core::SetEnvironment', function(data)
+	CurrentWeather = data.currentWeather
+	blackout = data.blackout
+	freezeTime = data.freezeTime
+	timeOffset = data.timeOffset
+	baseTime = data.baseTime
 end)
