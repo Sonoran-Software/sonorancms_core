@@ -1204,7 +1204,6 @@ CreateThread(function()
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ACE_MAPPING', function(data)
-		print('Received push event: ' .. data.type .. ' setting ace mapping')
 		if data ~= nil then
 			exports['sonorancms']:setRankList(data.data.mappings)
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting ace mapping')
@@ -1283,6 +1282,13 @@ CreateThread(function()
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting blackout to ' .. json.encode(data.data.blackout))
 				manuallySendPayload()
 			end
+		end
+	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_JOB_MAPPING', function(data)
+		if data ~= nil then
+			exports['sonorancms']:setRankListJobSync(data.data.mappings)
+			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting job mapping')
+			manuallySendPayload()
 		end
 	end)
 end)
@@ -1673,12 +1679,15 @@ function manuallySendPayload()
 				-- 	end
 				-- end
 				local acePermList = exports['sonorancms']:getRankList()
+				local jobRankList = exports['sonorancms']:getRankListJobSync()
 				acePermList = json.decode(acePermList)
+				jobRankList = json.decode(jobRankList)
 				Wait(5000)
 				apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 					players = activePlayers, characters = qbCharacters, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, characterVehicles = characterVehicles, jobs = jobTable,
 					gangs = gangTable, fileJobs = validJobs, fileGangs = validGangs, items = formattedQBItems, fileItems = validItems, garages = QBGarages,
-					config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, errors = errors, aceMappings = acePermList.mappings}
+					config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, errors = errors, aceMappings = acePermList.mappings,
+					jobMappings = jobRankList.mappings}
 				-- Disabled for time being, too spammy
 				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 				-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
@@ -1745,11 +1754,13 @@ function manuallySendPayload()
 			-- 	end
 			-- end
 			local acePermList = exports['sonorancms']:getRankList()
+			local jobRankList = exports['sonorancms']:getRankListJobSync()
 			acePermList = json.decode(acePermList)
+			jobRankList = json.decode(jobRankList)
 			Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, config = {version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)},
-				errors = errors, aceMappings = acePermList.mappings}
+				errors = errors, aceMappings = acePermList.mappings, jobMappings = jobRankList.mappings}
 			-- Disabled for time being, too spammy
 			-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 			-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
