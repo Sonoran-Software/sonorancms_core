@@ -1284,7 +1284,7 @@ CreateThread(function()
 			end
 		end
 	end)
-	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_JOB_MAPPING', function(data)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_JOB_SYNC_MAPPING', function(data)
 		if data ~= nil then
 			exports['sonorancms']:setRankListJobSync(data.data.mappings)
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting job mapping')
