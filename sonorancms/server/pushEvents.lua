@@ -1304,6 +1304,7 @@ CreateThread(function()
 			manuallySendPayload()
 		else
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 		end
 		Wait(60000)
 	end
@@ -1373,6 +1374,7 @@ function manuallySendPayload()
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
+			Config.gameStateError = {code = 'ERR_INVENTORY_NOT_STARTED', message = 'qb-inventory, qs-inventory, ps-inventory and ox_inventory are not started.'}
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
@@ -1386,10 +1388,12 @@ function manuallySendPayload()
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'Skipping payload send due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
+			Config.gameStateError = {code = 'ERR_MYSQL_NOT_STARTED', message = 'oxmysql, mysql-async, and ghmattimysql are not started.'}
 			return
 		end
 		if Config.critErrorGamestate then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 			return
 		else
 			-- Getting System Info
@@ -1696,6 +1700,7 @@ function manuallySendPayload()
 					if not ok then
 						logError('API_ERROR')
 						Config.critErrorGamestate = true
+						Config.gameStateError = {code = 'API_ERROR', message = 'API Error: ' .. result}
 						return
 					end
 				end)
@@ -1705,6 +1710,7 @@ function manuallySendPayload()
 		-- Handle a standalone gamestate
 		if Config.critErrorGamestate then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 			return
 		else
 			-- Getting System Info
@@ -1769,6 +1775,7 @@ function manuallySendPayload()
 				if not ok then
 					logError('API_ERROR')
 					Config.critErrorGamestate = true
+					Config.gameStateError = {code = 'API_ERROR', message = 'API Error: ' .. result}
 					return
 				end
 			end)
