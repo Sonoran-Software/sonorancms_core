@@ -175,6 +175,7 @@ CreateThread(function()
 	end
 	if GetResourceState('sonorancms_updatehelper') == 'started' then
 		ExecuteCommand('stop sonorancms_updatehelper')
+		TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Stopping update helper... Please do not manually start this resource.')
 	end
 	TriggerEvent(GetCurrentResourceName() .. '::StartUpdateLoop')
 	Wait(100000)
