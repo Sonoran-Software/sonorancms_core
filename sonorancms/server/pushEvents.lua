@@ -1204,7 +1204,6 @@ CreateThread(function()
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ACE_MAPPING', function(data)
-		print('Received push event: ' .. data.type .. ' setting ace mapping')
 		if data ~= nil then
 			exports['sonorancms']:setRankList(data.data.mappings)
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting ace mapping')
@@ -1285,6 +1284,13 @@ CreateThread(function()
 			end
 		end
 	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_JOB_SYNC_MAPPING', function(data)
+		if data ~= nil then
+			exports['sonorancms']:setRankListJobSync(data.data.mappings)
+			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting job mapping')
+			manuallySendPayload()
+		end
+	end)
 end)
 
 CreateThread(function()
@@ -1298,6 +1304,7 @@ CreateThread(function()
 			manuallySendPayload()
 		else
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 		end
 		Wait(60000)
 	end
@@ -1367,6 +1374,7 @@ function manuallySendPayload()
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
+			Config.gameStateError = {code = 'ERR_INVENTORY_NOT_STARTED', message = 'qb-inventory, qs-inventory, ps-inventory and ox_inventory are not started.'}
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
@@ -1380,10 +1388,12 @@ function manuallySendPayload()
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'Skipping payload send due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
+			Config.gameStateError = {code = 'ERR_MYSQL_NOT_STARTED', message = 'oxmysql, mysql-async, and ghmattimysql are not started.'}
 			return
 		end
 		if Config.critErrorGamestate then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 			return
 		else
 			-- Getting System Info
@@ -1673,12 +1683,15 @@ function manuallySendPayload()
 				-- 	end
 				-- end
 				local acePermList = exports['sonorancms']:getRankList()
+				local jobRankList = exports['sonorancms']:getRankListJobSync()
 				acePermList = json.decode(acePermList)
+				jobRankList = json.decode(jobRankList)
 				Wait(5000)
 				apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 					players = activePlayers, characters = qbCharacters, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, characterVehicles = characterVehicles, jobs = jobTable,
 					gangs = gangTable, fileJobs = validJobs, fileGangs = validGangs, items = formattedQBItems, fileItems = validItems, garages = QBGarages,
-					config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, errors = errors, aceMappings = acePermList.mappings}
+					config = {slotCount = Config.MaxInventorySlots, version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)}, errors = errors, aceMappings = acePermList.mappings,
+					jobMappings = jobRankList.mappings}
 				-- Disabled for time being, too spammy
 				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 				-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
@@ -1687,6 +1700,7 @@ function manuallySendPayload()
 					if not ok then
 						logError('API_ERROR')
 						Config.critErrorGamestate = true
+						Config.gameStateError = {code = 'API_ERROR', message = 'API Error: ' .. result}
 						return
 					end
 				end)
@@ -1696,6 +1710,7 @@ function manuallySendPayload()
 		-- Handle a standalone gamestate
 		if Config.critErrorGamestate then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 			return
 		else
 			-- Getting System Info
@@ -1745,11 +1760,13 @@ function manuallySendPayload()
 			-- 	end
 			-- end
 			local acePermList = exports['sonorancms']:getRankList()
+			local jobRankList = exports['sonorancms']:getRankListJobSync()
 			acePermList = json.decode(acePermList)
+			jobRankList = json.decode(jobRankList)
 			Wait(5000)
 			apiResponse = {uptime = GetGameTimer(), system = {cpuRaw = systemInfo.cpuRaw, cpuUsage = systemInfo.cpuUsage, memoryRaw = systemInfo.ramRaw, memoryUsage = systemInfo.ramUsage},
 				players = activePlayers, gameVehicles = vehicleGamePool, logs = loggerBuffer, resources = resourceList, config = {version = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)},
-				errors = errors, aceMappings = acePermList.mappings}
+				errors = errors, aceMappings = acePermList.mappings, jobMappings = jobRankList.mappings}
 			-- Disabled for time being, too spammy
 			-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Sending API update for GAMESTATE, payload: ' .. json.encode(apiResponse))
 			-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(apiResponse), -1)
@@ -1758,6 +1775,7 @@ function manuallySendPayload()
 				if not ok then
 					logError('API_ERROR')
 					Config.critErrorGamestate = true
+					Config.gameStateError = {code = 'API_ERROR', message = 'API Error: ' .. result}
 					return
 				end
 			end)
