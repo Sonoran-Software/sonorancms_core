@@ -1370,11 +1370,11 @@ function manuallySendPayload()
 		end)
 	end
 	if GetResourceState('qb-core') == 'started' then
-		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' then
+		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started' and GetResourceState('origen_inventory') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory and ox_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory, ox_inventory and origen_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
-			Config.gameStateError = {code = 'ERR_INVENTORY_NOT_STARTED', message = 'qb-inventory, qs-inventory, ps-inventory and ox_inventory are not started.'}
+			Config.gameStateError = {code = 'ERR_INVENTORY_NOT_STARTED', message = 'qb-inventory, qs-inventory, ps-inventory, ox_inventory and origen_inventory are not started.'}
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
