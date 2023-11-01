@@ -77,6 +77,10 @@ SetHttpHandler(function(req, res)
 					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('ps-inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
 				elseif GetResourceState('ox_inventory') == 'started' then
 					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('ox_inventory') .. '/web/images/' .. decoded.data.name, decoded.data.name)
+				elseif GetResourceName('qs-inventory') == 'started' then
+					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('qs-inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
+				elseif GetResourceState('origen_inventory') == 'started' then
+					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('origen_inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
 				end
 				if imageCb then
 					res.send(json.encode({success = true, file = imageCb.error}))
