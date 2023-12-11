@@ -49,6 +49,8 @@ SetHttpHandler(function(req, res)
 				imagePath = GetResourcePath('qs-inventory') .. '/html/' .. path .. '.png'
 			elseif GetResourceState('origen_inventory') == 'started' then
 				imagePath = GetResourcePath('origen_inventory') .. '/html/' .. path .. '.png'
+			elseif GetResourceName('core_inventory') == 'started' then
+				imagePath = GetResourcePath('core_inventory') .. '/html/' .. path .. '.png'
 			end
 			if not path or not imagePath then
 				res.send(json.encode({
