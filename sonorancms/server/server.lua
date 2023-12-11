@@ -9,12 +9,16 @@ SetHttpHandler(function(req, res)
 	if method == 'POST' and path == '/events' then
 		req.setDataHandler(function(data)
 			if not data then
-				res.send(json.encode({['error'] = 'bad request'}))
+				res.send(json.encode({
+					['error'] = 'bad request'
+				}))
 				return
 			end
 			local body = json.decode(data)
 			if not body then
-				res.send(json.encode({['error'] = 'bad request'}))
+				res.send(json.encode({
+					['error'] = 'bad request'
+				}))
 				return
 			end
 			if body.key and body.key:upper() == Config.APIKey:upper() then
@@ -34,14 +38,29 @@ SetHttpHandler(function(req, res)
 		path = req.path:gsub('/proxy.*', '')
 		method = req.method
 		if method == 'GET' then
-			local imagePath = GetResourcePath('qb-inventory') .. '/html/' .. path .. '.png'
+			local imagePath = nil
+			if GetResourceState('qb-inventory') == 'started' then
+				imagePath = GetResourcePath('qb-inventory') .. '/html/' .. path .. '.png'
+			elseif GetResourceState('ps-inventory') == 'started' then
+				imagePath = GetResourcePath('ps-inventory') .. '/html/' .. path .. '.png'
+			elseif GetResourceState('ox_inventory') == 'started' then
+				imagePath = GetResourcePath('ox_inventory') .. '/html/' .. path .. '.png'
+			elseif GetResourceName('qs-inventory') == 'started' then
+				imagePath = GetResourcePath('qs-inventory') .. '/html/' .. path .. '.png'
+			elseif GetResourceState('origen_inventory') == 'started' then
+				imagePath = GetResourcePath('origen_inventory') .. '/html/' .. path .. '.png'
+			end
 			if not path or not imagePath then
-				res.send(json.encode({error = 'Invalid path'}))
+				res.send(json.encode({
+					error = 'Invalid path'
+				}))
 				return
 			end
 			local file = io.open(imagePath, 'rb')
 			if not file then
-				res.send(json.encode({error = 'Image not found'}))
+				res.send(json.encode({
+					error = 'Image not found'
+				}))
 				return
 			else
 				local content = file:read('*all')
@@ -55,19 +74,27 @@ SetHttpHandler(function(req, res)
 				data = body
 				local decoded = json.decode(data)
 				if tostring(decoded.key) ~= tostring(Config.APIKey) then
-					res.send(json.encode({error = 'Invalid API key'}))
+					res.send(json.encode({
+						error = 'Invalid API key'
+					}))
 					return
 				end
 				if decoded.type ~= 'UPLOAD_ITEM_IMAGE' then
-					res.send(json.encode({error = 'Invalid request type'}))
+					res.send(json.encode({
+						error = 'Invalid request type'
+					}))
 					return
 				end
 				if not path or path ~= '/upload' then
-					res.send(json.encode({error = 'Invalid path'}))
+					res.send(json.encode({
+						error = 'Invalid path'
+					}))
 					return
 				end
 				if not decoded or not decoded.data.raw then
-					res.send(json.encode({error = 'Invalid data'}))
+					res.send(json.encode({
+						error = 'Invalid data'
+					}))
 					return
 				end
 				local imageCb = nil
@@ -83,9 +110,15 @@ SetHttpHandler(function(req, res)
 					imageCb = exports['sonorancms']:SaveBase64ToFile(decoded.data.raw, GetResourcePath('origen_inventory') .. '/html/images/' .. decoded.data.name, decoded.data.name)
 				end
 				if imageCb then
-					res.send(json.encode({success = true, file = imageCb.error}))
+					res.send(json.encode({
+						success = true,
+						file = imageCb.error
+					}))
 				else
-					res.send(json.encode({success = false, error = 'Failed to save image. Error: ' .. imageCb.error}))
+					res.send(json.encode({
+						success = false,
+						error = 'Failed to save image. Error: ' .. imageCb.error
+					}))
 				end
 			end)
 		end
@@ -97,12 +130,20 @@ RegisterNetEvent('SonoranCMS::pushevents::UnitLogin', function(accID)
 	payload['id'] = Config.CommID
 	payload['key'] = Config.APIKey
 	payload['type'] = 'CLOCK_IN_OUT'
-	payload['data'] = {{['accID'] = accID, ['forceClockIn'] = true, ['server'] = Config.serverId}}
+	payload['data'] = {
+		{
+			['accID'] = accID,
+			['forceClockIn'] = true,
+			['server'] = Config.serverId
+		}
+	}
 	PerformHttpRequest(Config.apiUrl .. '/general/clock_in_out', function(code, result, _)
 		if code == 201 and Config.debug_mode then
 			print('logging in unit. Results: ' .. result)
 		end
-	end, 'POST', json.encode(payload), {['Content-Type'] = 'application/json'})
+	end, 'POST', json.encode(payload), {
+		['Content-Type'] = 'application/json'
+	})
 end)
 
 RegisterNetEvent('SonoranCMS::pushevents::UnitLogout', function(accID)
@@ -110,12 +151,19 @@ RegisterNetEvent('SonoranCMS::pushevents::UnitLogout', function(accID)
 	payload['id'] = Config.CommID
 	payload['key'] = Config.APIKey
 	payload['type'] = 'CLOCK_IN_OUT'
-	payload['data'] = {{['accID'] = accID, ['server'] = Config.serverId}}
+	payload['data'] = {
+		{
+			['accID'] = accID,
+			['server'] = Config.serverId
+		}
+	}
 	PerformHttpRequest(Config.apiUrl .. '/general/clock_in_out', function(code, result, _)
 		if code == 201 and Config.debug_mode then
 			print('logging out unit. Results: ' .. result)
 		end
-	end, 'POST', json.encode(payload), {['Content-Type'] = 'application/json'})
+	end, 'POST', json.encode(payload), {
+		['Content-Type'] = 'application/json'
+	})
 end)
 
 RegisterNetEvent('sonorancms::RegisterPushEvent', function(type, event)
@@ -248,7 +296,9 @@ function debugLog(message)
 	sendConsole('DEBUG', '^7', message)
 end
 
-local ErrorCodes = {['INVALID_COMMUNITY_ID'] = 'You have set an invalid community ID, please check your Config and SonoranCMS integration'}
+local ErrorCodes = {
+	['INVALID_COMMUNITY_ID'] = 'You have set an invalid community ID, please check your Config and SonoranCMS integration'
+}
 
 function logError(err, msg)
 	local o = ''
@@ -277,7 +327,9 @@ function PerformHttpRequestS(url, cb, method, data, headers)
 		data = ''
 	end
 	if not headers then
-		headers = {['X-User-Agent'] = 'SonoranCAD'}
+		headers = {
+			['X-User-Agent'] = 'SonoranCAD'
+		}
 	end
 	exports['sonorancms']:HandleHttpRequest(url, cb, method, data, headers)
 end
@@ -290,9 +342,25 @@ end)
 	Sonoran CMS API Wrapper
 ]]
 
-ApiEndpoints = {['GET_SUB_VERSION'] = 'general', ['CHECK_COM_APIID'] = 'general', ['GET_COM_ACCOUNT'] = 'general', ['GET_DEPARTMENTS'] = 'general', ['GET_PROFILE_FIELDS'] = 'general',
-	['GET_ACCOUNT_RANKS'] = 'general', ['SET_ACCOUNT_RANKS'] = 'general', ['CLOCK_IN_OUT'] = 'general', ['KICK_ACCOUNT'] = 'general', ['BAN_ACCOUNT'] = 'general', ['EDIT_ACC_PROFLIE_FIELDS'] = 'general',
-	['GET_GAME_SERVERS'] = 'servers', ['SET_GAME_SERVERS'] = 'servers', ['VERIFY_WHITELIST'] = 'servers', ['FULL_WHITELIST'] = 'servers', ['RSVP'] = 'events', ['GAMESTATE'] = 'servers'}
+ApiEndpoints = {
+	['GET_SUB_VERSION'] = 'general',
+	['CHECK_COM_APIID'] = 'general',
+	['GET_COM_ACCOUNT'] = 'general',
+	['GET_DEPARTMENTS'] = 'general',
+	['GET_PROFILE_FIELDS'] = 'general',
+	['GET_ACCOUNT_RANKS'] = 'general',
+	['SET_ACCOUNT_RANKS'] = 'general',
+	['CLOCK_IN_OUT'] = 'general',
+	['KICK_ACCOUNT'] = 'general',
+	['BAN_ACCOUNT'] = 'general',
+	['EDIT_ACC_PROFLIE_FIELDS'] = 'general',
+	['GET_GAME_SERVERS'] = 'servers',
+	['SET_GAME_SERVERS'] = 'servers',
+	['VERIFY_WHITELIST'] = 'servers',
+	['FULL_WHITELIST'] = 'servers',
+	['RSVP'] = 'events',
+	['GAMESTATE'] = 'servers'
+}
 
 function registerApiType(type, endpoint)
 	ApiEndpoints[type] = endpoint
@@ -371,7 +439,9 @@ function performApiRequest(postData, type, cb)
 			else
 				errorLog(('CMS API ERROR (from %s): %s %s'):format(url, statusCode, res))
 			end
-		end, 'POST', json.encode(payload), {['Content-Type'] = 'application/json'})
+		end, 'POST', json.encode(payload), {
+			['Content-Type'] = 'application/json'
+		})
 	else
 		debugLog(('Endpoint %s is ratelimited. Dropped request: %s'):format(type, json.encode(payload)))
 	end
