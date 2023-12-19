@@ -158,6 +158,11 @@ function initialize()
 				identifier = string.sub(v, string.len(Config.apiIdType .. ':') + 1)
 			end
 		end
+		if identifier == nil then
+			deferrals.done('You must have a ' .. Config.apiIdType .. ' identifier to join this server.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			return
+		end
 		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
@@ -241,6 +246,11 @@ function initialize()
 		payload['key'] = Config.apiKey
 		payload['type'] = 'GET_ACCOUNT_RANKS'
 		payload['data'] = {{['apiId'] = identifier}}
+		if identifier == nil then
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranPermissions', 'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'}})
+			return
+		end
 		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
