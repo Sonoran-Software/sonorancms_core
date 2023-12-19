@@ -169,7 +169,7 @@ function initialize()
 		payload['data'] = {{['apiId'] = identifier}}
 		if identifier == nil then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
-			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranPermissions', 'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'}})
+			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'}})
 			return
 		end
 		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
@@ -227,9 +227,9 @@ function initialize()
 
 	RegisterCommand('permissiontest', function(src, args, _)
 		if IsPlayerAceAllowed(src, args[1]) then
-			TriggerClientEvent('chat:addMessage', src, {color = {0, 255, 0}, multiline = true, args = {'SonoranPermissions', 'true'}})
+			TriggerClientEvent('chat:addMessage', src, {color = {0, 255, 0}, multiline = true, args = {'SonoranCMS', 'true'}})
 		else
-			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranPermissions', 'false'}})
+			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'false'}})
 		end
 	end, false)
 
