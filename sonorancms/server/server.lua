@@ -6,6 +6,19 @@ local ErrorBuffer = {}
 SetHttpHandler(function(req, res)
 	local path = req.path
 	local method = req.method
+	if method == 'POST' and path == '/panel/data' then
+		req.setDataHandler(function(data)
+			local body = json.decode(data)
+			if body.key and body.key:upper() == Config.APIKey:upper() then
+				local resData = handleDataRequest(body)
+				res.send(json.encode(resData))
+				return
+			else
+				res.send('Bad API Key')
+				return
+			end
+		end)
+	end
 	if method == 'POST' and path == '/events' then
 		req.setDataHandler(function(data)
 			if not data then
@@ -22,6 +35,8 @@ SetHttpHandler(function(req, res)
 				return
 			end
 			if body.key and body.key:upper() == Config.APIKey:upper() then
+				print('Received event: ' .. body.type)
+				print('Event data: ' .. json.encode(body.data))
 				if plugin_handlers[body.type] ~= nil then
 					plugin_handlers[body.type](body)
 					res.send('ok')
