@@ -12,6 +12,18 @@ local timer = 0
 local freezeTime = false
 local blackout = false
 local blackoutVehicle = false
+local Config = {}
+
+AddEventHandler('onClientResourceStart', function(resourceName)
+	if (GetCurrentResourceName() ~= resourceName) then
+		return
+	end
+	TriggerServerEvent('SonoranCMS::core::RequestEnvironment')
+end)
+
+RegisterNetEvent('SonoranCMS::core::ReceiveEnvironment', function(data)
+	Config = data
+end)
 
 RegisterNetEvent('SonoranCMS::core::RequestGamePool', function()
 	local returnVehicleData = {}

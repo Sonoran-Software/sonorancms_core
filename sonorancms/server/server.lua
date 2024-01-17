@@ -464,5 +464,10 @@ function performApiRequest(postData, type, cb)
 	end
 
 end
-
 exports('performApiRequest', performApiRequest)
+
+RegisterNetEvent('SonoranCMS::core::RequestEnvironment', function()
+	TriggerClientEvent('SonoranCMS::core::ReceiveEnvironment', source, {
+		EnableWeatherSync = Config.EnableWeatherSync
+	})
+end)
