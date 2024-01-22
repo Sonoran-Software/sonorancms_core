@@ -8,10 +8,19 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
+
+      - name: Set Auth Token
+        run: |
+          if [ -z "${{ secrets.PAT_OVERRIDE }}" ]; then
+            echo "AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+          else
+            echo "AUTH_TOKEN=${{ secrets.PAT_OVERRIDE }}" >> $GITHUB_ENV
+          fi
+        shell: bash
 
       - name: Extract Version
         id: extract-version
@@ -42,20 +51,18 @@ jobs:
 
       - name: Create or Recreate Release
         id: create-update-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.extract-version.outputs.version }}
           RELEASE_NAME="v$VERSION"
           RELEASE_TAG="$VERSION"
-          
+
           # Check if the release already exists
           if curl --fail -sSL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG"; then
             echo "Deleting existing release $RELEASE_NAME"
             RELEASE_ID=$(curl -X GET "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
-              -H "Authorization: token $GITHUB_TOKEN" | jq -r '.id')
+              -H "Authorization: token $AUTH_TOKEN" | jq -r '.id')
             curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-              -H "Authorization: token $GITHUB_TOKEN"
+              -H "Authorization: token $AUTH_TOKEN"
           else
             echo "Release $RELEASE_NAME does not exist"
           fi
@@ -65,24 +72,24 @@ jobs:
             echo "Deleting existing tag $RELEASE_TAG"
             REF_SHA=$(curl -sSL "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" | jq -r '.object.sha')
             curl -X DELETE "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG" \
-              -H "Authorization: token $GITHUB_TOKEN"
+              -H "Authorization: token $AUTH_TOKEN"
           else
             echo "Tag $RELEASE_TAG does not exist"
           fi
 
           echo "Creating a new release $RELEASE_NAME"
             RESPONSE=$(curl -X POST "https://api.github.com/repos/${{ github.repository }}/releases" \
-              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Authorization: token $AUTH_TOKEN" \
               -d "{\"tag_name\":\"$RELEASE_TAG\",\"name\":\"$RELEASE_NAME\",\"target_commitish\":\"master\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}")
-          
+
           echo $RESPONSE
 
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
-          
+
           # Upload the zip file as a release asset
           echo "Uploading zip to release $RELEASE_NAME"
           UPLOAD_URL="https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=sonorancms_core-$VERSION.zip"
-          curl -H "Authorization: token $GITHUB_TOKEN" \
+          curl -H "Authorization: token $AUTH_TOKEN" \
                -H "Content-Type: application/zip" \
                --data-binary "@release/sonorancms_core-$VERSION.zip" \
                "$UPLOAD_URL"
