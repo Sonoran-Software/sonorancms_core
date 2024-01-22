@@ -2270,7 +2270,8 @@ function handleDataRequest(data)
 		end
 	end
 	payload.errors = errors
-	SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(payload), -1)
+	-- Debugging
+	-- SaveResourceFile(GetCurrentResourceName(), './apiPayload.json', json.encode(payload), -1)
 	return payload
 end
 
