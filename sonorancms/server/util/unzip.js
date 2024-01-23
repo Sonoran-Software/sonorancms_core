@@ -83,8 +83,8 @@ exports('UnzipFile', (file, dest) => {
 			const moduleDirectories = ['ace-permissions', 'clockin', 'jobsync', 'whitelist']; // Add all module directories here
 			let globalChanges = [];
 			moduleDirectories.forEach(moduleName => {
-				const configPath = path.join('/../modules/', moduleName, `${moduleName}_config.json`);
-				const distConfigPath = path.join('/../modules/', moduleName, `${moduleName}_config.dist.json`);
+				const configPath = path.join(GetResourcePath(GetCurrentResourceName()), '/server/modules/', moduleName, `${moduleName}_config.json`);
+				const distConfigPath = path.join(GetResourcePath(GetCurrentResourceName()), '/server/modules/', moduleName, `${moduleName}_config.dist.json`);
 
 				console.log(`[${moduleName}] Checking for config changes...`)
 				console.log(`[${moduleName}] Config path: ${configPath}`)
