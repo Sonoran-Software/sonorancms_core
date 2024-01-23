@@ -22,7 +22,7 @@ exports('unzipCoreCompleted', function(success, error)
 		Citizen.Wait(5000)
 		ExecuteCommand('ensure ' .. helper_name)
 	else
-		Utilities.Logging.logError('Failed to download core update. ' .. tostring(error))
+		Utilities.Logging.logError('Failed to download core update. ' .. tostring(json.encode(error)))
 	end
 end)
 

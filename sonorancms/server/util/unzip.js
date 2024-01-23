@@ -1,6 +1,7 @@
 const unzipper = require("unzipper");
 const deepMerge = require('deepmerge'); // for merging JSON objects
 const path = require('path');
+const fs = require('fs');
 
 function rmdirRecursive(dirPath) {
 	if (fs.existsSync(dirPath)) {
