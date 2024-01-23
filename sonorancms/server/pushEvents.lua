@@ -1060,6 +1060,7 @@ CreateThread(function()
 	end)
 	-- Adding Items to QBCore
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_ITEM_CONFIG', function(data)
+		print('Received push event: ' .. data.type .. ' with data: ' .. json.encode(data))
 		if data ~= nil then
 			local QBCore = exports['qb-core']:GetCoreObject()
 			local item = {
@@ -1173,7 +1174,6 @@ CreateThread(function()
 				-- Too spammy
 				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
 				SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
-
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding item ' .. data.data.name)
 			end
 		end
@@ -1991,9 +1991,9 @@ local function requestQBItems()
 	local QBCore = exports['qb-core']:GetCoreObject()
 	local QBItems = QBCore.Shared.Items
 	local formattedQBItems = {}
-	for _, v in pairs(QBItems) do
+	for k, v in pairs(QBItems) do
 		local item = {
-			name = v.name,
+			name = k,
 			label = v.label or 'Unknown',
 			weight = v.weight or 0,
 			type = v.type,
