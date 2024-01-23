@@ -2198,7 +2198,11 @@ function handleDataRequest(data)
 			consoleErrorString = consoleErrorString .. ' ' .. error.code .. ' ' .. error.message
 		end
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error codes: ' .. consoleErrorString)
-		return errors
+		local errPayload = {
+			data = {},
+			errors = errors
+		}
+		return errPayload
 	end
 	local payload = {
 		data = {},

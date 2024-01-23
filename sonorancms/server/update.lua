@@ -35,6 +35,7 @@ local function doUpdate(latest)
 			f:write(data)
 			f:close()
 			Utilities.Logging.logInfo('Saved file...')
+			Utilities.Logging.logInfo('Working our magic, this may take a moment, please be patient...')
 			doUnzip(savePath)
 		else
 			Utilities.Logging.logWarn(('Failed to download from %s: %s %s'):format(releaseUrl, code, data))
