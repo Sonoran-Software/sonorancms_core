@@ -1708,8 +1708,8 @@ local function getQBChars()
 			end
 			table.insert(qbCharacters, charInfo)
 		end
+		return qbCharacters
 	end)
-	return qbCharacters
 end
 
 local function getGamePool()
@@ -1764,8 +1764,8 @@ local function getCharVehicles()
 			vehicle.displayName = v.vehicle
 			table.insert(characterVehicles, vehicle)
 		end
+		return characterVehicles
 	end)
-	return characterVehicles
 end
 
 local function requestJobs()
@@ -2224,6 +2224,8 @@ function handleDataRequest(data)
 			payload.data[v] = getAllPlayers()
 		end
 		if v == 'gameVehicles' then
+			getGamePool()
+			Wait(2500)
 			payload.data[v] = vehicleGamePool
 		end
 		if v == 'resources' then

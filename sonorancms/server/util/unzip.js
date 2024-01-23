@@ -1,5 +1,4 @@
-var unzipper = require("unzipper");
-var fs = require("fs");
+const unzipper = require("unzipper");
 const deepMerge = require('deepmerge'); // for merging JSON objects
 const path = require('path');
 
@@ -18,19 +17,13 @@ function rmdirRecursive(dirPath) {
 }
 
 function moveFiles(source, destination) {
-	const files = fs.readdirSync(source);
-	files.forEach((file) => {
-		fs.renameSync(path.join(source, file), path.join(destination, file));
-	});
-}
-
 // Get a list of all files and directories in the source directory
-const files = fs.readdirSync(sourceDir);
+const files = fs.readdirSync(source);
 
 // Loop through each file or directory
 files.forEach((file) => {
-	const sourcePath = path.join(sourceDir, file);
-	const destPath = path.join(destDir, file);
+	const sourcePath = path.join(source, file);
+	const destPath = path.join(destination, file);
 
 	// If it's a directory, recursively move its contents
 	if (fs.statSync(sourcePath).isDirectory()) {
@@ -40,6 +33,7 @@ files.forEach((file) => {
 		fs.copyFileSync(sourcePath, destPath);
 	}
 });
+}
 
 function findChanges(existingConfig, defaultConfig, basePath = '') {
 	let changes = [];
