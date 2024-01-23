@@ -83,8 +83,8 @@ exports('UnzipFile', (file, dest) => {
 			const moduleDirectories = ['ace-permissions', 'clockin', 'jobsync', 'whitelist']; // Add all module directories here
 			let globalChanges = [];
 			moduleDirectories.forEach(moduleName => {
-				const configPath = path.join(dest, moduleName, `${moduleName}_config.json`);
-				const distConfigPath = path.join(dest, moduleName, `${moduleName}_config.dist.json`);
+				const configPath = path.join('/../modules/', moduleName, `${moduleName}_config.json`);
+				const distConfigPath = path.join('/../modules/', moduleName, `${moduleName}_config.dist.json`);
 
 				if (fs.existsSync(distConfigPath)) {
 					if (!fs.existsSync(configPath)) {
