@@ -17,22 +17,22 @@ function rmdirRecursive(dirPath) {
 }
 
 function moveFiles(source, destination) {
-// Get a list of all files and directories in the source directory
-const files = fs.readdirSync(source);
+	// Get a list of all files and directories in the source directory
+	const files = fs.readdirSync(source);
 
-// Loop through each file or directory
-files.forEach((file) => {
-	const sourcePath = path.join(source, file);
-	const destPath = path.join(destination, file);
+	// Loop through each file or directory
+	files.forEach((file) => {
+		const sourcePath = path.join(source, file);
+		const destPath = path.join(destination, file);
 
-	// If it's a directory, recursively move its contents
-	if (fs.statSync(sourcePath).isDirectory()) {
-		moveFiles(sourcePath, destPath);
-	} else {
-		// Otherwise, it's a file - move it to the destination directory
-		fs.copyFileSync(sourcePath, destPath);
-	}
-});
+		// If it's a directory, recursively move its contents
+		if (fs.statSync(sourcePath).isDirectory()) {
+			moveFiles(sourcePath, destPath);
+		} else {
+			// Otherwise, it's a file - move it to the destination directory
+			fs.copyFileSync(sourcePath, destPath);
+		}
+	});
 }
 
 function findChanges(existingConfig, defaultConfig, basePath = '') {
@@ -85,20 +85,23 @@ exports('UnzipFile', (file, dest, type) => {
 				moduleDirectories.forEach(moduleName => {
 					const configPath = path.join(dest, moduleName, `${moduleName}_config.json`);
 					const distConfigPath = path.join(dest, moduleName, `${moduleName}_config.dist.json`);
+
 					if (fs.existsSync(distConfigPath)) {
-						let existingConfig = {};
-						let configExists = false;
-						if (fs.existsSync(configPath)) {
-							existingConfig = JSON.parse(fs.readFileSync(configPath));
-							configExists = true;
-						}
-						const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
-						const mergedConfig = deepMerge(existingConfig, distConfig);
-						const changesArray = findChanges(existingConfig, distConfig);
-						if (!configExists || changesArray.length > 0) {
-							fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
-							console.log(`[${moduleName}] Config updated with changes:`, changesArray);
-							globalChanges = globalChanges.concat(changesArray.map(change => `[${moduleName}] ${change}`));
+						if (!fs.existsSync(configPath)) {
+							// If the regular config doesn't exist, rename the dist config file to regular config file
+							fs.renameSync(distConfigPath, configPath);
+							console.log(`[${moduleName}] No existing config found. Renamed dist config to regular config.`);
+						} else {
+							// If the regular config exists, proceed with the merge
+							let existingConfig = JSON.parse(fs.readFileSync(configPath));
+							const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
+							const mergedConfig = deepMerge(existingConfig, distConfig);
+							const changesArray = findChanges(existingConfig, distConfig);
+							if (changesArray.length > 0) {
+								fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
+								console.log(`[${moduleName}] Config updated with changes:`, changesArray);
+								globalChanges = globalChanges.concat(changesArray.map(change => `[${moduleName}] ${change}`));
+							}
 						}
 					}
 				});
