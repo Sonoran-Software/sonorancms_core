@@ -1475,15 +1475,6 @@ CreateThread(function()
 			else
 				shiftToHour(tonumber(data.data.hour))
 				shiftToMinute(tonumber(data.data.minute))
-
-				local environmentData = {
-					currentWeather = CurrentWeather,
-					blackout = blackout,
-					freezeTime = freezeTime,
-					timeOffset = timeOffset,
-					baseTime = baseTime
-				}
-				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
 				local environmentData = {
 					currentWeather = CurrentWeather,
 					blackout = blackout,
@@ -1500,9 +1491,6 @@ CreateThread(function()
 			if GetResourceState('qb-weathersync') == 'started' then
 				TriggerEvent('qb-weathersync:server:setWeather', data.data.weatherState)
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
-				TriggerEvent('qb-weathersync:server:setWeather', data.data.weatherState)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
-
 			else
 				CurrentWeather = data.data.weatherState
 				local environmentData = {
@@ -1514,25 +1502,13 @@ CreateThread(function()
 				}
 				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
-				local environmentData = {
-					currentWeather = CurrentWeather,
-					blackout = blackout,
-					freezeTime = freezeTime,
-					timeOffset = timeOffset,
-					baseTime = baseTime
-				}
-				TriggerClientEvent('SonoranCMS::core::SetEnvironment', -1, environmentData)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting environment weather to ' .. data.data.weatherState)
-
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_FREEZE_WEATHER', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleDynamicWeather', data.data.freezeWeather)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
-
+				TriggerEvent('qb-weathersync:server:toggleDynamicWeather', data.data.freezeWeather)
 			else
 				dynamicWeather = data.data.freezeWeather
 				local enviormentData = {
@@ -1550,9 +1526,7 @@ CreateThread(function()
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_FREEZE_TIME', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleFreezeTime', data.data.freezeTime)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
-
+				TriggerEvent('qb-weathersync:server:toggleFreezeTime', data.data.freezeTime)
 			else
 				freezeTime = data.data.freezeTime
 				local enviormentData = {
@@ -1570,9 +1544,7 @@ CreateThread(function()
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_ENVIRONMENT_TOGGLE_BLACKOUT', function(data)
 		if data ~= nil then
 			if GetResourceState('qb-weathersync') == 'started' then
-				TriggerServerEvent('qb-weathersync:server:toggleBlackout', data.data.blackout)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting enviroment time to ' .. data.data.time)
-
+				TriggerEvent('qb-weathersync:server:toggleBlackout', data.data.blackout)
 			else
 				blackout = data.data.blackout
 				local enviormentData = {
@@ -1631,15 +1603,16 @@ local function getAllPlayers()
 		}
 		table.insert(activePlayers, playerInfo)
 	end
+	Wait(2000)
 	return activePlayers
 end
 
-local function getQBChars()
+local function getQBChars(callback)
 	-- Getting QBCore object
 	local QBCore = exports['qb-core']:GetCoreObject()
 	-- Query the DB for QB Players rather than using the function because the function only returns active ones
-	local qbCharacters = {}
 	MySQL.query('SELECT * FROM `players`', function(row)
+		local qbCharacters = {}
 		for _, v in ipairs(row) do
 			local qbCharInfo = QBCore.Functions.GetPlayerByCitizenId(v.citizenid)
 			local playerInventory = {}
@@ -1708,7 +1681,7 @@ local function getQBChars()
 			end
 			table.insert(qbCharacters, charInfo)
 		end
-		return qbCharacters
+		callback(qbCharacters)
 	end)
 end
 
@@ -1741,7 +1714,7 @@ local function requestResources()
 	return resourceList
 end
 
-local function getCharVehicles()
+local function getCharVehicles(callback)
 	local characterVehicles = {}
 	MySQL.query('SELECT * FROM player_vehicles', function(row)
 		for _, v in ipairs(row) do
@@ -1764,7 +1737,7 @@ local function getCharVehicles()
 			vehicle.displayName = v.vehicle
 			table.insert(characterVehicles, vehicle)
 		end
-		return characterVehicles
+		callback(characterVehicles)
 	end)
 end
 
@@ -2084,14 +2057,22 @@ end
 
 local function requestAcePerms()
 	local acePermList = exports['sonorancms']:getRankList()
-	acePermList = json.decode(acePermList)
-	return acePermList.mappings
+	if #acePermList == 0 then
+		return {}
+	else
+		acePermList = json.decode(acePermList)
+		return acePermList.mappings
+	end
 end
 
 local function requestJobRankList()
 	local jobRankList = exports['sonorancms']:getRankListJobSync()
-	jobRankList = json.decode(jobRankList)
-	return jobRankList.mappings
+	if #jobRankList == 0 then
+		return {}
+	else
+		jobRankList = json.decode(jobRankList)
+		return jobRankList.mappings
+	end
 end
 
 function handleDataRequest(data)
@@ -2236,7 +2217,12 @@ function handleDataRequest(data)
 			payload.data[v] = requestResources()
 		end
 		if v == 'characters' then
-			payload.data[v] = getQBChars()
+			local qbChars = {}
+			getQBChars(function(characters)
+				qbChars = characters
+			end)
+			Wait(3000)
+			payload.data[v] = qbChars
 		end
 		if v == 'aceMappings' then
 			payload.data[v] = requestAcePerms()
@@ -2245,7 +2231,12 @@ function handleDataRequest(data)
 			payload.data[v] = requestJobRankList()
 		end
 		if v == 'characterVehicles' then
-			payload.data[v] = getCharVehicles()
+			local charVehs = {}
+			getCharVehicles(function(vehicles)
+				charVehs = vehicles
+			end)
+			Wait(3000)
+			payload.data[v] = charVehs
 		end
 		if v == 'jobs' then
 			payload.data[v] = requestJobs()

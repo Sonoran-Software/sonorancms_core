@@ -252,6 +252,11 @@ end
 
 local function getRankList()
 	local config = LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json')
+	if config == nil then
+		config = {}
+	else
+		config = config
+	end
 	return config
 end
 exports('getRankList', getRankList)
