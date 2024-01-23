@@ -86,6 +86,9 @@ exports('UnzipFile', (file, dest) => {
 				const configPath = path.join('/../modules/', moduleName, `${moduleName}_config.json`);
 				const distConfigPath = path.join('/../modules/', moduleName, `${moduleName}_config.dist.json`);
 
+				console.log(`[${moduleName}] Checking for config changes...`)
+				console.log(`[${moduleName}] Config path: ${configPath}`)
+				console.log(`[${moduleName}] Dist config path: ${distConfigPath}`)
 				if (fs.existsSync(distConfigPath)) {
 					if (!fs.existsSync(configPath)) {
 						// If the regular config doesn't exist, rename the dist config file to regular config file
@@ -103,6 +106,8 @@ exports('UnzipFile', (file, dest) => {
 							globalChanges = globalChanges.concat(changesArray.map(change => `[${moduleName}] ${change}`));
 						}
 					}
+				} else {
+					console.log(`[${moduleName}] No dist config found. Skipping...`);
 				}
 			});
 			exports[GetCurrentResourceName()].unzipCoreCompleted(true, globalChanges.length > 0 ? globalChanges : 'nil');
