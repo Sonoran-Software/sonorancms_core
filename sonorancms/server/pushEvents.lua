@@ -91,6 +91,9 @@ local explosionTypes = {
 ---@param type string the action type
 ---@param data table|nil the event data
 local function serverLogger(src, type, data)
+	if data.message == '\n' then
+        return
+	end
 	loggerBuffer[#loggerBuffer + 1] = {
 		src = src,
 		type = type,
