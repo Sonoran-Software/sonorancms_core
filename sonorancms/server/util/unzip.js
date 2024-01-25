@@ -1,7 +1,7 @@
 const unzipper = require("unzipper");
-const deepMerge = require('deepmerge'); // for merging JSON objects
-const path = require('path');
-const fs = require('fs');
+const deepMerge = require("deepmerge"); // for merging JSON objects
+const path = require("path");
+const fs = require("fs");
 
 function rmdirRecursive(dirPath) {
 	if (fs.existsSync(dirPath)) {
@@ -36,7 +36,7 @@ function moveFiles(source, destination) {
 	});
 }
 
-function findChanges(existingConfig, defaultConfig, basePath = '') {
+function findChanges(existingConfig, defaultConfig, basePath = "") {
 	let changes = [];
 
 	function arraysEqual(arr1, arr2) {
@@ -53,7 +53,7 @@ function findChanges(existingConfig, defaultConfig, basePath = '') {
 			if (!arraysEqual(value1, value2)) {
 				changes.push(`${fullPath} was changed from ${JSON.stringify(value2)} to ${JSON.stringify(value1)}`);
 			}
-		} else if (typeof value1 === 'object' && typeof value2 === 'object') {
+		} else if (typeof value1 === "object" && typeof value2 === "object") {
 			const childChanges = findChanges(value1, value2, fullPath);
 			changes = changes.concat(childChanges);
 		} else {
@@ -64,7 +64,7 @@ function findChanges(existingConfig, defaultConfig, basePath = '') {
 	}
 
 	// Check for any properties that are in the existing config but not in the default config
-	Object.keys(existingConfig).forEach(key => {
+	Object.keys(existingConfig).forEach((key) => {
 		if (!(key in defaultConfig)) {
 			changes.push(`${basePath}${key} is no longer used and will be removed.`);
 			delete existingConfig[key]; // Remove the key from the existing config
@@ -75,48 +75,79 @@ function findChanges(existingConfig, defaultConfig, basePath = '') {
 	return changes;
 }
 
-
-exports('UnzipFile', (file, dest) => {
-	try {
-		fs.createReadStream(file).pipe(unzipper.Extract({ path: dest }).on('close', () => {
-			// New logic to handle the JSON config update
-			const moduleDirectories = ['ace-permissions', 'clockin', 'jobsync', 'whitelist']; // Add all module directories here
-			let globalChanges = [];
-			moduleDirectories.forEach(moduleName => {
-				const configPath = path.join(GetResourcePath(GetCurrentResourceName()), '/server/modules/', moduleName, `${moduleName}_config.json`);
-				const distConfigPath = path.join(GetResourcePath(GetCurrentResourceName()), '/server/modules/', moduleName, `${moduleName}_config.dist.json`);
-
-				console.log(`[${moduleName}] Checking for config changes...`)
-				console.log(`[${moduleName}] Config path: ${configPath}`)
-				console.log(`[${moduleName}] Dist config path: ${distConfigPath}`)
-				if (fs.existsSync(distConfigPath)) {
-					if (!fs.existsSync(configPath)) {
-						// If the regular config doesn't exist, rename the dist config file to regular config file
-						fs.renameSync(distConfigPath, configPath);
-						console.log(`[${moduleName}] No existing config found. Renamed dist config to regular config.`);
-					} else {
-						// If the regular config exists, proceed with the merge
-						let existingConfig = JSON.parse(fs.readFileSync(configPath));
-						const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
-						const mergedConfig = deepMerge(existingConfig, distConfig);
-						const changesArray = findChanges(existingConfig, distConfig);
-						if (changesArray.length > 0) {
-							fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
-							console.log(`[${moduleName}] Config updated with changes:`, changesArray);
-							globalChanges = globalChanges.concat(changesArray.map(change => `[${moduleName}] ${change}`));
-						}
-					}
-				} else {
-					console.log(`[${moduleName}] No dist config found. Skipping...`);
+exports("CheckConfigFiles", () => {
+	const moduleDirectories = ["ace-permissions", "clockin", "jobsync", "whitelist"]; // Add all module directories here
+	let globalChanges = [];
+	moduleDirectories.forEach((moduleName) => {
+		const configPath = path.join(GetResourcePath(GetCurrentResourceName()), "/server/modules/", moduleName, `${moduleName}_config.json`);
+		const distConfigPath = path.join(GetResourcePath(GetCurrentResourceName()), "/server/modules/", moduleName, `${moduleName}_config.dist.json`);
+		if (fs.existsSync(distConfigPath)) {
+			if (!fs.existsSync(configPath)) {
+				// If the regular config doesn't exist, rename the dist config file to regular config file
+				fs.renameSync(distConfigPath, configPath);
+				console.log(`[${moduleName}] No existing config found. Renamed dist config to regular config.`);
+			} else {
+				// If the regular config exists, proceed with the merge
+				let existingConfig = JSON.parse(fs.readFileSync(configPath));
+				const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
+				const mergedConfig = deepMerge(existingConfig, distConfig);
+				const changesArray = findChanges(existingConfig, distConfig);
+				if (changesArray.length > 0) {
+					fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
+					console.log(`[${moduleName}] Config updated with changes:`, changesArray);
+					globalChanges = globalChanges.concat(changesArray.map((change) => `[${moduleName}] ${change}`));
 				}
-			});
-			exports[GetCurrentResourceName()].unzipCoreCompleted(true, globalChanges.length > 0 ? globalChanges : 'nil');
-		}));
+			}
+		} else {
+			console.log(`[${moduleName}] No dist config found. Skipping...`);
+		}
+	});
+});
+
+exports("UnzipFile", (file, dest) => {
+	try {
+		fs.createReadStream(file).pipe(
+			unzipper.Extract({ path: dest }).on("close", () => {
+				// New logic to handle the JSON config update
+				const moduleDirectories = ["ace-permissions", "clockin", "jobsync", "whitelist"]; // Add all module directories here
+				let globalChanges = [];
+				moduleDirectories.forEach((moduleName) => {
+					const configPath = path.join(GetResourcePath(GetCurrentResourceName()), "/server/modules/", moduleName, `${moduleName}_config.json`);
+					const distConfigPath = path.join(
+						GetResourcePath(GetCurrentResourceName()),
+						"/server/modules/",
+						moduleName,
+						`${moduleName}_config.dist.json`
+					);
+					if (fs.existsSync(distConfigPath)) {
+						if (!fs.existsSync(configPath)) {
+							// If the regular config doesn't exist, rename the dist config file to regular config file
+							fs.renameSync(distConfigPath, configPath);
+							console.log(`[${moduleName}] No existing config found. Renamed dist config to regular config.`);
+						} else {
+							// If the regular config exists, proceed with the merge
+							let existingConfig = JSON.parse(fs.readFileSync(configPath));
+							const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
+							const mergedConfig = deepMerge(existingConfig, distConfig);
+							const changesArray = findChanges(existingConfig, distConfig);
+							if (changesArray.length > 0) {
+								fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
+								console.log(`[${moduleName}] Config updated with changes:`, changesArray);
+								globalChanges = globalChanges.concat(changesArray.map((change) => `[${moduleName}] ${change}`));
+							}
+						}
+					} else {
+						console.log(`[${moduleName}] No dist config found. Skipping...`);
+					}
+				});
+				exports[GetCurrentResourceName()].unzipCoreCompleted(true, globalChanges.length > 0 ? globalChanges : "nil");
+			})
+		);
 	} catch (ex) {
 		exports[GetCurrentResourceName()].unzipCoreCompleted(false, ex?.message);
 	}
 });
 
-exports('makeDir', (path) => {
-	fs.mkdirSync(path, { recursive: true })
-})
+exports("makeDir", (path) => {
+	fs.mkdirSync(path, { recursive: true });
+});

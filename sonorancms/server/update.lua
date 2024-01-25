@@ -70,7 +70,8 @@ function CopyFile(old_path, new_path)
 	return new_file_sz == old_file_sz
 end
 
-AddEventHandler(GetCurrentResourceName() .. '::CheckConfig', function()
+RegisterNetEvent(GetCurrentResourceName() .. '::CheckConfig', function()
+	exports[GetCurrentResourceName()]:CheckConfigFiles()
 	if not FileExists(GetResourcePath(GetCurrentResourceName()) .. '/config.lua') then
 		CopyFile(GetResourcePath(GetCurrentResourceName()) .. '/config.CHANGEME.lua', GetResourcePath(GetCurrentResourceName()) .. '/config.lua')
 		local c = assert(io.open(GetResourcePath(helper_name) .. '/config.lock', 'w+'))
