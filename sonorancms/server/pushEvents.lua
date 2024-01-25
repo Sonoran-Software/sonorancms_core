@@ -259,8 +259,12 @@ CreateThread(function()
 						PlayerDataMoney,
 						data.data.citizenId
 					})
+					local QBCore = exports['qb-core']:GetCoreObject()
+					local Player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
+					if Player ~= nil then
+						Player.Functions.SetMoney(data.data.moneyType, data.data.amount)
+					end
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
-
 				else
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but money type ' .. data.data.moneyType .. ' was not found')
 				end
