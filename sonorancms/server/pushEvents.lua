@@ -91,8 +91,10 @@ local explosionTypes = {
 ---@param type string the action type
 ---@param data table|nil the event data
 local function serverLogger(src, type, data)
-	if data.message == '\n' then
-        return
+	if data then
+		if data.message == '\n' then
+			return
+		end
 	end
 	loggerBuffer[#loggerBuffer + 1] = {
 		src = src,
@@ -130,9 +132,12 @@ local function encodeCombinable(combinableData)
 	local anim = combinableData.anim
 	local animString = ''
 	if anim then
-		animString = string.format(', anim = {text = "%s", dict = "%s", timeOut = %d, lib = "%s"}', anim.text, anim.dict, anim.timeOut, anim.lib)
+		if type(anim) == 'table' then
+			if #anim > 0 then
+				animString = string.format(', anim = {text = "%s", dict = "%s", timeOut = %d, lib = "%s"}', anim.text, anim.dict, anim.timeOut, anim.lib)
+			end
+		end
 	end
-
 	local combinableLine = string.format('{accept = {%s}, reward = "%s"%s},', table.concat(acceptArray, ','), combinableData.reward, animString)
 	return combinableLine
 end
@@ -1168,7 +1173,7 @@ CreateThread(function()
 							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
 							table.insert(lines, shouldCloseLine)
 						end
-						if itemData.combinable ~= nil then
+						if itemData.combinable then
 							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
 							table.insert(lines, combinableLine)
 						end
@@ -1271,7 +1276,7 @@ CreateThread(function()
 							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
 							table.insert(lines, shouldCloseLine)
 						end
-						if itemData.combinable ~= nil then
+						if itemData.combinable then
 							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
 							table.insert(lines, combinableLine)
 						end
@@ -1363,7 +1368,7 @@ CreateThread(function()
 							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
 							table.insert(lines, shouldCloseLine)
 						end
-						if itemData.combinable ~= nil then
+						if itemData.combinable then
 							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
 							table.insert(lines, combinableLine)
 						end
@@ -1419,7 +1424,7 @@ CreateThread(function()
 			local QBCore = exports['qb-core']:GetCoreObject()
 			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 			if QBPlayer then
-				QBPlayer.Functions.SetJob(data.data.job, data.data.grade)
+				QBPlayer.Functions.SetJob(data.data.name, data.data.grade)
 			else
 				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 					data.data.citizenId
@@ -1430,7 +1435,7 @@ CreateThread(function()
 					else
 						local PlayerData = row
 						PlayerData.job = json.decode(PlayerData.job)
-						PlayerData.job.name = data.data.job
+						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = data.data.grade
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.isboss = data.data.isBoss or false
@@ -1685,6 +1690,34 @@ local function getQBChars(callback)
 			if qbCharInfo then
 				charInfo.offline = false
 				charInfo.source = qbCharInfo.PlayerData.source
+				local liveInv = {}
+				local playerInv = qbCharInfo.PlayerData.items
+				for _, item in pairs(playerInv) do
+					local QBItems = QBCore.Shared.Items
+					local QBItem = {}
+					if item.name then
+						QBItem = QBItems[item.name:lower()]
+					end
+					if item and QBItem and next(QBItem) ~= nil then
+						table.insert(liveInv, {
+							slot = item.slot,
+							name = item.name,
+							amount = item.amount,
+							label = item.label or QBItem.label or 'Unknown',
+							description = item.description or '',
+							weight = item.weight or 0,
+							type = item.type,
+							unique = item.unique or false,
+							image = item.image or QBItem.image or '',
+							info = item.info or {},
+							shouldClose = item.shouldClose or false,
+							combinable = v.combinable or nil
+						})
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: An item does not exist in qb-core. Item data: ' .. json.encode(item))
+					end
+				end
+				charInfo.inventory = liveInv
 			end
 			table.insert(qbCharacters, charInfo)
 		end
