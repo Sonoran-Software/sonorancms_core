@@ -5,7 +5,7 @@ local pendingRestart = false
 
 function doUnzip(path)
 	local unzipPath = GetResourcePath(GetCurrentResourceName()) .. '/../../'
-	exports[GetCurrentResourceName()]:UnzipFile(path, unzipPath, 'core')
+	exports[GetCurrentResourceName()]:UnzipFile(path, unzipPath, Config.debug_mode)
 end
 
 exports('unzipCoreCompleted', function(success, error)
@@ -71,7 +71,7 @@ function CopyFile(old_path, new_path)
 end
 
 RegisterNetEvent(GetCurrentResourceName() .. '::CheckConfig', function()
-	exports[GetCurrentResourceName()]:CheckConfigFiles()
+	exports[GetCurrentResourceName()]:CheckConfigFiles(Config.debug_mode)
 	if not FileExists(GetResourcePath(GetCurrentResourceName()) .. '/config.lua') then
 		CopyFile(GetResourcePath(GetCurrentResourceName()) .. '/config.CHANGEME.lua', GetResourcePath(GetCurrentResourceName()) .. '/config.lua')
 		local c = assert(io.open(GetResourcePath(helper_name) .. '/config.lock', 'w+'))
