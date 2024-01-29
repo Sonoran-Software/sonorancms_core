@@ -91,8 +91,10 @@ local explosionTypes = {
 ---@param type string the action type
 ---@param data table|nil the event data
 local function serverLogger(src, type, data)
-	if data.message == '\n' then
-        return
+	if data then
+		if data.message == '\n' then
+			return
+		end
 	end
 	loggerBuffer[#loggerBuffer + 1] = {
 		src = src,
@@ -1419,7 +1421,7 @@ CreateThread(function()
 			local QBCore = exports['qb-core']:GetCoreObject()
 			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 			if QBPlayer then
-				QBPlayer.Functions.SetJob(data.data.job, data.data.grade)
+				QBPlayer.Functions.SetJob(data.data.name, data.data.grade)
 			else
 				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 					data.data.citizenId
@@ -1430,7 +1432,7 @@ CreateThread(function()
 					else
 						local PlayerData = row
 						PlayerData.job = json.decode(PlayerData.job)
-						PlayerData.job.name = data.data.job
+						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = data.data.grade
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.isboss = data.data.isBoss or false
