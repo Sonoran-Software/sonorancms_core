@@ -75,7 +75,7 @@ function findChanges(existingConfig, defaultConfig, basePath = "") {
 	return changes;
 }
 
-exports("CheckConfigFiles", () => {
+exports("CheckConfigFiles", (debugMode) => {
 	const moduleDirectories = ["ace-permissions", "clockin", "jobsync", "whitelist"]; // Add all module directories here
 	let globalChanges = [];
 	moduleDirectories.forEach((moduleName) => {
@@ -99,12 +99,14 @@ exports("CheckConfigFiles", () => {
 				}
 			}
 		} else {
-			console.log(`[${moduleName}] No dist config found. Skipping...`);
+			if (debugMode) {
+				console.log(`[${moduleName}] No dist config found. Skipping...`);
+			}
 		}
 	});
 });
 
-exports("UnzipFile", (file, dest) => {
+exports("UnzipFile", (file, dest, debugMode) => {
 	try {
 		fs.createReadStream(file).pipe(
 			unzipper.Extract({ path: dest }).on("close", () => {
@@ -137,7 +139,9 @@ exports("UnzipFile", (file, dest) => {
 							}
 						}
 					} else {
-						console.log(`[${moduleName}] No dist config found. Skipping...`);
+						if (debugMode) {
+							console.log(`[${moduleName}] No dist config found. Skipping...`);
+						}
 					}
 				});
 				exports[GetCurrentResourceName()].unzipCoreCompleted(true, globalChanges.length > 0 ? globalChanges : "nil");
