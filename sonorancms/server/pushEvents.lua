@@ -1438,7 +1438,6 @@ CreateThread(function()
 						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = data.data.grade
 						PlayerData.job.onduty = data.data.onDuty
-						PlayerData.job.isboss = data.data.isBoss or false
 						PlayerData.job.label = data.data.label
 						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ?', {
 							PlayerData.job,
