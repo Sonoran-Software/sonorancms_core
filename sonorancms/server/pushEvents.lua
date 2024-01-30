@@ -1424,7 +1424,7 @@ CreateThread(function()
 			local QBCore = exports['qb-core']:GetCoreObject()
 			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 			if QBPlayer then
-				QBPlayer.Functions.SetJob(data.data.name, data.data.grade)
+				QBPlayer.Functions.SetJob(data.data.name, (data.data.grade + 1))
 			else
 				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 					data.data.citizenId
