@@ -1821,10 +1821,10 @@ local function requestGangs()
 	local QBCore = exports['qb-core']:GetCoreObject()
 	for i, v in pairs(QBCore.Shared.Gangs) do
 		local numericGrades = {}
-		for k, _ in pairs(v.grades) do
+		for k, h in pairs(v.grades) do
 			local numericKey = tonumber(k)
 			if numericKey then
-				numericGrades[numericKey] = v
+				numericGrades[numericKey] = h
 			end
 		end
 		local sortedKeys = {}
