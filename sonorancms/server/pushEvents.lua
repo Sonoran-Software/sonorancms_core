@@ -1424,7 +1424,7 @@ CreateThread(function()
 			local QBCore = exports['qb-core']:GetCoreObject()
 			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 			if QBPlayer then
-				QBPlayer.Functions.SetJob(data.data.name, (data.data.grade + 1))
+				QBPlayer.Functions.SetJob(data.data.name, (data.data.grade - 1))
 			else
 				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 					data.data.citizenId
@@ -1785,12 +1785,25 @@ local function requestJobs()
 	local jobTable = {}
 	local QBCore = exports['qb-core']:GetCoreObject()
 	for i, v in pairs(QBCore.Shared.Jobs) do
+		local numericGrades = {}
+		for k, _ in pairs(v.grades) do
+			local numericKey = tonumber(k)
+			if numericKey then
+				numericGrades[numericKey] = v
+			end
+		end
+		local sortedKeys = {}
+		for k in pairs(numericGrades) do
+			table.insert(sortedKeys, k)
+		end
+		table.sort(sortedKeys)
 		local gradesTable = {}
-		for _, g in pairs(v.grades) do
+		for _, k in ipairs(sortedKeys) do
+			local grade = numericGrades[k]
 			table.insert(gradesTable, {
-				name = g.name,
-				payment = g.payment,
-				isBoss = g.isboss
+				name = grade.name,
+				payment = grade.payment,
+				isBoss = grade.isboss
 			})
 		end
 		table.insert(jobTable, {
@@ -1808,12 +1821,25 @@ local function requestGangs()
 	local gangTable = {}
 	local QBCore = exports['qb-core']:GetCoreObject()
 	for i, v in pairs(QBCore.Shared.Gangs) do
+		local numericGrades = {}
+		for k, _ in pairs(v.grades) do
+			local numericKey = tonumber(k)
+			if numericKey then
+				numericGrades[numericKey] = v
+			end
+		end
+		local sortedKeys = {}
+		for k in pairs(numericGrades) do
+			table.insert(sortedKeys, k)
+		end
+		table.sort(sortedKeys)
 		local gradesTable = {}
-		for _, g in pairs(v.grades) do
+		for _, k in ipairs(sortedKeys) do
+			local grade = numericGrades[k]
 			table.insert(gradesTable, {
-				name = g.name,
-				payment = g.payment,
-				isBoss = g.isboss
+				name = grade.name,
+				payment = grade.payment,
+				isBoss = grade.isboss
 			})
 		end
 		table.insert(gangTable, {
@@ -1832,15 +1858,28 @@ local function requestFileJobs()
 	local function filterJobs(jobs)
 		local validJobs = {}
 		for jobName, jobData in pairs(jobs) do
+			local numericGrades = {}
+			for k, v in pairs(jobData.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = v
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
 			local gradesTable = {}
-			for _, g in pairs(jobData.grades) do
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
 				table.insert(gradesTable, {
-					name = g.name,
-					payment = g.payment,
-					isBoss = g.isboss
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
 				})
 			end
-			table.insert(validJobs, {
+				table.insert(validJobs, {
 				id = jobName,
 				label = jobData.label,
 				defaultDuty = jobData.defaultDuty,

@@ -90,7 +90,8 @@ exports("CheckConfigFiles", (debugMode) => {
 				// If the regular config exists, proceed with the merge
 				let existingConfig = JSON.parse(fs.readFileSync(configPath));
 				const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
-				const mergedConfig = deepMerge(existingConfig, distConfig);
+				const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray;
+				const mergedConfig = deepMerge(existingConfig, distConfig, { arrayMerge: overwriteMerge });
 				const changesArray = findChanges(existingConfig, distConfig);
 				if (changesArray.length > 0) {
 					fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
@@ -130,7 +131,8 @@ exports("UnzipFile", (file, dest, debugMode) => {
 							// If the regular config exists, proceed with the merge
 							let existingConfig = JSON.parse(fs.readFileSync(configPath));
 							const distConfig = JSON.parse(fs.readFileSync(distConfigPath));
-							const mergedConfig = deepMerge(existingConfig, distConfig);
+							const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray;
+							const mergedConfig = deepMerge(existingConfig, distConfig, { arrayMerge: overwriteMerge });
 							const changesArray = findChanges(existingConfig, distConfig);
 							if (changesArray.length > 0) {
 								fs.writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
