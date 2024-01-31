@@ -35,8 +35,6 @@ SetHttpHandler(function(req, res)
 				return
 			end
 			if body.key and body.key:upper() == Config.APIKey:upper() then
-				print('Received event: ' .. body.type)
-				print('Event data: ' .. json.encode(body.data))
 				if plugin_handlers[body.type] ~= nil then
 					plugin_handlers[body.type](body)
 					res.send('ok')
