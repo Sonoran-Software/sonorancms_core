@@ -1917,14 +1917,34 @@ local function requestFileGangs()
 	local function filterGangs(gangs)
 		local validGangs = {}
 		for gangName, gangData in pairs(gangs) do
+			local numericGrades = {}
+			for k, v in pairs(gangData.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = v
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
 			local gradesTable = {}
-			for _, g in pairs(gangData.grades) do
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
 				table.insert(gradesTable, {
-					name = g.name,
-					payment = g.payment,
-					isBoss = g.isboss
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
 				})
 			end
+				table.insert(validGangs, {
+				id = gangName,
+				label = gangData.label,
+				defaultDuty = gangData.defaultDuty,
+				offDutyPay = gangData.offDutyPay,
+				grades = gradesTable
+			})
 			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
