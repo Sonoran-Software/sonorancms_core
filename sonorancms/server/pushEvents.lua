@@ -1690,6 +1690,13 @@ local function getQBChars(callback)
 				charInfo.source = qbCharInfo.PlayerData.source
 				local liveInv = {}
 				local playerInv = qbCharInfo.PlayerData.items
+				charInfo.jobInfo = {
+					name = qbCharInfo.PlayerData.job.name,
+					grade = qbCharInfo.PlayerData.job.grade.name,
+					label = qbCharInfo.PlayerData.job.label,
+					onDuty = qbCharInfo.PlayerData.job.onduty,
+					type = qbCharInfo.PlayerData.job.type or 'none'
+				}
 				for _, item in pairs(playerInv) do
 					local QBItems = QBCore.Shared.Items
 					local QBItem = {}
