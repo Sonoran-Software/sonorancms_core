@@ -1424,6 +1424,7 @@ CreateThread(function()
 			local QBPlayer = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 			if QBPlayer then
 				QBPlayer.Functions.SetJob(data.data.name, (data.data.grade - 1))
+				QBPlayer.Functions.SetJobDuty(data.data.onDuty)
 			else
 				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 					data.data.citizenId
@@ -1434,10 +1435,18 @@ CreateThread(function()
 					else
 						local PlayerData = row
 						PlayerData.job = json.decode(PlayerData.job)
+						local qbJobs = QBCore.Shared.Jobs
+						local job = qbJobs[data.data.name]
 						PlayerData.job.name = data.data.name
-						PlayerData.job.grade = data.data.grade
+						PlayerData.job.grade = {
+							level = data.data.grade - 1,
+							name = job.grades[tostring(data.data.grade - 1)].name,
+						}
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.label = data.data.label
+						PlayerData.job.type = data.data.type or 'none'
+						PlayerData.job.isboss = data.data.isBoss or false
+						PlayerData.job = json.encode(PlayerData.job)
 						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ?', {
 							PlayerData.job,
 							data.data.citizenId
