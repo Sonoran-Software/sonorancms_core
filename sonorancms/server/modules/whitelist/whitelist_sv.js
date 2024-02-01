@@ -140,7 +140,7 @@ getAppropriateIdentifier = (sourcePlayer, type) => {
 
 
 async function initialize() {
-    if (!enabledConfig.enabled) return;
+    if (!enabledConfig?.enabled) return;
     TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_UPDATED", "sonoran_whitelist::rankupdate")
     await utils.sleep(2000)
     let backup = JSON.parse(

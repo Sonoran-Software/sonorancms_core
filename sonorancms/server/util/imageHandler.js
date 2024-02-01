@@ -1,4 +1,4 @@
-const fs = require('fs').promises;
+const filesystem = require('fs').promises;
 const sizeOf = require('image-size');
 
 exports("SaveBase64ToFile", function (base64String, filepath, filename) {
@@ -12,7 +12,7 @@ exports("SaveBase64ToFile", function (base64String, filepath, filename) {
         // Check if the image is 100x100
         if (dimensions.width === 100 && dimensions.height === 100) {
             // Save the image
-            fs.writeFile(filepath, base64Image, { encoding: 'base64' })
+            filesystem.writeFile(filepath, base64Image, { encoding: 'base64' })
                 .then(() => {
                     console.log('File saved successfully');
                     resolve({ success: true, error: filename });

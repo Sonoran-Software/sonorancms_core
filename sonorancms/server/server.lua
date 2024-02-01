@@ -6,6 +6,19 @@ local ErrorBuffer = {}
 SetHttpHandler(function(req, res)
 	local path = req.path
 	local method = req.method
+	if method == 'POST' and path == '/panel/data' then
+		req.setDataHandler(function(data)
+			local body = json.decode(data)
+			if body.key and body.key:upper() == Config.APIKey:upper() then
+				local resData = handleDataRequest(body)
+				res.send(json.encode(resData))
+				return
+			else
+				res.send('Bad API Key')
+				return
+			end
+		end)
+	end
 	if method == 'POST' and path == '/events' then
 		req.setDataHandler(function(data)
 			if not data then
@@ -231,6 +244,7 @@ CreateThread(function()
 		ExecuteCommand('stop sonorancms_updatehelper')
 		TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Stopping update helper... Please do not manually start this resource.')
 	end
+	TriggerEvent(GetCurrentResourceName() .. '::CheckConfig')
 	TriggerEvent(GetCurrentResourceName() .. '::StartUpdateLoop')
 	Wait(100000)
 end)
@@ -449,5 +463,10 @@ function performApiRequest(postData, type, cb)
 	end
 
 end
-
 exports('performApiRequest', performApiRequest)
+
+RegisterNetEvent('SonoranCMS::core::RequestEnvironment', function()
+	TriggerClientEvent('SonoranCMS::core::ReceiveEnvironment', source, {
+		EnableWeatherSync = Config.EnableWeatherSync
+	})
+end)

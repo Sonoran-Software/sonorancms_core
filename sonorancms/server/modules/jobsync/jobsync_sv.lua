@@ -48,7 +48,10 @@ function initialize()
 		for _, mapping in ipairs(rankMappings.mappings) do
 			for _, r in ipairs(mapping.ranks) do
 				if r == rank then
-					return {job = mapping.job, rank = mapping.rank}
+					return {
+						job = mapping.job,
+						rank = mapping.rank
+					}
 				end
 			end
 		end
@@ -95,22 +98,37 @@ function initialize()
 						local playerSource = getPlayerFromID(b)
 						if playerSource ~= nil then
 							if Config.debug_mode then
-								infoLog('Push event recieved, executing the following command: ' .. 'setjob ' .. playerSource .. ' ' .. findJobByRank(ppermissiondata).job .. ' '
-												        .. findJobByRank(ppermissiondata).rank)
+								infoLog('Push event recieved, executing the following command: ' .. 'setjob ' .. playerSource .. ' ' .. findJobByRank(ppermissiondata).job .. ' ' .. findJobByRank(ppermissiondata).rank)
 							end
 							ExecuteCommand('setjob ' .. playerSource .. ' ' .. findJobByRank(ppermissiondata).job .. ' ' .. findJobByRank(ppermissiondata).rank)
 							if loaded_list[b] == nil then
-								loaded_list[b] = {[ppermissiondata] = {job = findJobByRank(ppermissiondata).job, rank = findJobByRank(ppermissiondata).rank}}
+								loaded_list[b] = {
+									[ppermissiondata] = {
+										job = findJobByRank(ppermissiondata).job,
+										rank = findJobByRank(ppermissiondata).rank
+									}
+								}
 							else
-								loaded_list[b][ppermissiondata] = {job = findJobByRank(ppermissiondata).job, rank = findJobByRank(ppermissiondata).rank}
+								loaded_list[b][ppermissiondata] = {
+									job = findJobByRank(ppermissiondata).job,
+									rank = findJobByRank(ppermissiondata).rank
+								}
 							end
 						end
 						if Config.offline_cache then
 							if cache[b] == nil then
-								cache[b] = {[ppermissiondata] = {apiID = b, jobData = findJobByRank(ppermissiondata)}}
+								cache[b] = {
+									[ppermissiondata] = {
+										apiID = b,
+										jobData = findJobByRank(ppermissiondata)
+									}
+								}
 								SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 							else
-								cache[b][ppermissiondata] = {identifier = b, jobData = findJobByRank(ppermissiondata)}
+								cache[b][ppermissiondata] = {
+									identifier = b,
+									jobData = findJobByRank(ppermissiondata)
+								}
 								SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 							end
 						end
@@ -128,17 +146,30 @@ function initialize()
 								end
 								ExecuteCommand('setjob ' .. playerSource .. ' ' .. findJobByRank(v).job .. ' ' .. findJobByRank(v).rank)
 								if loaded_list[b] == nil then
-									loaded_list[b] = {[v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}}
+									loaded_list[b] = {
+										[v] = {
+											job = findJobByRank(v).job,
+											rank = findJobByRank(v).rank
+										}
+									}
 								else
 									loaded_list[b][v] = findJobByRank(v)
 								end
 							end
 							if Config.offline_cache then
 								if cache[b] == nil then
-									cache[b] = {[v] = {apiID = b, jobData = findJobByRank(v)}}
+									cache[b] = {
+										[v] = {
+											apiID = b,
+											jobData = findJobByRank(v)
+										}
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								else
-									cache[b][v] = {apiID = b, jobData = findJobByRank(v)}
+									cache[b][v] = {
+										apiID = b,
+										jobData = findJobByRank(v)
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								end
 							end
@@ -158,7 +189,16 @@ function initialize()
 				identifier = string.sub(v, string.len(Config.apiIdType .. ':') + 1)
 			end
 		end
-		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
+		if identifier == nil then
+			deferrals.done('You must have a ' .. Config.apiIdType .. ' identifier to join this server.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			return
+		end
+		exports['sonorancms']:performApiRequest({
+			{
+				['apiId'] = identifier
+			}
+		}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
 				if loaded_list[identifier] ~= nil then
@@ -189,18 +229,34 @@ function initialize()
 						end
 						ExecuteCommand('setjob ' .. source .. ' ' .. findJobByRank(v).job .. ' ' .. findJobByRank(v).rank)
 						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}}
+							loaded_list[identifier] = {
+								[v] = {
+									job = findJobByRank(v).job,
+									rank = findJobByRank(v).rank
+								}
+							}
 						else
-							loaded_list[identifier][v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}
+							loaded_list[identifier][v] = {
+								job = findJobByRank(v).job,
+								rank = findJobByRank(v).rank
+							}
 						end
 						if Config.offline_cache then
 							local playerApiID = getPlayerapiID(source)
 							if playerApiID ~= nil then
 								if cache[identifier] == nil then
-									cache[identifier] = {[v] = {apiID = playerApiID, jobData = findJobByRank(v)}}
+									cache[identifier] = {
+										[v] = {
+											apiID = playerApiID,
+											jobData = findJobByRank(v)
+										}
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								else
-									cache[identifier][v] = {apiID = playerApiID, jobData = findJobByRank(v)}
+									cache[identifier][v] = {
+										apiID = playerApiID,
+										jobData = findJobByRank(v)
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								end
 							end
@@ -217,16 +273,35 @@ function initialize()
 							end
 							ExecuteCommand(v)
 							if loaded_list[identifier] == nil then
-								loaded_list[identifier] = {[v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}}
+								loaded_list[identifier] = {
+									[v] = {
+										job = findJobByRank(v).job,
+										rank = findJobByRank(v).rank
+									}
+								}
 							else
-								loaded_list[identifier][v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}
+								loaded_list[identifier][v] = {
+									job = findJobByRank(v).job,
+									rank = findJobByRank(v).rank
+								}
 							end
 						end
 					end
 				end
 				deferrals.done()
 			end
-		end, 'POST', json.encode({id = communityId, key = Config.apiKey, type = 'GET_ACCOUNT_RANKS', data = {{apiId = identifier}}}), {['Content-Type'] = 'application/json'})
+		end, 'POST', json.encode({
+			id = communityId,
+			key = Config.apiKey,
+			type = 'GET_ACCOUNT_RANKS',
+			data = {
+				{
+					apiId = identifier
+				}
+			}
+		}), {
+			['Content-Type'] = 'application/json'
+		})
 	end)
 
 	RegisterCommand('refreshjob', function(src, _, _)
@@ -240,8 +315,32 @@ function initialize()
 		payload['id'] = communityId
 		payload['key'] = Config.apiKey
 		payload['type'] = 'GET_ACCOUNT_RANKS'
-		payload['data'] = {{['apiId'] = identifier}}
-		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
+		payload['data'] = {
+			{
+				['apiId'] = identifier
+			}
+		}
+		if identifier == nil then
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			TriggerClientEvent('chat:addMessage', src, {
+				color = {
+					255,
+					0,
+					0
+				},
+				multiline = true,
+				args = {
+					'SonoranCMS',
+					'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'
+				}
+			})
+			return
+		end
+		exports['sonorancms']:performApiRequest({
+			{
+				['apiId'] = identifier
+			}
+		}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
 				if loaded_list[identifier] ~= nil then
@@ -272,18 +371,34 @@ function initialize()
 						end
 						ExecuteCommand('setjob ' .. src .. ' ' .. findJobByRank(v).job .. ' ' .. findJobByRank(v).rank)
 						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}}
+							loaded_list[identifier] = {
+								[v] = {
+									job = findJobByRank(v).job,
+									rank = findJobByRank(v).rank
+								}
+							}
 						else
-							loaded_list[identifier][v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}
+							loaded_list[identifier][v] = {
+								job = findJobByRank(v).job,
+								rank = findJobByRank(v).rank
+							}
 						end
 						if Config.offline_cache then
 							local playerApiID = getPlayerapiID(source)
 							if playerApiID ~= nil then
 								if cache[identifier] == nil then
-									cache[identifier] = {[v] = {apiID = playerApiID, jobData = findJobByRank(v)}}
+									cache[identifier] = {
+										[v] = {
+											apiID = playerApiID,
+											jobData = findJobByRank(v)
+										}
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								else
-									cache[identifier][v] = {apiID = playerApiID, jobData = findJobByRank(v)}
+									cache[identifier][v] = {
+										apiID = playerApiID,
+										jobData = findJobByRank(v)
+									}
 									SaveResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_cache.json', json.encode(cache))
 								end
 							end
@@ -304,20 +419,34 @@ function initialize()
 								end
 								ExecuteCommand('setjob ' .. playerSource .. ' ' .. v.jobData.job .. ' ' .. v.jobData.rank)
 								if loaded_list[identifier] == nil then
-									loaded_list[identifier] = {[v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}}
+									loaded_list[identifier] = {
+										[v] = {
+											job = findJobByRank(v).job,
+											rank = findJobByRank(v).rank
+										}
+									}
 								else
-									loaded_list[identifier][v] = {job = findJobByRank(v).job, rank = findJobByRank(v).rank}
+									loaded_list[identifier][v] = {
+										job = findJobByRank(v).job,
+										rank = findJobByRank(v).rank
+									}
 								end
 							end
 						end
 					end
 				end
 			end
-		end, 'POST', json.encode(payload), {['Content-Type'] = 'application/json'})
+		end, 'POST', json.encode(payload), {
+			['Content-Type'] = 'application/json'
+		})
 	end)
 end
 local function getRankList()
 	local config = LoadResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_config.json')
+	if config == nil then
+		errorLog('Unable to load jobsync_config.json')
+		return {}
+	end
 	return config
 end
 exports('getRankListJobSync', getRankList)

@@ -5,7 +5,7 @@ local pendingRestart = false
 
 function doUnzip(path)
 	local unzipPath = GetResourcePath(GetCurrentResourceName()) .. '/../../'
-	exports[GetCurrentResourceName()]:UnzipFile(path, unzipPath, 'core')
+	exports[GetCurrentResourceName()]:UnzipFile(path, unzipPath, Config.debug_mode)
 end
 
 exports('unzipCoreCompleted', function(success, error)
@@ -22,7 +22,7 @@ exports('unzipCoreCompleted', function(success, error)
 		Citizen.Wait(5000)
 		ExecuteCommand('ensure ' .. helper_name)
 	else
-		Utilities.Logging.logError('Failed to download core update. ' .. tostring(error))
+		Utilities.Logging.logError('Failed to download core update. ' .. tostring(json.encode(error)))
 	end
 end)
 
@@ -35,6 +35,7 @@ local function doUpdate(latest)
 			f:write(data)
 			f:close()
 			Utilities.Logging.logInfo('Saved file...')
+			Utilities.Logging.logInfo('Working our magic, this may take a moment, please be patient...')
 			doUnzip(savePath)
 		else
 			Utilities.Logging.logWarn(('Failed to download from %s: %s %s'):format(releaseUrl, code, data))
@@ -69,7 +70,8 @@ function CopyFile(old_path, new_path)
 	return new_file_sz == old_file_sz
 end
 
-AddEventHandler(GetCurrentResourceName() .. '::CheckConfig', function()
+RegisterNetEvent(GetCurrentResourceName() .. '::CheckConfig', function()
+	exports[GetCurrentResourceName()]:CheckConfigFiles(Config.debug_mode)
 	if not FileExists(GetResourcePath(GetCurrentResourceName()) .. '/config.lua') then
 		CopyFile(GetResourcePath(GetCurrentResourceName()) .. '/config.CHANGEME.lua', GetResourcePath(GetCurrentResourceName()) .. '/config.lua')
 		local c = assert(io.open(GetResourcePath(helper_name) .. '/config.lock', 'w+'))

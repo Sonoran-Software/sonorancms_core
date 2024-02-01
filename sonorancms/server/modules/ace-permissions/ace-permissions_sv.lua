@@ -93,6 +93,11 @@ function initialize()
 				identifier = string.sub(v, string.len(Config.apiIdType .. ':') + 1)
 			end
 		end
+		if identifier == nil then
+			deferrals.done('You must have a ' .. Config.apiIdType .. ' identifier to join this server.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			return
+		end
 		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
@@ -162,6 +167,11 @@ function initialize()
 		payload['key'] = Config.APIKey
 		payload['type'] = 'GET_ACCOUNT_RANKS'
 		payload['data'] = {{['apiId'] = identifier}}
+		if identifier == nil then
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'}})
+			return
+		end
 		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
@@ -217,9 +227,9 @@ function initialize()
 
 	RegisterCommand('permissiontest', function(src, args, _)
 		if IsPlayerAceAllowed(src, args[1]) then
-			TriggerClientEvent('chat:addMessage', src, {color = {0, 255, 0}, multiline = true, args = {'SonoranPermissions', 'true'}})
+			TriggerClientEvent('chat:addMessage', src, {color = {0, 255, 0}, multiline = true, args = {'SonoranCMS', 'true'}})
 		else
-			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranPermissions', 'false'}})
+			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'false'}})
 		end
 	end, false)
 
@@ -242,6 +252,11 @@ end
 
 local function getRankList()
 	local config = LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json')
+	if config == nil then
+		config = {}
+	else
+		config = config
+	end
 	return config
 end
 exports('getRankList', getRankList)

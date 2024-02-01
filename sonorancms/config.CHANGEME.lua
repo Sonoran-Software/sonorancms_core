@@ -10,3 +10,4 @@ Config.MaxInventorySlots = 41 -- How many slots your inventory is (Default 41 - 
 Config.allowAutoUpdate = true
 Config.debug_mode = false
 Config.restartWithPlayers = false -- Allow the updater to restart the resource if there are players on the server?
+Config.EnableWeatherSync = true -- Enable weather sync?
