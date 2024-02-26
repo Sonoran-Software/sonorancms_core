@@ -9,5 +9,12 @@
             "ems",
             "fire"
         ]
+    },
+    "esx": {
+        "use": true,
+        "autoClockInJobs": [
+            "police",
+            "ambulance"
+        ]
     }
 }

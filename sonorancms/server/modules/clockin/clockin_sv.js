@@ -144,6 +144,24 @@ async function initialize() {
 				},
 				config.useAcePermissions
 			);
+			if (config.esx.use) {
+				const ESX = exports.es_extended.getSharedObject();
+				onNet("esx_service:activateService", async () => {
+					const apiId = getAppropriateIdentifier(source, apiIdType);
+					await clockPlayerIn(apiId, forceClockIn)
+						.then((inOrOut) => {
+							emitNet("chat:addMessage", source, {
+								color: [255, 0, 0],
+								multiline: false,
+								args: [`^3^*Sonoran CMS:^7 Successfully clocked ${inOrOut ? "out" : "in"}!`],
+							});
+							return { success: true, in: inOrOut };
+						})
+						.catch((err) => {
+							return { success: false, err };
+						});
+				});
+			}
 			onNet("SonoranCMS::ClockIn::Server::ClockPlayerIn", async (forceClockIn) => {
 				const src = global.source;
 				const apiId = await getAppropriateIdentifier(src, apiIdType);
