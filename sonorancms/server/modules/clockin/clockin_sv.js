@@ -144,8 +144,7 @@ async function initialize() {
 				},
 				config.useAcePermissions
 			);
-			if (config.esx.use) {
-				const ESX = exports.es_extended.getSharedObject();
+			if (config?.esx?.use) {
 				onNet("esx_service:activateService", async () => {
 					const apiId = getAppropriateIdentifier(source, apiIdType);
 					await clockPlayerIn(apiId, forceClockIn)
