@@ -71,14 +71,14 @@ apiMsgToEnglish = (apiMsg) => {
     }
 }
 
-/**
- *
- * @param {int} ms
- * @returns {Promise}
- */
-sleep = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+// /**
+//  *
+//  * @param {int} ms
+//  * @returns {Promise}
+//  */
+// sleep = (ms) => {
+//     return new Promise(resolve => setTimeout(resolve, ms));
+// }
 
 /**
  *
@@ -101,42 +101,42 @@ updateBackup = () => {
     });
 }
 
-/**
- *
- * @param {playerSource} sourcePlayer
- * @param {string} type
- * @returns {string}
- */
-getAppropriateIdentifier = (sourcePlayer, type) => {
-    const identifiers = getPlayerIdentifiers(sourcePlayer);
-    let properIdentifiers = {
-        discord: "",
-        steam: "",
-        license: ""
-    };
-    identifiers.forEach((identifier) => {
-        const splitIdentifier = identifier.split(":");
-        const identType = splitIdentifier[0];
-        const identId = splitIdentifier[1];
-        switch (identType) {
-            case "discord":
-                properIdentifiers.discord = identId;
-                break;
-            case "steam":
-                properIdentifiers.steam = identId;
-                break;
-            case "license":
-                properIdentifiers.license = identId;
-                break;
-        }
-    });
+// /**
+//  *
+//  * @param {playerSource} sourcePlayer
+//  * @param {string} type
+//  * @returns {string}
+//  */
+// getAppropriateIdentifier = (sourcePlayer, type) => {
+//     const identifiers = getPlayerIdentifiers(sourcePlayer);
+//     let properIdentifiers = {
+//         discord: "",
+//         steam: "",
+//         license: ""
+//     };
+//     identifiers.forEach((identifier) => {
+//         const splitIdentifier = identifier.split(":");
+//         const identType = splitIdentifier[0];
+//         const identId = splitIdentifier[1];
+//         switch (identType) {
+//             case "discord":
+//                 properIdentifiers.discord = identId;
+//                 break;
+//             case "steam":
+//                 properIdentifiers.steam = identId;
+//                 break;
+//             case "license":
+//                 properIdentifiers.license = identId;
+//                 break;
+//         }
+//     });
 
-    if (properIdentifiers[type] === "") {
-        return null;
-    } else {
-        return properIdentifiers[type];
-    }
-}
+//     if (properIdentifiers[type] === "") {
+//         return null;
+//     } else {
+//         return properIdentifiers[type];
+//     }
+// }
 
 
 async function initialize() {
