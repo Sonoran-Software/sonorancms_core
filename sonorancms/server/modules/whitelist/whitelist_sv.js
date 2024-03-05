@@ -141,9 +141,9 @@ updateBackup = () => {
 
 async function initialize() {
     if (!enabledConfig?.enabled) return;
-	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function()
-		TriggerEvent('sonoran_permissions::rankupdate')
-	end)
+    TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_CREATED", () => {
+        TriggerEvent("sonoran_whitelist::rankupdate")
+    })
     await utils.sleep(2000)
     let backup = JSON.parse(
         LoadResourceFile(GetCurrentResourceName(), "/server/modules/whitelist/whitelist_backup.json")
