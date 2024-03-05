@@ -1639,6 +1639,7 @@ local function getQBChars(callback)
 			v.job = json.decode(v.job)
 			v.money = json.decode(v.money)
 			v.inventory = json.decode(v.inventory)
+			v.metadata = json.decode(v.metadata)
 			if v.inventory == nil then
 				v.inventory = {}
 			end
