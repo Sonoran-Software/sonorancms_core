@@ -107,5 +107,7 @@ const sleep = (ms) => {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-exports("getAppropriateIdentifier", getAppropriateIdentifier);
-exports("sleep", sleep);
+module.exports = {
+	getAppropriateIdentifier,
+	sleep,
+};

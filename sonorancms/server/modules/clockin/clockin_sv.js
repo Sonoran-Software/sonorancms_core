@@ -6,6 +6,7 @@ cleanLuaConfig1.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value
 	serverConfig[key] = value.trim();
 });
 let apiIdType = serverConfig.apiIdType;
+const utils = require("../../util/utils.js");
 
 /**
  *
@@ -50,7 +51,7 @@ async function initialize() {
 	await sleep(2000);
 	if (config) {
 		global.exports("clockPlayerIn", async (source, forceClockIn = false) => {
-			const apiId = await exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
+			const apiId = await utils.getAppropriateIdentifier(source, apiIdType);
 			await clockPlayerIn(apiId, forceClockIn)
 				.then((inOrOut) => {
 					return { success: true, in: inOrOut };
@@ -63,7 +64,7 @@ async function initialize() {
 			RegisterCommand(
 				config.command || "clockin",
 				async (source) => {
-			const apiId = await exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
+			const apiId = await utils.getAppropriateIdentifier(source, apiIdType);
 					await clockPlayerIn(apiId, false)
 						.then((inOrOut) => {
 							if (inOrOut == false) {
@@ -100,7 +101,7 @@ async function initialize() {
 			);
 			if (config?.esx?.use) {
 				onNet("esx_service:activateService", async () => {
-					const apiId = exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
+					const apiId = utils.getAppropriateIdentifier(source, apiIdType);
 					await clockPlayerIn(apiId, forceClockIn)
 						.then((inOrOut) => {
 							emitNet("chat:addMessage", source, {
@@ -117,7 +118,7 @@ async function initialize() {
 			}
 			onNet("SonoranCMS::ClockIn::Server::ClockPlayerIn", async (forceClockIn) => {
 				const src = global.source;
-				const apiId = await exports.sonorancms.getAppropriateIdentifier(src, apiIdType);
+				const apiId = await utils.getAppropriateIdentifier(src, apiIdType);
 				await clockPlayerIn(apiId, forceClockIn)
 					.then((inOrOut) => {
 						infoLog(`Clocked player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}!`);

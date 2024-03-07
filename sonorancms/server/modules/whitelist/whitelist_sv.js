@@ -8,6 +8,7 @@ whitelistCleanLuaConfig.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, ke
 let whiteListapiKey = whiteListConfig.whiteListapiKey;
 let whiteListapiIdType = whiteListConfig.whiteListapiIdType;
 const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./server/modules/whitelist/whitelist_config.json"));
+const utils = require("../../util/utils.js");
 
 /**
  *
@@ -85,7 +86,7 @@ apiMsgToEnglish = (apiMsg) => {
  * returns {Promise}
  */
 updateBackup = () => {
-	exports.sonorancms.getFullWhitelist(function (fullWhitelist) {
+	utils.getFullWhitelist(function (fullWhitelist) {
 		if (fullWhitelist.success) {
 			const idArray = [];
 			fullWhitelist.data.forEach((fW) => {
@@ -110,7 +111,7 @@ async function initialize() {
 		const accountID = data.data.accId;
 		if (activePlayers[accountID]) {
 			let apiId;
-			apiId = exports.sonorancms.getAppropriateIdentifier(activePlayers[accountID], whiteListapiIdType.toLowerCase());
+			apiId = utils.getAppropriateIdentifier(activePlayers[accountID], whiteListapiIdType.toLowerCase());
 			if (!apiId)
 				return utils.errorLog(
 					`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
@@ -142,7 +143,7 @@ async function initialize() {
 		let apiId;
 		deferrals.defer();
 		deferrals.update("Grabbing API ID to check against the whitelist...");
-		apiId = exports.sonorancms.getAppropriateIdentifier(src, whiteListapiIdType.toLowerCase());
+		apiId = utils.getAppropriateIdentifier(src, whiteListapiIdType.toLowerCase());
 		if (!apiId)
 			return utils.errorLog(
 				`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
