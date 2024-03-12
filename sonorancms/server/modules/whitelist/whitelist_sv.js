@@ -8,7 +8,8 @@ whitelistCleanLuaConfig.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, ke
 let whiteListapiKey = whiteListConfig.whiteListapiKey;
 let whiteListapiIdType = whiteListConfig.whiteListapiIdType;
 const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./server/modules/whitelist/whitelist_config.json"));
-const utilities = require(GetResourcePath(GetCurrentResourceName(), "server/util/utilities.js"));
+const utilitiesPath = GetResourcePath(GetCurrentResourceName(), "./server/util/utils.js");
+const utilities = require(utilitiesPath);
 
 /**
  *

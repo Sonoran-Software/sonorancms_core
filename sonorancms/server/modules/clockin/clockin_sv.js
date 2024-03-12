@@ -6,7 +6,8 @@ cleanLuaConfig1.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value
 	serverConfig[key] = value.trim();
 });
 let apiIdType = serverConfig.apiIdType;
-const utils = require(GetResourcePath(GetCurrentResourceName(), "server/util/utils.js"));
+const utilsPath = GetResourcePath(GetCurrentResourceName(), "./server/util/utils.js");
+const utils = require(GetResourcePath(utilsPath));
 
 /**
  *
