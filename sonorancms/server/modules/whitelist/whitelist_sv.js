@@ -8,8 +8,6 @@ whitelistCleanLuaConfig.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, ke
 let whiteListapiKey = whiteListConfig.whiteListapiKey;
 let whiteListapiIdType = whiteListConfig.whiteListapiIdType;
 const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./server/modules/whitelist/whitelist_config.json"));
-const utilitiesPath = GetResourcePath(GetCurrentResourceName(), "./server/util/utils.js");
-const utilities = require(utilitiesPath);
 
 /**
  *
@@ -87,7 +85,7 @@ apiMsgToEnglish = (apiMsg) => {
  * returns {Promise}
  */
 updateBackup = () => {
-	utilities.getFullWhitelist(function (fullWhitelist) {
+	exports.sonorancms.getFullWhitelist(function (fullWhitelist) {
 		if (fullWhitelist.success) {
 			const idArray = [];
 			fullWhitelist.data.forEach((fW) => {
@@ -104,32 +102,32 @@ async function initialize() {
 	TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_CREATED", () => {
 		TriggerEvent("sonoran_whitelist::rankupdate");
 	});
-	await utilities.sleep(2000);
+	await exports.sonorancms.sleep(2000);
 	let backup = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "/server/modules/whitelist/whitelist_backup.json"));
-	utilities.updateBackup();
+	exports.sonorancms.updateBackup();
 	RegisterNetEvent("sonoran_whitelist::rankupdate");
 	on("sonoran_whitelist::rankupdate", async (data) => {
 		const accountID = data.data.accId;
 		if (activePlayers[accountID]) {
 			let apiId;
-			apiId = utilities.getAppropriateIdentifier(activePlayers[accountID], whiteListapiIdType.toLowerCase());
+			apiId = exports.sonorancms.getAppropriateIdentifier(activePlayers[accountID], whiteListapiIdType.toLowerCase());
 			if (!apiId)
-				return utilities.errorLog(
+				return exports.sonorancms.errorLog(
 					`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
 				);
 			if (data.key === whiteListapiKey) {
 				exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
 					if (whitelist.success) {
-						utilities.infoLog(
+						exports.sonorancms.infoLog(
 							`After role update, ${data.data.accName} (${accountID}) is still whitelisted, username returned: ${JSON.stringify(whitelist.reason)} `
 						);
 					} else {
 						DropPlayer(
 							activePlayers[accountID],
-							"After SonoranCMS role update, you were no longer whitelisted: " + utilities.apiMsgToEnglish(whitelist.reason.message)
+							"After SonoranCMS role update, you were no longer whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)
 						);
-						utilities.infoLog(
-							`After SonoranCMS role update ${data.data.accName} (${accountID}) was no longer whitelisted, reason returned: ${utilities.apiMsgToEnglish(
+						exports.sonorancms.infoLog(
+							`After SonoranCMS role update ${data.data.accName} (${accountID}) was no longer whitelisted, reason returned: ${exports.sonorancms.apiMsgToEnglish(
 								whitelist.reason.message
 							)}`
 						);
@@ -144,28 +142,28 @@ async function initialize() {
 		let apiId;
 		deferrals.defer();
 		deferrals.update("Grabbing API ID to check against the whitelist...");
-		apiId = utilities.getAppropriateIdentifier(src, whiteListapiIdType.toLowerCase());
+		apiId = exports.sonorancms.getAppropriateIdentifier(src, whiteListapiIdType.toLowerCase());
 		if (!apiId)
-			return utilities.errorLog(
+			return exports.sonorancms.errorLog(
 				`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
 			);
 		deferrals.update("Checking whitelist...");
-		utilities.updateBackup();
+		exports.sonorancms.updateBackup();
 		await exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
 			if (whitelist.success) {
 				deferrals.done();
-				utilities.infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
+				exports.sonorancms.infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
 				exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
 					activePlayers[data[0].accId] = src;
 				});
 			} else {
-				deferrals.done(`Failed whitelist check: ${utilities.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
-				utilities.infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${utilities.apiMsgToEnglish(whitelist.reason.message)}`);
+				deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+				exports.sonorancms.infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
 			}
 		});
 	});
 	setInterval(() => {
-		utilities.updateBackup();
+		exports.sonorancms.updateBackup();
 	}, 1800000);
 }
 
