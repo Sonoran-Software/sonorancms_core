@@ -1672,6 +1672,7 @@ local function getQBChars(callback)
 			local charInfo = {
 				firstname = v.charinfo.firstname,
 				lastname = v.charinfo.lastname,
+				metadata = v.metadata,
 				dob = v.charinfo.birthdate,
 				offline = true,
 				name = v.charinfo.firstname .. ' ' .. v.charinfo.lastname,
