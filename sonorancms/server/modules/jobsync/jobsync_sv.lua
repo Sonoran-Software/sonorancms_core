@@ -182,8 +182,10 @@ function initialize()
 		end
 	end)
 
-	AddEventHandler('playerConnecting', function(_, _, deferrals)
+	AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+		local source = source
 		deferrals.defer();
+		Wait(0)
 		deferrals.update('Grabbing API ID and getting your permissions...')
 		local identifier
 		for _, v in pairs(GetPlayerIdentifiers(source)) do
