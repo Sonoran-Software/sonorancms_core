@@ -45,58 +45,11 @@ const clockPlayerIn = (apiId, forceClockIn) => {
 	});
 };
 
-/**
- *
- * @param {playerSource} source
- * @param {string} type
- * @returns {string}
- */
-const getAppropriateIdentifier = (source, type) => {
-	const identifiers = getPlayerIdentifiers(source);
-	let properIdentifiers = {
-		discord: "",
-		steam: "",
-		license: "",
-	};
-	identifiers.forEach((identifier) => {
-		const splitIdentifier = identifier.split(":");
-		const identType = splitIdentifier[0];
-		const identId = splitIdentifier[1];
-		switch (identType) {
-			case "discord":
-				properIdentifiers.discord = identId;
-				break;
-			case "steam":
-				properIdentifiers.steam = identId;
-				break;
-			case "license":
-				properIdentifiers.license = identId;
-				break;
-		}
-	});
-	const cleanType = type.replace(/^'(.*)'$/, "$1");
-	if (properIdentifiers[cleanType] === "") {
-		errorLog(`No ${cleanType} identifier found for ${GetPlayerName(source)}...`);
-		return "NOT FOUND";
-	} else {
-		return properIdentifiers[cleanType];
-	}
-};
-
-/**
- *
- * @param {int} ms
- * @returns {Promise}
- */
-const sleep = (ms) => {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
 async function initialize() {
-	await sleep(2000);
+	await exports.sonorancms.sleep(2000);
 	if (config) {
 		global.exports("clockPlayerIn", async (source, forceClockIn = false) => {
-			const apiId = await getAppropriateIdentifier(source, apiIdType);
+			const apiId = await exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
 			await clockPlayerIn(apiId, forceClockIn)
 				.then((inOrOut) => {
 					return { success: true, in: inOrOut };
@@ -109,7 +62,7 @@ async function initialize() {
 			RegisterCommand(
 				config.command || "clockin",
 				async (source) => {
-					const apiId = await getAppropriateIdentifier(source, apiIdType);
+					const apiId = await exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
 					await clockPlayerIn(apiId, false)
 						.then((inOrOut) => {
 							if (inOrOut == false) {
@@ -146,7 +99,7 @@ async function initialize() {
 			);
 			if (config?.esx?.use) {
 				onNet("esx_service:activateService", async () => {
-					const apiId = getAppropriateIdentifier(source, apiIdType);
+					const apiId = exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
 					await clockPlayerIn(apiId, forceClockIn)
 						.then((inOrOut) => {
 							emitNet("chat:addMessage", source, {
@@ -163,7 +116,7 @@ async function initialize() {
 			}
 			onNet("SonoranCMS::ClockIn::Server::ClockPlayerIn", async (forceClockIn) => {
 				const src = global.source;
-				const apiId = await getAppropriateIdentifier(src, apiIdType);
+				const apiId = await exports.sonorancms.getAppropriateIdentifier(src, apiIdType);
 				await clockPlayerIn(apiId, forceClockIn)
 					.then((inOrOut) => {
 						infoLog(`Clocked player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}!`);

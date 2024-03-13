@@ -14,7 +14,9 @@ function initialize()
 		end
 		return nil -- Return nil if the rank is not found
 	end
-	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', 'sonoran_permissions::rankupdate')
+	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function()
+		TriggerEvent('sonoran_permissions::rankupdate')
+	end)
 	RegisterNetEvent('sonoran_permissions::rankupdate', function(data)
 		local ppermissiondata = data.data.primaryRank
 		local ppermissiondatas = data.data.secondaryRanks

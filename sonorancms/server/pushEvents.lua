@@ -1628,6 +1628,9 @@ end
 
 local function getQBChars(callback)
 	-- Getting QBCore object
+	if GetResourceState('qb-core') ~= 'started' then
+		return;
+	end
 	local QBCore = exports['qb-core']:GetCoreObject()
 	-- Query the DB for QB Players rather than using the function because the function only returns active ones
 	MySQL.query('SELECT * FROM `players`', function(row)
@@ -1639,6 +1642,7 @@ local function getQBChars(callback)
 			v.job = json.decode(v.job)
 			v.money = json.decode(v.money)
 			v.inventory = json.decode(v.inventory)
+			v.metadata = json.decode(v.metadata)
 			if v.inventory == nil then
 				v.inventory = {}
 			end
@@ -1671,6 +1675,7 @@ local function getQBChars(callback)
 			local charInfo = {
 				firstname = v.charinfo.firstname,
 				lastname = v.charinfo.lastname,
+				metadata = v.metadata,
 				dob = v.charinfo.birthdate,
 				offline = true,
 				name = v.charinfo.firstname .. ' ' .. v.charinfo.lastname,
@@ -1769,6 +1774,9 @@ local function requestResources()
 end
 
 local function getCharVehicles(callback)
+	if GetResourceState('qb-core') ~= 'started' or GetResourceState('oxmysql') ~= 'started' then
+		return;
+	end
 	local characterVehicles = {}
 	MySQL.query('SELECT * FROM player_vehicles', function(row)
 		for _, v in ipairs(row) do

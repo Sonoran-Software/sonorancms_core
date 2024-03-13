@@ -57,7 +57,9 @@ function initialize()
 		end
 		return nil -- Return nil if the rank is not found
 	end
-	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', 'sonoran_jobsync::rankupdate')
+	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function()
+		TriggerEvent('sonoran_permissions::rankupdate')
+	end)
 	RegisterNetEvent('sonoran_jobsync::rankupdate', function(data)
 		local ppermissiondata = data.data.primaryRank
 		local ppermissiondatas = data.data.secondaryRanks
@@ -180,8 +182,10 @@ function initialize()
 		end
 	end)
 
-	AddEventHandler('playerConnecting', function(_, _, deferrals)
+	AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+		local source = source
 		deferrals.defer();
+		Wait(0)
 		deferrals.update('Grabbing API ID and getting your permissions...')
 		local identifier
 		for _, v in pairs(GetPlayerIdentifiers(source)) do
