@@ -142,13 +142,9 @@ function initialize()
 			end
 		end
 	end)
-
-	AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
-		local source = source
-		deferrals.defer();
-		Wait(0)
-		deferrals.update('Grabbing API ID and getting your permissions...')
+	RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
 		local identifier
+		local source = source
 		for _, v in pairs(GetPlayerIdentifiers(source)) do
 			if string.sub(v, 1, string.len(Config.apiIdType .. ':')) == Config.apiIdType .. ':' then
 				identifier = string.sub(v, string.len(Config.apiIdType .. ':') + 1)
@@ -164,7 +160,6 @@ function initialize()
 			payload['apiId'] = identifier
 		end
 		if identifier == nil then
-			deferrals.done('You must have a ' .. Config.apiIdType .. ' identifier to join this server.')
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
 			return
 		end
@@ -180,9 +175,9 @@ function initialize()
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
 				if loaded_list[identifier] ~= nil then
-					for k, v in pairs(loaded_list[identifier]) do
+					for k, _ in pairs(loaded_list[identifier]) do
 						local has = false
-						for l, b in pairs(ppermissiondata) do
+						for _, b in pairs(ppermissiondata) do
 							if b == k then
 								has = true
 							end
@@ -246,7 +241,6 @@ function initialize()
 						end
 					end
 				end
-				deferrals.done()
 			elseif Config.offline_cache then
 				if cache[identifier] ~= nil then
 					for _, v in pairs(cache[identifier]) do
@@ -274,13 +268,12 @@ function initialize()
 						end
 					end
 				end
-				deferrals.done()
 			end
 		end, 'POST', json.encode(payload), {
 			['Content-Type'] = 'application/json'
 		})
-	end)
 
+	end)
 	RegisterCommand('refreshjob', function(src, _, _)
 		local source = src
 		local identifier
