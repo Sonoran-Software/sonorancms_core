@@ -5,79 +5,77 @@ function initialize()
 	cache = json.decode(LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json'))
 	local rankMappings = json.decode(LoadResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_config.json'))
 	local function findPrincipalByRank(rank)
+		local principals = {}
 		for _, mapping in ipairs(rankMappings.mappings) do
 			for _, r in ipairs(mapping.ranks) do
 				if r == rank then
-					return mapping.principal
+					table.insert(principals, mapping.principal)
 				end
 			end
 		end
-		return nil -- Return nil if the rank is not found
+		return principals -- Return nil if the rank is not found
 	end
-	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function()
-		TriggerEvent('sonoran_permissions::rankupdate')
-	end)
 	RegisterNetEvent('sonoran_permissions::rankupdate', function(data)
-		local ppermissiondata = data.data.primaryRank
-		local ppermissiondatas = data.data.secondaryRanks
+		local ppermissiondata = data.data.ranks
 		local identifier = data.data.activeApiIds
+		if Config.apiIdType == 'discord' then
+			table.insert(identifier, data.data.discordId)
+		end
 		if data.key == Config.APIKey then
 			for _, g in pairs(identifier) do
 				if loaded_list[g] ~= nil then
-					for k, v in pairs(loaded_list[g]) do
+					for p, v in pairs(loaded_list[g]) do
 						local has = false
-						for _, b in pairs(ppermissiondatas) do
-							if b == k then
-								has = true
-							end
-						end
-						if ppermissiondata == v then
+						if ppermissiondata[p] then
 							has = true
 						end
 						if not has then
-							loaded_list[g][k] = nil
-							ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. g .. ' ' .. v)
-							cache[g][k] = nil
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-						end
-					end
-				end
-			end
-			if ppermissiondata ~= '' or ppermissiondata ~= nil then
-				if findPrincipalByRank(ppermissiondata) ~= nil then
-					for _, b in pairs(identifier) do
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata))
-						if loaded_list[b] == nil then
-							loaded_list[b] = {[ppermissiondata] = findPrincipalByRank(ppermissiondata)}
-						else
-							loaded_list[b][ppermissiondata] = findPrincipalByRank(ppermissiondata)
-						end
-						if cache[b] == nil then
-							cache[b] = {[ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata)}
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-						else
-							cache[b][ppermissiondata] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(ppermissiondata)
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-						end
-					end
-				end
-			end
-			if ppermissiondatas ~= nil then
-				for _, v in pairs(ppermissiondatas) do
-					if findPrincipalByRank(v) ~= nil then
-						for _, b in pairs(identifier) do
-							ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v))
-							if loaded_list[b] == nil then
-								loaded_list[b] = {[v] = findPrincipalByRank(v)}
-							else
-								loaded_list[b][v] = findPrincipalByRank(v)
+							local toRemove = {}
+							for i, x in pairs(v) do
+								table.insert(toRemove, i)
+								ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. g .. ' ' .. x)
 							end
-							if cache[b] == nil then
-								cache[b] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v)}
+							table.sort(toRemove, function(a, b)
+								return a > b
+							end)
+							for _, i in ipairs(toRemove) do
+								table.remove(v, i)
+							end
+							loaded_list[g][p] = nil
+							if Config.offline_cache then
+								cache[g][p] = nil
 								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-							else
-								cache[b][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. findPrincipalByRank(v)
-								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							end
+						end
+					end
+				end
+			end
+			if #ppermissiondata > 0 then
+				for _, v in pairs(ppermissiondata) do
+					if #findPrincipalByRank(v) > 0 then
+						for _, b in pairs(identifier) do
+							for _, x in pairs(findPrincipalByRank(v)) do
+								ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. x)
+								if loaded_list[b] == nil then
+									loaded_list[b] = {
+										[v] = {}
+									}
+									table.insert(loaded_list[b][v], x)
+								else
+									if loaded_list[b][v] == nil then
+										loaded_list[b][v] = {}
+									end
+									table.insert(loaded_list[b][v], x)
+								end
+								if cache[b] == nil then
+									cache[b] = {
+										[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. x
+									}
+									SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+								else
+									cache[b][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. b .. ' ' .. x
+									SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+								end
 							end
 						end
 					end
@@ -100,7 +98,15 @@ function initialize()
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
 			return
 		end
-		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
+		local reqData = {}
+		if Config.apiIdType == 'discord' then
+			reqData['discord'] = identifier
+		else
+			reqData['apiId'] = identifier
+		end
+		exports['sonorancms']:performApiRequest({
+			reqData
+		}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
 				if loaded_list[identifier] ~= nil then
@@ -122,19 +128,25 @@ function initialize()
 					end
 				end
 				for _, v in pairs(ppermissiondata) do
-					if findPrincipalByRank(v) ~= nil then
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v))
-						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
-						else
-							loaded_list[identifier][v] = findPrincipalByRank(v)
-						end
-						if cache[identifier] == nil then
-							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)}
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-						else
-							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+					if #findPrincipalByRank(v) > 0 then
+						for _, b in pairs(findPrincipalByRank(v)) do
+							ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b)
+							if loaded_list[identifier] == nil then
+								loaded_list[identifier] = {
+									[v] = findPrincipalByRank(v)
+								}
+							else
+								loaded_list[identifier][v] = findPrincipalByRank(v)
+							end
+							if cache[identifier] == nil then
+								cache[identifier] = {
+									[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b
+								}
+								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							else
+								cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b
+								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							end
 						end
 					end
 				end
@@ -142,10 +154,13 @@ function initialize()
 			else
 				if cache[identifier] ~= nil then
 					for _, v in pairs(cache[identifier]) do
+						local principals = findPrincipalByRank(v)
 						if string.sub(v, 1, string.len('')) == 'add_principal' then
 							ExecuteCommand(v)
 							if loaded_list[identifier] == nil then
-								loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
+								loaded_list[identifier] = {
+									[v] = findPrincipalByRank(v)
+								}
 							else
 								loaded_list[identifier][v] = findPrincipalByRank(v)
 							end
@@ -168,55 +183,97 @@ function initialize()
 		payload['id'] = Config.CommID
 		payload['key'] = Config.APIKey
 		payload['type'] = 'GET_ACCOUNT_RANKS'
-		payload['data'] = {{['apiId'] = identifier}}
+		if Config.apiIdType == 'discord' then
+			payload['discord'] = identifier
+		else
+			payload['apiId'] = identifier
+		end
 		if identifier == nil then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
-			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'}})
+			TriggerClientEvent('chat:addMessage', src, {
+				color = {
+					255,
+					0,
+					0
+				},
+				multiline = true,
+				args = {
+					'SonoranCMS',
+					'You must have a ' .. Config.apiIdType .. ' identifier to use this command.'
+				}
+			})
 			return
 		end
-		exports['sonorancms']:performApiRequest({{['apiId'] = identifier}}, 'GET_ACCOUNT_RANKS', function(res)
+		local reqData = {}
+		if Config.apiIdType == 'discord' then
+			reqData['discord'] = identifier
+		else
+			reqData['apiId'] = identifier
+		end
+		exports['sonorancms']:performApiRequest({
+			reqData
+		}, 'GET_ACCOUNT_RANKS', function(res)
 			if #res > 2 then
 				local ppermissiondata = json.decode(res)
 				if loaded_list[identifier] ~= nil then
-					for k, v in pairs(loaded_list[identifier]) do
+					for p, v in pairs(loaded_list[identifier]) do
 						local has = false
-						for l, b in pairs(ppermissiondata) do
-							if b == k then
-								has = true
-							end
+						if ppermissiondata[p] then
+							has = true
 						end
 						if not has then
-							loaded_list[identifier][k] = nil
-							ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. v)
-							cache[identifier][k] = nil
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							local toRemove = {}
+							for i, x in pairs(v) do
+								table.insert(toRemove, i)
+								ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. x)
+							end
+							table.sort(toRemove, function(a, b)
+								return a > b
+							end)
+							for _, i in ipairs(toRemove) do
+								table.remove(v, i)
+							end
+							loaded_list[identifier][p] = nil
+							if Config.offline_cache then
+								cache[identifier][p] = nil
+								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							end
 						end
 					end
 				end
 				for _, v in pairs(ppermissiondata) do
-					if findPrincipalByRank(v) ~= nil then
-						ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v))
-						if loaded_list[identifier] == nil then
-							loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
-						else
-							loaded_list[identifier][v] = findPrincipalByRank(v)
-						end
-						if cache[identifier] == nil then
-							cache[identifier] = {[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)}
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
-						else
-							cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. findPrincipalByRank(v)
-							SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+					if #findPrincipalByRank(v) > 0 then
+						for _, b in pairs(findPrincipalByRank(v)) do
+							ExecuteCommand('add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b)
+							if loaded_list[identifier] == nil then
+								loaded_list[identifier] = {
+									[v] = findPrincipalByRank(v)
+								}
+							else
+								loaded_list[identifier][v] = findPrincipalByRank(v)
+							end
+							if cache[identifier] == nil then
+								cache[identifier] = {
+									[v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b
+								}
+								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							else
+								cache[identifier][v] = 'add_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. b
+								SaveResourceFile(GetCurrentResourceName(), '/server/modules/ace-permissions/ace-permissions_cache.json', json.encode(cache))
+							end
 						end
 					end
 				end
 			else
 				if cache[identifier] ~= nil then
 					for _, v in pairs(cache[identifier]) do
+						local principals = findPrincipalByRank(v)
 						if string.sub(v, 1, string.len('')) == 'add_principal' then
 							ExecuteCommand(v)
 							if loaded_list[identifier] == nil then
-								loaded_list[identifier] = {[v] = findPrincipalByRank(v)}
+								loaded_list[identifier] = {
+									[v] = findPrincipalByRank(v)
+								}
 							else
 								loaded_list[identifier][v] = findPrincipalByRank(v)
 							end
@@ -224,14 +281,38 @@ function initialize()
 					end
 				end
 			end
-		end, 'POST', json.encode(payload), {['Content-Type'] = 'application/json'})
+		end, 'POST', json.encode(payload), {
+			['Content-Type'] = 'application/json'
+		})
 	end)
 
 	RegisterCommand('permissiontest', function(src, args, _)
 		if IsPlayerAceAllowed(src, args[1]) then
-			TriggerClientEvent('chat:addMessage', src, {color = {0, 255, 0}, multiline = true, args = {'SonoranCMS', 'true'}})
+			TriggerClientEvent('chat:addMessage', src, {
+				color = {
+					0,
+					255,
+					0
+				},
+				multiline = true,
+				args = {
+					'SonoranCMS',
+					'true'
+				}
+			})
 		else
-			TriggerClientEvent('chat:addMessage', src, {color = {255, 0, 0}, multiline = true, args = {'SonoranCMS', 'false'}})
+			TriggerClientEvent('chat:addMessage', src, {
+				color = {
+					255,
+					0,
+					0
+				},
+				multiline = true,
+				args = {
+					'SonoranCMS',
+					'false'
+				}
+			})
 		end
 	end, false)
 
@@ -243,10 +324,19 @@ function initialize()
 				identifier = string.sub(v, string.len(Config.apiIdType .. ':') + 1)
 			end
 		end
-
 		if loaded_list[identifier] ~= nil then
 			for _, v in pairs(loaded_list[identifier]) do
-				ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. v)
+				local toRemove = {}
+				for i, x in pairs(v) do
+					table.insert(toRemove, i)
+					ExecuteCommand('remove_principal identifier.' .. Config.apiIdType .. ':' .. identifier .. ' ' .. x)
+				end
+				table.sort(toRemove, function(a, b)
+					return a > b
+				end)
+				for _, i in ipairs(toRemove) do
+					table.remove(v, i)
+				end
 			end
 		end
 	end)

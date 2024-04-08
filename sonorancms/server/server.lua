@@ -217,6 +217,10 @@ CreateThread(function()
 		debugLog(('Set version %s from response %s'):format(Config.apiVersion, result))
 		infoLog(('Loaded community ID %s with API URL: %s'):format(Config.CommID, Config.apiUrl))
 	end)
+	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function(data)
+		TriggerEvent('sonoran_permissions::rankupdate', data)
+		TriggerEvent('sonoran_jobsync::rankupdate', data)
+	end)
 	function exists(name)
 		if type(name) ~= 'string' then
 			return false
@@ -246,7 +250,6 @@ CreateThread(function()
 	end
 	TriggerEvent(GetCurrentResourceName() .. '::CheckConfig')
 	TriggerEvent(GetCurrentResourceName() .. '::StartUpdateLoop')
-	Wait(100000)
 end)
 
 --[[
