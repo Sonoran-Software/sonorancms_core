@@ -378,7 +378,9 @@ ApiEndpoints = {
 	['VERIFY_WHITELIST'] = 'servers',
 	['FULL_WHITELIST'] = 'servers',
 	['RSVP'] = 'events',
-	['GAMESTATE'] = 'servers'
+	['GAMESTATE'] = 'servers',
+	['ACTIVITY_TRACKER_START_STOP'] = 'servers',
+	['ACTIVITY_TRACKER_SERVER_START'] = 'servers'
 }
 
 function registerApiType(type, endpoint)
