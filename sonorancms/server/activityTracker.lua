@@ -45,7 +45,7 @@ AddEventHandler('playerDropped', function()
 		reqData['apiId'] = identifier
 	end
 	reqData['serverId'] = Config.serverId
-	reqData['forceClear'] = true
+	reqData['forceStop'] = true
 	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_START_STOP', function(res)
 		res = json.decode(res)
 		if res.success then
