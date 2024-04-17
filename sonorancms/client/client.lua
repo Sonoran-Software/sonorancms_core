@@ -443,7 +443,5 @@ RegisterNetEvent('SonoranCMS::core::SetEnvironment', function(data)
 		freezeTime = data.freezeTime
 		timeOffset = data.timeOffset
 		baseTime = data.baseTime
-	else
-		print('SonoranCMS: Weather sync is disabled, ignoring environment update.')
 	end
 end)
