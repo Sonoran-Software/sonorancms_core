@@ -6,7 +6,7 @@ whitelistCleanLuaConfig.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, ke
 	whiteListConfig[key] = value.trim();
 });
 let whiteListapiKey = whiteListConfig.whiteListapiKey;
-let whiteListapiIdType = whiteListConfig.whiteListapiIdType;
+let whiteListapiIdType = whiteListConfig.apiIdType;
 const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./server/modules/whitelist/whitelist_config.json"));
 
 /**
@@ -97,6 +97,12 @@ updateBackup = () => {
 	});
 };
 
+exports("updateBackup", updateBackup);
+exports('errorLog', errorLog);
+exports('infoLog', infoLog);
+exports('subIntToName', subIntToName);
+exports('apiMsgToEnglish', apiMsgToEnglish);
+
 async function initialize() {
 	if (!enabledConfig?.enabled) return;
 	TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_CREATED", () => {
@@ -158,6 +164,7 @@ async function initialize() {
 				});
 			} else {
 				deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+				DropPlayer(src, "You are not whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message));
 				exports.sonorancms.infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
 			}
 		});
@@ -168,3 +175,4 @@ async function initialize() {
 }
 
 initialize();
+
