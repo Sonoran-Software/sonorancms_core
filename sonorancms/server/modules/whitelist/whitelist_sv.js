@@ -1,12 +1,13 @@
 const whiteListLuaConfig = LoadResourceFile(GetCurrentResourceName(), "./config.lua");
-const whitelistCleanLuaConfig = whiteListLuaConfig.replace(/--.*/g, "");
+const whitelistCleanLuaConfig = whiteListLuaConfig.replace(/--.*(?:\r?\n|$)/g, "");
+const regexPattern = /Config\.(\w+)\s*=\s*(?:'([^']*)'|"([^"]*)"|(.*?))(?=\s*(?:\-\-|\n|$))/g;
 let activePlayers = {};
 const whiteListConfig = {};
-whitelistCleanLuaConfig.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value) => {
-	whiteListConfig[key] = value.trim();
+whitelistCleanLuaConfig.replace(regexPattern, (match, key, value) => {
+	whiteListConfig[key] = value?.trim();
 });
-let whiteListapiKey = whiteListConfig.whiteListapiKey;
-let whiteListapiIdType = whiteListConfig.whiteListapiIdType;
+let whiteListapiKey = whiteListConfig.APIKey;
+let whiteListapiIdType = whiteListConfig.apiIdType;
 const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./server/modules/whitelist/whitelist_config.json"));
 
 /**
@@ -15,7 +16,7 @@ const enabledConfig = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "./s
  * @param  {errStack} args
  * @returns
  */
-errorLog = (message, ...args) => {
+let errorLog = (message, ...args) => {
 	return console.log(`^1[ERROR - Sonoran CMS Whitelist - ${new Date().toLocaleString()}] ${message}`, args + "^0");
 };
 
@@ -24,7 +25,7 @@ errorLog = (message, ...args) => {
  * @param {string} message
  * @returns {string}
  */
-infoLog = (message) => {
+let infoLog = (message) => {
 	return console.log(`[INFO - Sonoran CMS Whitelist - ${new Date().toLocaleString()}] ${message}`);
 };
 
@@ -33,7 +34,7 @@ infoLog = (message) => {
  * @param {int} subInt
  * @returns {string}
  */
-subIntToName = (subInt) => {
+let subIntToName = (subInt) => {
 	switch (subInt) {
 		case 0:
 			return "FREE";
@@ -55,7 +56,7 @@ subIntToName = (subInt) => {
  * @param {string} apiMsg
  * @returns {string}
  */
-apiMsgToEnglish = (apiMsg) => {
+let apiMsgToEnglish = (apiMsg) => {
 	console.log(apiMsg);
 	switch (apiMsg) {
 		case "UNKNOWN_ACC_API_ID":
@@ -84,7 +85,7 @@ apiMsgToEnglish = (apiMsg) => {
  *
  * returns {Promise}
  */
-updateBackup = () => {
+let updateBackup = () => {
 	exports.sonorancms.getFullWhitelist(function (fullWhitelist) {
 		if (fullWhitelist.success) {
 			const idArray = [];
@@ -104,7 +105,7 @@ async function initialize() {
 	});
 	await exports.sonorancms.sleep(2000);
 	let backup = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "/server/modules/whitelist/whitelist_backup.json"));
-	exports.sonorancms.updateBackup();
+	updateBackup();
 	RegisterNetEvent("sonoran_whitelist::rankupdate");
 	on("sonoran_whitelist::rankupdate", async (data) => {
 		const accountID = data.data.accId;
@@ -112,13 +113,13 @@ async function initialize() {
 			let apiId;
 			apiId = exports.sonorancms.getAppropriateIdentifier(activePlayers[accountID], whiteListapiIdType.toLowerCase());
 			if (!apiId)
-				return exports.sonorancms.errorLog(
+				return errorLog(
 					`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
 				);
 			if (data.key === whiteListapiKey) {
 				exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
 					if (whitelist.success) {
-						exports.sonorancms.infoLog(
+						infoLog(
 							`After role update, ${data.data.accName} (${accountID}) is still whitelisted, username returned: ${JSON.stringify(whitelist.reason)} `
 						);
 					} else {
@@ -126,10 +127,10 @@ async function initialize() {
 							activePlayers[accountID],
 							"After SonoranCMS role update, you were no longer whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)
 						);
-						exports.sonorancms.infoLog(
-							`After SonoranCMS role update ${data.data.accName} (${accountID}) was no longer whitelisted, reason returned: ${exports.sonorancms.apiMsgToEnglish(
-								whitelist.reason.message
-							)}`
+						infoLog(
+							`After SonoranCMS role update ${
+								data.data.accName
+							} (${accountID}) was no longer whitelisted, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`
 						);
 						activePlayers[accountID] = null;
 					}
@@ -144,26 +145,25 @@ async function initialize() {
 		deferrals.update("Grabbing API ID to check against the whitelist...");
 		apiId = exports.sonorancms.getAppropriateIdentifier(src, whiteListapiIdType.toLowerCase());
 		if (!apiId)
-			return exports.sonorancms.errorLog(
-				`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
-			);
+			return errorLog(`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`);
 		deferrals.update("Checking whitelist...");
-		exports.sonorancms.updateBackup();
+		updateBackup();
 		await exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
 			if (whitelist.success) {
 				deferrals.done();
-				exports.sonorancms.infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
+				infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
 				exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
 					activePlayers[data[0].accId] = src;
 				});
 			} else {
 				deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
-				exports.sonorancms.infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
+				DropPlayer(src, "You are not whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message));
+				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
 			}
 		});
 	});
 	setInterval(() => {
-		exports.sonorancms.updateBackup();
+		updateBackup();
 	}, 1800000);
 }
 
