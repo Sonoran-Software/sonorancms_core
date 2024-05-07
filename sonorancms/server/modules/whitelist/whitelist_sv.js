@@ -98,6 +98,16 @@ let updateBackup = () => {
 	});
 };
 
+/**
+ *
+ * @param {string} apiId
+ * @returns {boolean}
+ */
+let checkBackup = (apiId) => {
+	const backup = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "/server/modules/whitelist/whitelist_backup.json"));
+	return backup.includes(apiId);
+}
+
 async function initialize() {
 	if (!enabledConfig?.enabled) return;
 	TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_CREATED", () => {
@@ -149,12 +159,26 @@ async function initialize() {
 		deferrals.update("Checking whitelist...");
 		updateBackup();
 		await exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
-			if (whitelist.success) {
+			console.log("^7 WHAT THE FUCK "+JSON.stringify(whitelist))
+			if (whitelist?.success) {
 				deferrals.done();
 				infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
 				exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
 					activePlayers[data[0].accId] = src;
 				});
+			} else if (whitelist?.success == null) {
+				let backupWhitelisted = checkBackup(apiId)
+				if (backupWhitelisted) {
+					deferrals.done();
+					infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
+					exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
+						activePlayers[data[0].accId] = src;
+					});
+				} else {
+					deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+					DropPlayer(src, "You are not whitelisted: APIID was not found in the whitelist backup");
+					infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`);
+				}
 			} else {
 				deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
 				DropPlayer(src, "You are not whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message));
