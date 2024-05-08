@@ -181,7 +181,7 @@ async function initialize() {
 			} else {
 				deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
 				DropPlayer(src, "You are not whitelisted: " + apiMsgToEnglish(whitelist.reason.message));
-				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
+				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${apiMsgToEnglish(whitelist.reason.message)}`);
 			}
 		});
 	});
