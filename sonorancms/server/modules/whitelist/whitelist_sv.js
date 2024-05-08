@@ -135,12 +135,12 @@ async function initialize() {
 					} else {
 						DropPlayer(
 							activePlayers[accountID],
-							"After SonoranCMS role update, you were no longer whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)
+							"After SonoranCMS role update, you were no longer whitelisted: " + apiMsgToEnglish(whitelist.reason.message)
 						);
 						infoLog(
 							`After SonoranCMS role update ${
 								data.data.accName
-							} (${accountID}) was no longer whitelisted, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`
+							} (${accountID}) was no longer whitelisted, reason returned: ${apiMsgToEnglish(whitelist.reason.message)}`
 						);
 						activePlayers[accountID] = null;
 					}
@@ -174,13 +174,13 @@ async function initialize() {
 						activePlayers[data[0].accId] = src;
 					});
 				} else {
-					deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+					deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
 					DropPlayer(src, "You are not whitelisted: APIID was not found in the whitelist backup");
 					infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`);
 				}
 			} else {
-				deferrals.done(`Failed whitelist check: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
-				DropPlayer(src, "You are not whitelisted: " + exports.sonorancms.apiMsgToEnglish(whitelist.reason.message));
+				deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+				DropPlayer(src, "You are not whitelisted: " + apiMsgToEnglish(whitelist.reason.message));
 				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${exports.sonorancms.apiMsgToEnglish(whitelist.reason.message)}`);
 			}
 		});
