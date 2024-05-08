@@ -159,7 +159,6 @@ async function initialize() {
 		deferrals.update("Checking whitelist...");
 		updateBackup();
 		await exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
-			console.log("^7 WHAT THE FUCK "+JSON.stringify(whitelist))
 			if (whitelist?.success) {
 				deferrals.done();
 				infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
