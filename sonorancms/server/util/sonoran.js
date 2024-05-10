@@ -26,27 +26,31 @@ exports("initializeCMS", (CommID, APIKey, serverId, apiUrl, debug_mode) => {
 
 	exports("checkCMSWhitelist", async (apiId, cb) => {
 		try {
-			instance.cms.verifyWhitelist(apiId).then((whitelist) => {
-				cb(whitelist);
-			}).catch(error => {
-				cb({ success: false, error: error, backendError: true});
-			});
+			instance.cms
+				.verifyWhitelist(apiId)
+				.then((whitelist) => {
+					cb(whitelist);
+				})
+				.catch((error) => {
+					cb({ success: false, error: error, backendError: true });
+				});
 		} catch (error) {
-			cb({ success: false, error: error, backendError: true});
+			cb({ success: false, error: error, backendError: true });
 		}
 	});
 
 	exports("getFullWhitelist", async (cb) => {
 		try {
-			instance.cms.getFullWhitelist().then((fullWhitelist) => {
-				cb(fullWhitelist);
-			}).catch(error => {
-				cb({ success: false, error: error, backendError: true});
-			})
+			instance.cms
+				.getFullWhitelist()
+				.then((fullWhitelist) => {
+					cb(fullWhitelist);
+				})
+				.catch((error) => {
+					cb({ success: false, error: error, backendError: true });
+				});
 		} catch (error) {
-			cb({ success: false, error: error, backendError: true});
+			cb({ success: false, error: error, backendError: true });
 		}
-	}).catch(error => {
-		cb({ success: false, error: error, backendError: true});
 	});
 });
