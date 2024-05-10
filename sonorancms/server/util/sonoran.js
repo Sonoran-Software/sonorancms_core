@@ -24,23 +24,29 @@ exports("initializeCMS", (CommID, APIKey, serverId, apiUrl, debug_mode) => {
 		console.log(`Sonoran CMS Setup Unsuccessfully! Error provided: ${err}`);
 	});
 
-	exports("checkCMSWhitelist", (apiId, cb) => {
+	exports("checkCMSWhitelist", async (apiId, cb) => {
 		try {
 			instance.cms.verifyWhitelist(apiId).then((whitelist) => {
 				cb(whitelist);
+			}).catch(error => {
+				cb({ success: false, error: error, backendError: true});
 			});
 		} catch (error) {
-			cb({ success: false, error: error });
+			cb({ success: false, error: error, backendError: true});
 		}
 	});
 
-	exports("getFullWhitelist", (cb) => {
+	exports("getFullWhitelist", async (cb) => {
 		try {
 			instance.cms.getFullWhitelist().then((fullWhitelist) => {
 				cb(fullWhitelist);
-			});
+			}).catch(error => {
+				cb({ success: false, error: error, backendError: true});
+			})
 		} catch (error) {
-			cb({ success: false, error: error });
+			cb({ success: false, error: error, backendError: true});
 		}
+	}).catch(error => {
+		cb({ success: false, error: error, backendError: true});
 	});
 });

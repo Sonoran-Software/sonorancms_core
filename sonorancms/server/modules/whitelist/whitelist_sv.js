@@ -57,7 +57,6 @@ let subIntToName = (subInt) => {
  * @returns {string}
  */
 let apiMsgToEnglish = (apiMsg) => {
-	console.log(apiMsg);
 	switch (apiMsg) {
 		case "UNKNOWN_ACC_API_ID":
 			return "unable to find a valid account with the provided API ID and account ID";
@@ -106,7 +105,35 @@ let updateBackup = () => {
 let checkBackup = (apiId) => {
 	const backup = JSON.parse(LoadResourceFile(GetCurrentResourceName(), "/server/modules/whitelist/whitelist_backup.json"));
 	return backup.includes(apiId);
+};
+
+/**
+ * @param {string} source
+ * @returns {string}
+ */
+async function findPlayerBySource(source) {
+	for (let accId in activePlayers) {
+		if (activePlayers[accId] === source) {
+			return accId;
+		}
+	}
+	return null;
 }
+
+/**
+ * @param {string} apiId
+ * @param {string} src
+ * @returns {Promise}
+ */
+let addActivePlayer = async (apiId, src) => {
+	exports.sonorancms
+		.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
+			activePlayers[data[0].accId] = src;
+		})
+		.catch((err) => {
+			errorLog(`Error adding active player ${src} to activePlayers cache: ${err}`);
+		});
+};
 
 async function initialize() {
 	if (!enabledConfig?.enabled) return;
@@ -138,9 +165,9 @@ async function initialize() {
 							"After SonoranCMS role update, you were no longer whitelisted: " + apiMsgToEnglish(whitelist.reason.message)
 						);
 						infoLog(
-							`After SonoranCMS role update ${
-								data.data.accName
-							} (${accountID}) was no longer whitelisted, reason returned: ${apiMsgToEnglish(whitelist.reason.message)}`
+							`After SonoranCMS role update ${data.data.accName} (${accountID}) was no longer whitelisted, reason returned: ${apiMsgToEnglish(
+								whitelist.reason.message
+							)}`
 						);
 						activePlayers[accountID] = null;
 					}
@@ -158,23 +185,21 @@ async function initialize() {
 			return errorLog(`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`);
 		deferrals.update("Checking whitelist...");
 		updateBackup();
-		await exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
+		await exports.sonorancms.checkCMSWhitelist(apiId, async function (whitelist) {
 			if (whitelist?.success) {
 				deferrals.done();
 				infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
-				exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
-					activePlayers[data[0].accId] = src;
-				});
-			} else if (whitelist?.success == null) {
-				let backupWhitelisted = checkBackup(apiId)
+				await addActivePlayer(apiId, src);
+			} else if (whitelist?.backendError) {
+				let backupWhitelisted = checkBackup(apiId);
 				if (backupWhitelisted) {
 					deferrals.done();
-					infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
-					exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
-						activePlayers[data[0].accId] = src;
-					});
+					infoLog(
+						`Successfully allowed ${name} (${apiId}) through whitelist, ${whiteListapiIdType.toUpperCase()} ID was found in the whitelist backup. API ID used to check: ${apiId}`
+					);
+					await addActivePlayer(apiId, src);
 				} else {
-					deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
+					deferrals.done(`Failed whitelist check: Not found in whitelist backup\n\nAPI ID used to check: ${apiId}`);
 					DropPlayer(src, "You are not whitelisted: APIID was not found in the whitelist backup");
 					infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`);
 				}
@@ -188,6 +213,23 @@ async function initialize() {
 	setInterval(() => {
 		updateBackup();
 	}, 1800000);
+
+	setInterval(async () => {
+		let allPlayers = GetPlayers();
+		// Saftey check in the event of backend outage to keep activePlayers up to date
+		// activePlayers is used for role updates from CMS push events to ensure the player is still whitelisted
+		for await (let player of allPlayers) {
+			if (!findPlayerBySource(player)) {
+				let apiId;
+				apiId = exports.sonorancms.getAppropriateIdentifier(player, whiteListapiIdType.toLowerCase());
+				if (!apiId)
+					return errorLog(
+						`Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
+					);
+				await addActivePlayer(apiId, player);
+			}
+		}
+	}, 60 * 1000 * 5);
 }
 
 initialize();
