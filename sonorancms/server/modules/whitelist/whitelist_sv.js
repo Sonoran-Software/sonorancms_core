@@ -126,13 +126,14 @@ async function findPlayerBySource(source) {
  * @returns {Promise}
  */
 let addActivePlayer = async (apiId, src) => {
-	exports.sonorancms
-		.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
+	try {
+		exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
+			data = JSON.parse(data);
 			activePlayers[data[0].accId] = src;
-		})
-		.catch((err) => {
-			errorLog(`Error adding active player ${src} to activePlayers cache: ${err}`);
 		});
+	} catch (err) {
+		errorLog(`Error adding active player ${src} to activePlayers cache: ${err}`);
+	}
 };
 
 async function initialize() {
@@ -176,7 +177,7 @@ async function initialize() {
 		}
 	});
 	on("playerConnecting", async (name, setNickReason, deferrals) => {
-		const src = global.source;
+		const src = source;
 		let apiId;
 		deferrals.defer();
 		deferrals.update("Grabbing API ID to check against the whitelist...");
@@ -189,7 +190,6 @@ async function initialize() {
 			if (whitelist?.success) {
 				deferrals.done();
 				infoLog(`Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(whitelist.reason)} `);
-				await addActivePlayer(apiId, src);
 			} else if (whitelist?.backendError) {
 				let backupWhitelisted = checkBackup(apiId);
 				if (backupWhitelisted) {
@@ -197,7 +197,6 @@ async function initialize() {
 					infoLog(
 						`Successfully allowed ${name} (${apiId}) through whitelist, ${whiteListapiIdType.toUpperCase()} ID was found in the whitelist backup. API ID used to check: ${apiId}`
 					);
-					await addActivePlayer(apiId, src);
 				} else {
 					deferrals.done(`Failed whitelist check: Not found in whitelist backup\n\nAPI ID used to check: ${apiId}`);
 					DropPlayer(src, "You are not whitelisted: APIID was not found in the whitelist backup");
@@ -210,16 +209,30 @@ async function initialize() {
 			}
 		});
 	});
+	on("playerDropped", async (reason) => {
+		const src = source;
+		let accId = await findPlayerBySource(src);
+		if (accId) {
+			if (activePlayers.hasOwnProperty(accId)) {
+				delete activePlayers[accId];
+			}
+		}
+	});
 	setInterval(() => {
 		updateBackup();
 	}, 1800000);
 
 	setInterval(async () => {
-		let allPlayers = GetPlayers();
+		let allPlayers = exports.sonorancms.jsGetPlayers();
 		// Saftey check in the event of backend outage to keep activePlayers up to date
 		// activePlayers is used for role updates from CMS push events to ensure the player is still whitelisted
-		for await (let player of allPlayers) {
-			if (!findPlayerBySource(player)) {
+		if (allPlayers.length === 0) {
+			activePlayers = {};
+			return;
+		}
+		for (let player of allPlayers) {
+			let test = await findPlayerBySource(player);
+			if (!test) {
 				let apiId;
 				apiId = exports.sonorancms.getAppropriateIdentifier(player, whiteListapiIdType.toLowerCase());
 				if (!apiId)
@@ -229,7 +242,7 @@ async function initialize() {
 				await addActivePlayer(apiId, player);
 			}
 		}
-	}, 60 * 1000 * 5);
+	}, 20 * 1000);
 }
 
 initialize();

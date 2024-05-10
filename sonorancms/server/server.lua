@@ -478,3 +478,9 @@ RegisterNetEvent('SonoranCMS::core::RequestEnvironment', function()
 		EnableWeatherSync = Config.EnableWeatherSync
 	})
 end)
+
+
+exports('jsGetPlayers', function()
+	local players = GetPlayers()
+	return players
+end)
