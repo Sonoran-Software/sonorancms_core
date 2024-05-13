@@ -457,6 +457,9 @@ function performApiRequest(postData, type, cb)
 			elseif string.match(tostring(statusCode), '50') then
 				errorLog(('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
 				debugLog(('API_ERROR Error returned: %s %s'):format(statusCode, res))
+				if type == 'GET_ACCOUNT_RANKS' or type == 'FULL_WHITELIST' then
+					cb({}, false)
+				end
 			else
 				errorLog(('CMS API ERROR (from %s): %s %s'):format(url, statusCode, res))
 			end
@@ -474,4 +477,10 @@ RegisterNetEvent('SonoranCMS::core::RequestEnvironment', function()
 	TriggerClientEvent('SonoranCMS::core::ReceiveEnvironment', source, {
 		EnableWeatherSync = Config.EnableWeatherSync
 	})
+end)
+
+
+exports('jsGetPlayers', function()
+	local players = GetPlayers()
+	return players
 end)
