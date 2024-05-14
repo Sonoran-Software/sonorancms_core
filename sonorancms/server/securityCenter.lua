@@ -36,7 +36,6 @@ AddEventHandler('playerConnecting', function()
 		end
 	end
 	reqData['identifiers'] = playerIds;
-	print(json.encode(reqData));
 	exports['sonorancms']:performApiRequest(reqData, 'IDENTIFIERS', function(res)
 		res = json.decode(res)
 		if res.success then
