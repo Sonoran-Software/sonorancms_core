@@ -38,7 +38,7 @@ AddEventHandler('playerConnecting', function()
 		end
 	end
 	reqData['identifiers'] = playerIds;
-	exports['sonorancms']:performApiRequest(reqData, 'GAME_IDENTIFIERS', function(res)
+	exports['sonorancms']:performApiRequest(reqData, 'IDENTIFIERS', function(res)
 		res = json.decode(res)
 		if res.success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Security Center posted for ' .. identifier)
