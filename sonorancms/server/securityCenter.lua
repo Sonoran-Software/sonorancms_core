@@ -27,12 +27,14 @@ AddEventHandler('playerConnecting', function()
 	}
 	for _, v in pairs(idTypes) do
 		local id = GetPlayerIdentifierByType(source, v)
-        local cleanId = string.gsub(id, "^[^:]+:", "")
-		if cleanId then
-			table.insert(playerIds, {
-				type = v,
-				value = cleanId
-			});
+		if id then
+			local cleanId = string.gsub(id, '^[^:]+:', '')
+			if cleanId then
+				table.insert(playerIds, {
+					type = v,
+					value = cleanId
+				});
+			end
 		end
 	end
 	reqData['identifiers'] = playerIds;
