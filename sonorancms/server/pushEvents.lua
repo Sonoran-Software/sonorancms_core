@@ -2164,6 +2164,41 @@ local function requestGarageData()
 		else
 			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
 		end
+	elseif GetResourceState('ak47_qb_garage') == 'started' then
+		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage', function(row)
+			if not row then
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'No garages found in ak47_qb_garage')
+			else
+				for _, v in ipairs(row) do
+					local spawns = json.decode(v.spawns)
+					table.insert(QBGarages, {
+						name = v.gid,
+						label = v.name,
+						takeVehicle = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z
+						},
+						spawnPoint = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z,
+						},
+						putVehicle = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z
+						},
+						showBlip = true,
+						blipName = v.name,
+						blipNumber = 357,
+						blipColor = 3,
+						type = 'public',
+						vehicle = 'car'
+					})
+				end
+			end
+		end)
 	end
 	return QBGarages
 end
