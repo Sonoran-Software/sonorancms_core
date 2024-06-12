@@ -118,7 +118,18 @@ end
 ---@param inputString string
 ---@return string
 local function escapeQuotes(inputString)
-	return inputString:gsub('[\'"]', '\\%0')
+	inputString = inputString.gsub(inputString, "([%c%z\\\"'])", {
+		["\\"] = "\\\\",
+		["\""] = "\\\"",
+		["'"] = "\\'",
+		["\b"] = "\\b",
+		["\f"] = "\\f",
+		["\n"] = "\\n",
+		["\r"] = "\\r",
+		["\t"] = "\\t",
+		["\0"] = "\\0",
+	})
+return inputString
 end
 
 --- Encodes the combinale array for items to be correct
@@ -585,15 +596,15 @@ CreateThread(function()
 					for gangName, gangData in pairs(gangsTable) do
 						local gangLine = '\t[\'' .. gangName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -647,17 +658,17 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name
+							name = escapeQuotes(gradeData.name)
 						}
 					end
 				end
 				validGangs[data.data.id] = {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable
 				}
 				local function convertToPlainText(gangsTable)
@@ -668,15 +679,15 @@ CreateThread(function()
 					for gangName, gangData in pairs(gangsTable) do
 						local gangLine = '\t[\'' .. gangName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -730,17 +741,17 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name
+							name = escapeQuotes(gradeData.name)
 						}
 					end
 				end
 				validGangs[data.data.id] = {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable
 				}
 				exports['qb-core']:AddGang(data.data.id, {
@@ -755,15 +766,15 @@ CreateThread(function()
 					for gangName, gangData in pairs(gangsTable) do
 						local gangLine = '\t[\'' .. gangName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -823,7 +834,7 @@ CreateThread(function()
 					for jobName, jobData in pairs(jobTable) do
 						local gangLine = '\t[\'' .. jobName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -840,10 +851,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -897,20 +908,20 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment,
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment
 						}
 					end
 				end
 				validJobs[data.data.id] = {
 					type = data.data.type,
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
@@ -924,7 +935,7 @@ CreateThread(function()
 					for jobName, jobData in pairs(jobTable) do
 						local gangLine = '\t[\'' .. jobName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -941,10 +952,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -998,26 +1009,26 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment,
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment
 						}
 					end
 				end
 				validJobs[data.data.id] = {
 					type = data.data.type,
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
 				}
 				exports['qb-core']:AddJob(data.data.id, {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
@@ -1031,7 +1042,7 @@ CreateThread(function()
 					for jobName, jobData in pairs(jobTable) do
 						local gangLine = '\t[\'' .. jobName .. '\'] = {'
 						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -1048,10 +1059,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
