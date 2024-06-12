@@ -233,6 +233,19 @@ local function shiftToHour(hour)
 	timeOffset = timeOffset - ((((baseTime + timeOffset) / 60) % 24) - hour) * 60
 end
 
+-- Function to determine whether a table is a string_literal_key table or a plain_identifier_key table
+function checkKeyTypes(tbl)
+    local keyTypes = {}
+    for key, _ in pairs(tbl) do
+        if type(key) == "string" and key:match("^[%a_][%w_]*$") then
+            keyTypes[key] = "plain"
+        else
+            keyTypes[key] = "string"
+        end
+    end
+    return keyTypes
+end
+
 CreateThread(function()
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_KICK_PLAYER', function(data)
 		if data ~= nil then
@@ -582,6 +595,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.gangId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.gangId .. ' does not exist.')
@@ -594,8 +608,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
@@ -649,6 +668,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' does not exist.')
@@ -677,8 +697,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
@@ -732,6 +757,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' already exists.')
@@ -764,8 +790,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
@@ -819,6 +850,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.jobId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.jobId .. ' does not exist.')
@@ -832,8 +864,13 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type then
@@ -899,6 +936,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' does not exist.')
@@ -933,8 +971,13 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
@@ -1000,6 +1043,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' already exist.')
@@ -1040,8 +1084,13 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
@@ -1451,7 +1500,7 @@ CreateThread(function()
 						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = {
 							level = data.data.grade - 1,
-							name = job.grades[tostring(data.data.grade - 1)].name,
+							name = job.grades[tostring(data.data.grade - 1)].name
 						}
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.label = data.data.label
@@ -1913,7 +1962,7 @@ local function requestFileJobs()
 					isBoss = grade.isboss
 				})
 			end
-				table.insert(validJobs, {
+			table.insert(validJobs, {
 				id = jobName,
 				label = jobData.label,
 				defaultDuty = jobData.defaultDuty,
@@ -1973,7 +2022,7 @@ local function requestFileGangs()
 					isBoss = grade.isboss
 				})
 			end
-				table.insert(validGangs, {
+			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
 				defaultDuty = gangData.defaultDuty,
