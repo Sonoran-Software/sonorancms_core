@@ -118,7 +118,18 @@ end
 ---@param inputString string
 ---@return string
 local function escapeQuotes(inputString)
-	return inputString:gsub('[\'"]', '\\%0')
+	inputString = inputString.gsub(inputString, "([%c%z\\\"'])", {
+		["\\"] = "\\\\",
+		["\""] = "\\\"",
+		["'"] = "\\'",
+		["\b"] = "\\b",
+		["\f"] = "\\f",
+		["\n"] = "\\n",
+		["\r"] = "\\r",
+		["\t"] = "\\t",
+		["\0"] = "\\0",
+	})
+return inputString
 end
 
 --- Encodes the combinale array for items to be correct
@@ -220,6 +231,19 @@ end
 --- @param hour number - Hour to offset by
 local function shiftToHour(hour)
 	timeOffset = timeOffset - ((((baseTime + timeOffset) / 60) % 24) - hour) * 60
+end
+
+-- Function to determine whether a table is a string_literal_key table or a plain_identifier_key table
+function checkKeyTypes(tbl)
+    local keyTypes = {}
+    for key, _ in pairs(tbl) do
+        if type(key) == "string" and key:match("^[%a_][%w_]*$") then
+            keyTypes[key] = "plain"
+        else
+            keyTypes[key] = "string"
+        end
+    end
+    return keyTypes
 end
 
 CreateThread(function()
@@ -571,6 +595,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.gangId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.gangId .. ' does not exist.')
@@ -583,17 +608,22 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -638,6 +668,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' does not exist.')
@@ -647,17 +678,17 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name
+							name = escapeQuotes(gradeData.name)
 						}
 					end
 				end
 				validGangs[data.data.id] = {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable
 				}
 				local function convertToPlainText(gangsTable)
@@ -666,17 +697,22 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -721,6 +757,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedGangs)
 			validGangs = filterGangs(loadedGangs)
 			if validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' already exists.')
@@ -730,17 +767,17 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name
+							name = escapeQuotes(gradeData.name)
 						}
 					end
 				end
 				validGangs[data.data.id] = {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable
 				}
 				exports['qb-core']:AddGang(data.data.id, {
@@ -753,17 +790,22 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						local gangLine = '\t[\'' .. gangName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', gangData.label)
+						if tableType.gangName == 'string' then
+							local gangLine = '\t[\'' .. gangName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. gangName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
 						table.insert(lines, labelLine)
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(gangData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, gradeData.name, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, gradeData.name)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -808,6 +850,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.jobId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.jobId .. ' does not exist.')
@@ -821,9 +864,14 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -840,10 +888,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -888,6 +936,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' does not exist.')
@@ -897,20 +946,20 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment,
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment
 						}
 					end
 				end
 				validJobs[data.data.id] = {
 					type = data.data.type,
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
@@ -922,9 +971,14 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -941,10 +995,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -989,6 +1043,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
+			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' already exist.')
@@ -998,26 +1053,26 @@ CreateThread(function()
 				for gradeIndex, gradeData in pairs(data.data.grades) do
 					if gradeData.isBoss then
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment,
 							isboss = gradeData.isBoss
 						}
 					else
 						gradesTable[gradeIndex - 1] = {
-							name = gradeData.name,
+							name = escapeQuotes(gradeData.name),
 							payment = gradeData.payment
 						}
 					end
 				end
 				validJobs[data.data.id] = {
 					type = data.data.type,
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
 				}
 				exports['qb-core']:AddJob(data.data.id, {
-					label = data.data.label,
+					label = escapeQuotes(data.data.label),
 					grades = gradesTable,
 					defaultDuty = data.data.defaultDuty,
 					offDutyPay = data.data.offDutyPay
@@ -1029,9 +1084,14 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						local gangLine = '\t[\'' .. jobName .. '\'] = {'
-						table.insert(lines, gangLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', jobData.label)
+						if tableType.jobName == 'string' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
 						if jobData.type and jobData.type ~= nil then
 							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
@@ -1048,10 +1108,10 @@ CreateThread(function()
 						table.insert(lines, '\t\tgrades = {')
 						for gradeIndex, gradeData in pairs(jobData.grades) do
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, gradeData.name, gradeData.payment, gradeData.isboss)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
 								table.insert(lines, gradeLine)
 							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, gradeData.name, gradeData.payment)
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 								table.insert(lines, gradeLine)
 							end
 						end
@@ -1440,7 +1500,7 @@ CreateThread(function()
 						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = {
 							level = data.data.grade - 1,
-							name = job.grades[tostring(data.data.grade - 1)].name,
+							name = job.grades[tostring(data.data.grade - 1)].name
 						}
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.label = data.data.label
@@ -1902,7 +1962,7 @@ local function requestFileJobs()
 					isBoss = grade.isboss
 				})
 			end
-				table.insert(validJobs, {
+			table.insert(validJobs, {
 				id = jobName,
 				label = jobData.label,
 				defaultDuty = jobData.defaultDuty,
@@ -1962,7 +2022,7 @@ local function requestFileGangs()
 					isBoss = grade.isboss
 				})
 			end
-				table.insert(validGangs, {
+			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
 				defaultDuty = gangData.defaultDuty,
@@ -2104,6 +2164,41 @@ local function requestGarageData()
 		else
 			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
 		end
+	elseif GetResourceState('ak47_qb_garage') == 'started' then
+		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage', function(row)
+			if not row then
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'No garages found in ak47_qb_garage')
+			else
+				for _, v in ipairs(row) do
+					local spawns = json.decode(v.spawns)
+					table.insert(QBGarages, {
+						name = v.gid,
+						label = v.name,
+						takeVehicle = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z
+						},
+						spawnPoint = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z,
+						},
+						putVehicle = {
+							spawns[1].x,
+							spawns[1].y,
+							spawns[1].z
+						},
+						showBlip = true,
+						blipName = v.name,
+						blipNumber = 357,
+						blipColor = 3,
+						type = 'public',
+						vehicle = 'car'
+					})
+				end
+			end
+		end)
 	end
 	return QBGarages
 end
