@@ -2369,9 +2369,9 @@ function handleDataRequest(data)
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
-						~= 'started' and GetResourceState('ak47_gb_garage') ~= 'started' then
+						~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-			             'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			             'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			table.insert(errors, {
 				code = 'ERR_GARAGE_NOT_STARTED',
 				message = 'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently.'
