@@ -608,7 +608,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'string' then
+						if tableType.gangName == 'plain' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -697,7 +697,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'string' then
+						if tableType.gangName == 'plain' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -790,7 +790,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'string' then
+						if tableType.gangName == 'plain' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -864,7 +864,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'string' then
+						if tableType.jobName == 'plain' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -971,7 +971,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'string' then
+						if tableType.jobName == 'plain' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -1084,7 +1084,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'string' then
+						if tableType.jobName == 'plain' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -2369,7 +2369,7 @@ function handleDataRequest(data)
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
-						~= 'started' then
+						~= 'started' and GetResourceState('ak47_gb_garage') then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			table.insert(errors, {
