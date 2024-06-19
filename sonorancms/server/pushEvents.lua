@@ -118,18 +118,18 @@ end
 ---@param inputString string
 ---@return string
 local function escapeQuotes(inputString)
-	inputString = inputString.gsub(inputString, "([%c%z\\\"'])", {
-		["\\"] = "\\\\",
-		["\""] = "\\\"",
-		["'"] = "\\'",
-		["\b"] = "\\b",
-		["\f"] = "\\f",
-		["\n"] = "\\n",
-		["\r"] = "\\r",
-		["\t"] = "\\t",
-		["\0"] = "\\0",
+	inputString = inputString.gsub(inputString, '([%c%z\\"\'])', {
+		['\\'] = '\\\\',
+		['"'] = '\\"',
+		['\''] = '\\\'',
+		['\b'] = '\\b',
+		['\f'] = '\\f',
+		['\n'] = '\\n',
+		['\r'] = '\\r',
+		['\t'] = '\\t',
+		['\0'] = '\\0'
 	})
-return inputString
+	return inputString
 end
 
 --- Encodes the combinale array for items to be correct
@@ -234,16 +234,17 @@ local function shiftToHour(hour)
 end
 
 -- Function to determine whether a table is a string_literal_key table or a plain_identifier_key table
-function checkKeyTypes(tbl)
-    local keyTypes = {}
-    for key, _ in pairs(tbl) do
-        if type(key) == "string" and key:match("^[%a_][%w_]*$") then
-            keyTypes[key] = "plain"
-        else
-            keyTypes[key] = "string"
-        end
-    end
-    return keyTypes
+local function checkObjType(data)
+	local jobs = {};
+	local quoted_pattern = '%[\'(.-)\'%]'
+	local unquoted_pattern = '%s(%a[%w_]*)%s*=%s*{'
+	for job_id in data:gmatch(quoted_pattern) do
+		jobs[job_id] = 'quoted'
+	end
+	for job_id in data:gmatch(unquoted_pattern) do
+		jobs[job_id] = 'unquoted'
+	end
+	return jobs
 end
 
 CreateThread(function()
@@ -595,7 +596,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedGangs)
+			local jobTypes = checkObjType(originalData)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.gangId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.gangId .. ' does not exist.')
@@ -608,7 +609,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'plain' then
+						if jobTypes[gangName] == 'quoted' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -668,7 +669,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedGangs)
+			local jobTypes = checkObjType(originalData)
 			validGangs = filterGangs(loadedGangs)
 			if not validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' does not exist.')
@@ -697,7 +698,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'plain' then
+						if jobTypes[gangName] == 'quoted' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -757,7 +758,7 @@ CreateThread(function()
 				print('Error: QBShared.Gangs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedGangs)
+			local jobTypes = checkObjType(originalData)
 			validGangs = filterGangs(loadedGangs)
 			if validGangs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' already exists.')
@@ -790,7 +791,7 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Gangs = {')
 					for gangName, gangData in pairs(gangsTable) do
-						if tableType.gangName == 'plain' then
+						if jobTypes[gangName] == 'quoted' then
 							local gangLine = '\t[\'' .. gangName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -850,7 +851,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedJobs)
+			local jobTypes = checkObjType(originalData)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.jobId] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.jobId .. ' does not exist.')
@@ -864,7 +865,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'plain' then
+						if jobTypes[jobName] == 'quoted' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -931,12 +932,12 @@ CreateThread(function()
 				return
 			end
 			func()
+			local jobTypes = checkObjType(originalData)
 			local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
 			if not loadedJobs or next(loadedJobs) == nil then
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedJobs)
 			validJobs = filterJobs(loadedJobs)
 			if not validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' does not exist.')
@@ -971,7 +972,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'plain' then
+						if jobTypes[jobName] == 'quoted' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -1043,7 +1044,7 @@ CreateThread(function()
 				print('Error: QBShared.Jobs table is missing or empty.')
 				return
 			end
-			local tableType = checkKeyTypes(loadedJobs)
+			local jobTypes = checkObjType(originalData)
 			validJobs = filterJobs(loadedJobs)
 			if validJobs[data.data.id] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' already exist.')
@@ -1084,7 +1085,7 @@ CreateThread(function()
 					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
 					table.insert(lines, 'QBShared.Jobs = {')
 					for jobName, jobData in pairs(jobTable) do
-						if tableType.jobName == 'plain' then
+						if jobTypes[jobName] == 'quoted' then
 							local gangLine = '\t[\'' .. jobName .. '\'] = {'
 							table.insert(lines, gangLine)
 						else
@@ -1172,6 +1173,7 @@ CreateThread(function()
 				print('Error: QBShared.Items table is missing or empty.')
 				return
 			end
+			local itemTypes = checkObjType(originalData)
 			validItems = filterJobs(loadedItems)
 			if validItems[data.data.name] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' already exist.')
@@ -1196,8 +1198,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Items = {')
 					for itemName, itemData in pairs(itemTable) do
-						local itemLine = '\t[\'' .. itemName .. '\'] = {'
-						table.insert(lines, itemLine)
+						if itemTypes[itemName] == 'quoted' then
+							local itemLine = '\t[\'' .. itemName .. '\'] = {'
+							table.insert(lines, itemLine)
+						else
+							local itemLine = '\t' .. itemName .. ' = {'
+							table.insert(lines, itemLine)
+						end
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
 						table.insert(lines, labelLine)
 						if itemData.type and itemData.type ~= nil then
@@ -1275,6 +1282,7 @@ CreateThread(function()
 				print('Error: QBShared.Items table is missing or empty.')
 				return
 			end
+			local itemTypes = checkObjType(originalData)
 			validItems = filterJobs(loadedItems)
 			if not validItems[data.data.name] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' does not exist.')
@@ -1299,7 +1307,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Items = {')
 					for itemName, itemData in pairs(itemTable) do
-						local itemLine = '\t[\'' .. itemName .. '\'] = {'
+						if itemTypes[itemName] == 'quoted' then
+							local itemLine = '\t[\'' .. itemName .. '\'] = {'
+							table.insert(lines, itemLine)
+						else
+							local itemLine = '\t' .. itemName .. ' = {'
+							table.insert(lines, itemLine)
+						end
 						table.insert(lines, itemLine)
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
 						table.insert(lines, labelLine)
@@ -1379,6 +1393,7 @@ CreateThread(function()
 				print('Error: QBShared.Items table is missing or empty.')
 				return
 			end
+			local itemTypes = checkObjType(originalData)
 			validItems = filterJobs(loadedItems)
 			if not validItems[data.data.itemName] then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.itemName .. ' does not exist.')
@@ -1391,7 +1406,13 @@ CreateThread(function()
 					}
 					table.insert(lines, 'QBShared.Items = {')
 					for itemName, itemData in pairs(itemTable) do
-						local itemLine = '\t[\'' .. itemName .. '\'] = {'
+						if itemTypes[itemName] == 'quoted' then
+							local itemLine = '\t[\'' .. itemName .. '\'] = {'
+							table.insert(lines, itemLine)
+						else
+							local itemLine = '\t' .. itemName .. ' = {'
+							table.insert(lines, itemLine)
+						end
 						table.insert(lines, itemLine)
 						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
 						table.insert(lines, labelLine)
@@ -2182,7 +2203,7 @@ local function requestGarageData()
 						spawnPoint = {
 							spawns[1].x,
 							spawns[1].y,
-							spawns[1].z,
+							spawns[1].z
 						},
 						putVehicle = {
 							spawns[1].x,
