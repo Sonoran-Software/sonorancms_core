@@ -2186,7 +2186,7 @@ local function requestGarageData()
 			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
 		end
 	elseif GetResourceState('ak47_qb_garage') == 'started' then
-		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage', function(row)
+		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage`', function(row)
 			if not row then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'No garages found in ak47_qb_garage')
 			else
