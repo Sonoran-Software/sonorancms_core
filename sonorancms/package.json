@@ -2,7 +2,7 @@
     "license": "UNLICENSED",
     "dependencies": {
         "@discordjs/collection": "1.5.0",
-        "@sonoransoftware/sonoran.js": "^1.0.26",
+        "@sonoransoftware/sonoran.js": "1.0.29",
         "deepmerge": "^4.3.1",
         "extract-zip": "^2.0.1",
         "formidable": "^3.5.0",

@@ -240,7 +240,7 @@ CreateThread(function()
 	local versionfile = json.decode(LoadResourceFile(GetCurrentResourceName(), '/version.json'))
 	local fxversion = versionfile.testedFxServerVersion
 	local currentFxVersion = getServerVersion()
-	if currentFxVersion ~= nil and fxversion ~= nil then
+	if tonumber(currentFxVersion) ~= nil and tonumber(fxversion) ~= nil then
 		if tonumber(currentFxVersion) < tonumber(fxversion) then
 			warnLog(('SonoranCMS has been tested with FXServer version %s, but you\'re running %s. Please update ASAP.'):format(fxversion, currentFxVersion))
 		end
