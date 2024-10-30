@@ -61,6 +61,15 @@ function initialize()
         end
         return ranks -- Return nil if the rank is not found
     end
+    local function removeAllRanks()
+        local ranks = {}
+        for _, mapping in ipairs(rankMappings.mappings) do
+            for _, r in ipairs(mapping.ranks) do
+                table.insert(ranks, r)
+            end
+        end
+        return ranks
+    end
     RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
         local identifier
         local source = source
@@ -137,6 +146,41 @@ function initialize()
         if #ranks.remove > 0 then
             payload['remove'] = ranks.remove
         end
+        exports['sonorancms']:performApiRequest({payload}, 'SET_ACCOUNT_RANKS',
+                                                function(res, success)
+            res = json.decode(res)
+            if not success then
+                TriggerEvent('SonoranCMS::core:writeLog', 'error',
+                             'Failed to set job for ' .. GetPlayerName(source) ..
+                                 ' (' .. identifier .. ') - ' .. json.encode(res))
+            end
+        end)
+    end)
+    AddEventHandler('playerDropped', function()
+        local identifier
+        local source = source
+        for _, v in pairs(GetPlayerIdentifiers(source)) do
+            if string.sub(v, 1, string.len(Config.apiIdType .. ':')) ==
+                Config.apiIdType .. ':' then
+                identifier = string.sub(v,
+                                        string.len(Config.apiIdType .. ':') + 1)
+            end
+        end
+        local ranks = removeAllRanks()
+        local payload = {data = {}}
+        if Config.apiIdType == 'discord' then
+            payload['discord'] = identifier
+        else
+            payload['apiId'] = identifier
+        end
+        if identifier == nil then
+            TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+                         'Unable to set job for ' .. GetPlayerName(source) ..
+                             ' due to missing ' .. Config.apiIdType ..
+                             ' identifier.')
+            return
+        end
+        payload['remove'] = ranks
         exports['sonorancms']:performApiRequest({payload}, 'SET_ACCOUNT_RANKS',
                                                 function(res, success)
             res = json.decode(res)
