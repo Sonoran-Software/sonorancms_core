@@ -140,7 +140,7 @@ SetHttpHandler(function(req, res)
 	end
 end)
 
-RegisterNetEvent('SonoranCMS::pushevents::UnitLogin', function(accID)
+RegisterNetEvent('SonoranCAD::pushevents:UnitLogin', function(accID)
 	local payload = {}
 	payload['id'] = Config.CommID
 	payload['key'] = Config.APIKey
@@ -161,7 +161,7 @@ RegisterNetEvent('SonoranCMS::pushevents::UnitLogin', function(accID)
 	})
 end)
 
-RegisterNetEvent('SonoranCMS::pushevents::UnitLogout', function(accID)
+RegisterNetEvent('SonoranCAD::pushevents:UnitLogout', function(accID)
 	local payload = {}
 	payload['id'] = Config.CommID
 	payload['key'] = Config.APIKey
