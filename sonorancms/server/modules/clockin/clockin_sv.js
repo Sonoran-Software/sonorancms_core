@@ -45,6 +45,24 @@ const clockPlayerIn = (apiId, forceClockIn) => {
 	});
 };
 
+/**
+ * @param {string} accID
+ * @param {boolean} forceClockIn
+ * @returns {Promise}
+ */
+const clockPlayerInFromCad = (accID, forceClockIn) => {
+	return new Promise(async (resolve, reject) => {
+		exports.sonorancms.performApiRequest([{ accId: accID, forceClockIn: !!forceClockIn }], "CLOCK_IN_OUT", function (res) {
+			res = JSON.parse(res);
+			if (res) {
+				resolve(res.completed);
+			} else {
+				reject("There was an error");
+			}
+		});
+	});
+};
+
 async function initialize() {
 	await exports.sonorancms.sleep(2000);
 	if (config) {
@@ -123,6 +141,26 @@ async function initialize() {
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}...`);
+					});
+			});
+		}
+		if (config?.cad?.use) {
+			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
+				await clockPlayerInFromCad(accID, true)
+					.then((inOrOut) => {
+						infoLog(`Clocked player ${accID} ${inOrOut ? "out" : "in"}!`);
+					})
+					.catch((err) => {
+						errorLog(`Failed to clock player ${accID} ${inOrOut ? "out" : "in"}...`);
+				});
+			})
+			onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
+				await clockPlayerInFromCad(accID, false)
+					.then((inOrOut) => {
+						infoLog(`Clocked player ${accID} ${inOrOut ? "out" : "in"}!`);
+					})
+					.catch((err) => {
+						errorLog(`Failed to clock player ${accID} ${inOrOut ? "out" : "in"}...`);
 					});
 			});
 		}

@@ -140,47 +140,6 @@ SetHttpHandler(function(req, res)
 	end
 end)
 
-RegisterNetEvent('SonoranCAD::pushevents:UnitLogin', function(accID)
-	local payload = {}
-	payload['id'] = Config.CommID
-	payload['key'] = Config.APIKey
-	payload['type'] = 'CLOCK_IN_OUT'
-	payload['data'] = {
-		{
-			['accID'] = accID,
-			['forceClockIn'] = true,
-			['server'] = Config.serverId
-		}
-	}
-	PerformHttpRequest(Config.apiUrl .. '/general/clock_in_out', function(code, result, _)
-		if code == 201 and Config.debug_mode then
-			print('logging in unit. Results: ' .. result)
-		end
-	end, 'POST', json.encode(payload), {
-		['Content-Type'] = 'application/json'
-	})
-end)
-
-RegisterNetEvent('SonoranCAD::pushevents:UnitLogout', function(accID)
-	local payload = {}
-	payload['id'] = Config.CommID
-	payload['key'] = Config.APIKey
-	payload['type'] = 'CLOCK_IN_OUT'
-	payload['data'] = {
-		{
-			['accID'] = accID,
-			['server'] = Config.serverId
-		}
-	}
-	PerformHttpRequest(Config.apiUrl .. '/general/clock_in_out', function(code, result, _)
-		if code == 201 and Config.debug_mode then
-			print('logging out unit. Results: ' .. result)
-		end
-	end, 'POST', json.encode(payload), {
-		['Content-Type'] = 'application/json'
-	})
-end)
-
 RegisterNetEvent('sonorancms::RegisterPushEvent', function(type, event)
 	plugin_handlers[type] = event
 end)
