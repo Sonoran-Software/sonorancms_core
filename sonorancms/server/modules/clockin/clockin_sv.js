@@ -137,7 +137,6 @@ async function initialize() {
 				const apiId = await exports.sonorancms.getAppropriateIdentifier(src, apiIdType);
 				await clockPlayerIn(apiId, forceClockIn)
 					.then((inOrOut) => {
-						infoLog(`Clocked player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}!`);
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}...`);
@@ -148,7 +147,6 @@ async function initialize() {
 			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
 				await clockPlayerInFromCad(accID.accId, true)
 					.then((inOrOut) => {
-						infoLog(`Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`);
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}...`);
@@ -160,7 +158,6 @@ async function initialize() {
 				let foundUnit = unitCache[unitId - 1];
 				await clockPlayerInFromCad(foundUnit.accId, false)
 					.then((inOrOut) => {
-						infoLog(`Clocked player ${foundUnit.accId} ${inOrOut ? "out" : "in"}!`);
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}...`);
