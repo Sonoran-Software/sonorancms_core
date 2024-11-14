@@ -94,3 +94,52 @@ jobs:
                --data-binary "@release/sonorancms_core-$VERSION.zip" \
                "$UPLOAD_URL"
         shell: bash
+  upload-artifact:
+    if: github.ref != 'refs/heads/master'  # Run only on non-master branches
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Auth Token
+        run: |
+          if [ -z "${{ secrets.PAT_OVERRIDE }}" ]; then
+            echo "AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+          else
+            echo "AUTH_TOKEN=${{ secrets.PAT_OVERRIDE }}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Extract Version
+        id: extract-version
+        run: |
+          VERSION=$(grep -oP "version '\K\d+\.\d+\.\d+" sonorancms/fxmanifest.lua)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Grabbed version number of $VERSION, will be used for this release..."
+        shell: bash
+
+      - name: Create Release Directory
+        id: create-release-dir
+        run: |
+          mkdir release
+          echo "Created release directory"
+        shell: bash
+
+      - name: Zip Directories
+        id: zip-dirs
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
+          mkdir [sonorancms]
+          mv sonorancms [sonorancms]/sonorancms
+          mv sonorancms_updatehelper [sonorancms]/sonorancms_updatehelper
+          zip -r "sonorancms_core-$VERSION.zip" [sonorancms]/
+          mv "sonorancms_core-$VERSION.zip" release/
+          echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"
+        shell: bash
+        
+      - name: Upload ZIP as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonorancms_core-artifact
+          path: sonorancms_core-*.zip
