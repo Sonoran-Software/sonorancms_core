@@ -155,6 +155,10 @@ async function initialize() {
 				return
 			}
 			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
+				if (!accID?.accId) {
+					errorLog("No accId found in UnitLogin event... ignoring...");
+					return
+				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${accID.accId} based on UnitLogin event...`)
 				await clockPlayerInFromCad(accID.accId, true)
 					.then((inOrOut) => {
@@ -165,6 +169,10 @@ async function initialize() {
 				});
 			})
 			onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
+				if (!accID?.accId) {
+					errorLog("No accId found in UnitLogin event... ignoring...");
+					return
+				}
 				let unitId = exports.sonorancad.GetUnitById(accID);
 				let unitCache = exports.sonorancad.GetUnitCache();
 				let foundUnit = unitCache[unitId - 1];
