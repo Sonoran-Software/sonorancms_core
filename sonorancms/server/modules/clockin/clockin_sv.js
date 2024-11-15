@@ -81,8 +81,10 @@ async function initialize() {
 				config.command || "clockin",
 				async (source) => {
 					const apiId = await exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
+					emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerIn for ${apiId} based on command...`)
 					await clockPlayerIn(apiId, false)
 						.then((inOrOut) => {
+							emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${GetPlayerName(source)} (${apiId}) ${inOrOut ? "out" : "in"}!`)
 							if (inOrOut == false) {
 								emitNet("chat:addMessage", source, {
 									color: [255, 0, 0],
@@ -118,8 +120,10 @@ async function initialize() {
 			if (config?.esx?.use) {
 				onNet("esx_service:activateService", async () => {
 					const apiId = exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
+					emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerIn for ${apiId} based on esx_service:activateService event...`)
 					await clockPlayerIn(apiId, forceClockIn)
 						.then((inOrOut) => {
+							emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}!`)
 							emitNet("chat:addMessage", source, {
 								color: [255, 0, 0],
 								multiline: false,
@@ -135,8 +139,10 @@ async function initialize() {
 			onNet("SonoranCMS::ClockIn::Server::ClockPlayerIn", async (forceClockIn) => {
 				const src = global.source;
 				const apiId = await exports.sonorancms.getAppropriateIdentifier(src, apiIdType);
+				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerIn for ${apiId} based on SonoranCMS::ClockIn::Server::ClockPlayerIn event...`)
 				await clockPlayerIn(apiId, forceClockIn)
 					.then((inOrOut) => {
+					emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}...`);
@@ -144,9 +150,15 @@ async function initialize() {
 			});
 		}
 		if (config?.cad?.use) {
+			if (GetResourceState("sonorancad") !== "started") {
+				errorLog(`[SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
+				return
+			}
 			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
+				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${accID.accId} based on UnitLogin event...`)
 				await clockPlayerInFromCad(accID.accId, true)
 					.then((inOrOut) => {
+						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}...`);
@@ -156,6 +168,7 @@ async function initialize() {
 				let unitId = exports.sonorancad.GetUnitById(accID);
 				let unitCache = exports.sonorancad.GetUnitCache();
 				let foundUnit = unitCache[unitId - 1];
+				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${foundUnit.accId} based on UnitLogout event...`)
 				await clockPlayerInFromCad(foundUnit.accId, false)
 					.then((inOrOut) => {
 					})
