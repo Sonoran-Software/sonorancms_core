@@ -52,7 +52,7 @@ const clockPlayerIn = (apiId, forceClockIn) => {
  */
 const clockPlayerInFromCad = (accID, forceClockIn) => {
 	return new Promise(async (resolve, reject) => {
-		exports.sonorancms.performApiRequest([{ accId: accID, forceClockIn: !!forceClockIn }], "CLOCK_IN_OUT", function (res) {
+		exports.sonorancms.performApiRequest([{ accId: accID }], "CLOCK_IN_OUT", function (res) {
 			res = JSON.parse(res);
 			if (res) {
 				resolve(res.completed);
@@ -179,6 +179,7 @@ async function initialize() {
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${foundUnit.accId} based on UnitLogout event...`)
 				await clockPlayerInFromCad(foundUnit.accId, false)
 					.then((inOrOut) => {
+						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${foundUnit.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
 						errorLog(`Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}...`);
