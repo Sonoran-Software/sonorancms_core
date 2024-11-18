@@ -7,6 +7,8 @@ cleanLuaConfig1.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value
 });
 let apiIdType = serverConfig.apiIdType;
 
+const clockedInUnits = [];
+
 /**
  *
  * @param {string} message
@@ -33,8 +35,11 @@ infoLog = (message) => {
  * @returns {Promise}
  */
 const clockPlayerIn = (apiId, forceClockIn) => {
+	if (!forceClockIn) {
+		forceClockIn = false;
+	}
 	return new Promise(async (resolve, reject) => {
-		exports.sonorancms.performApiRequest([{ apiId: apiId, forceClockIn: !!forceClockIn }], "CLOCK_IN_OUT", function (res) {
+		exports.sonorancms.performApiRequest([{ apiId: apiId, forceClockIn: forceClockIn }], "CLOCK_IN_OUT", function (res) {
 			res = JSON.parse(res);
 			if (res) {
 				resolve(res.completed);
@@ -50,9 +55,9 @@ const clockPlayerIn = (apiId, forceClockIn) => {
  * @param {boolean} forceClockIn
  * @returns {Promise}
  */
-const clockPlayerInFromCad = (accID, forceClockIn) => {
+const clockPlayerInFromCad = (accID, forceClockIn, forceClockOut) => {
 	return new Promise(async (resolve, reject) => {
-		exports.sonorancms.performApiRequest([{ accId: accID }], "CLOCK_IN_OUT", function (res) {
+		exports.sonorancms.performApiRequest([{ accId: accID, forceClockIn: forceClockIn, forceClockOut: forceClockOut }], "CLOCK_IN_OUT", function (res) {
 			res = JSON.parse(res);
 			if (res) {
 				resolve(res.completed);
@@ -121,7 +126,7 @@ async function initialize() {
 				onNet("esx_service:activateService", async () => {
 					const apiId = exports.sonorancms.getAppropriateIdentifier(source, apiIdType);
 					emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerIn for ${apiId} based on esx_service:activateService event...`)
-					await clockPlayerIn(apiId, forceClockIn)
+					await clockPlayerIn(apiId)
 						.then((inOrOut) => {
 							emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}!`)
 							emitNet("chat:addMessage", source, {
@@ -156,33 +161,42 @@ async function initialize() {
 			}
 			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
 				if (!accID?.accId) {
-					errorLog("No accId found in UnitLogin event... ignoring...");
+					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogin event... ignoring...`)
+					return
+				}
+				if (clockedInUnits[accID.accId]) {
+					emit('SonoranCMS::core:writeLog', 'debug', `Player ${accID.accId} is already clocked in... ignoring...`)
 					return
 				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${accID.accId} based on UnitLogin event...`)
-				await clockPlayerInFromCad(accID.accId, true)
+				await clockPlayerInFromCad(accID.accId, true, false)
 					.then((inOrOut) => {
+						clockedInUnits[accID.accId] = inOrOut;
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
-						errorLog(`Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}...`);
+						emit('SonoranCMS::core:writeLog', 'warn', `Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}...`)
 				});
 			})
 			onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
 				if (!accID?.accId) {
-					errorLog("No accId found in UnitLogin event... ignoring...");
+					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogout event... ignoring...`)
 					return
 				}
 				let unitId = exports.sonorancad.GetUnitById(accID);
 				let unitCache = exports.sonorancad.GetUnitCache();
 				let foundUnit = unitCache[unitId - 1];
+				if (!foundUnit && !foundUnit?.accId) {
+					emit('SonoranCMS::core:writeLog', 'warn', `No unit found in UnitLogout event... ignoring...`)
+					return
+				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${foundUnit.accId} based on UnitLogout event...`)
-				await clockPlayerInFromCad(foundUnit.accId, false)
+				await clockPlayerInFromCad(foundUnit.accId, false, true)
 					.then((inOrOut) => {
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${foundUnit.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
-						errorLog(`Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}...`);
+						emit('SonoranCMS::core:writeLog', 'warn', `Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}...`)
 					});
 			});
 		}
