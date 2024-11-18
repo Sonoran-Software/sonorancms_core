@@ -179,7 +179,7 @@ async function initialize() {
 				});
 			})
 			onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
-				if (!accID?.accId) {
+				if (!accID) {
 					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogout event... ignoring...`)
 					return
 				}
