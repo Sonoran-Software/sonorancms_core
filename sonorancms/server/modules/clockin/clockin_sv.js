@@ -7,8 +7,6 @@ cleanLuaConfig1.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value
 });
 let apiIdType = serverConfig.apiIdType;
 
-const clockedInUnits = [];
-
 /**
  *
  * @param {string} message
@@ -55,9 +53,9 @@ const clockPlayerIn = (apiId, forceClockIn) => {
  * @param {boolean} forceClockIn
  * @returns {Promise}
  */
-const clockPlayerInFromCad = (accID, forceClockIn, forceClockOut) => {
+const clockPlayerInFromCad = (accID, intention) => {
 	return new Promise(async (resolve, reject) => {
-		exports.sonorancms.performApiRequest([{ accId: accID, forceClockIn: forceClockIn, forceClockOut: forceClockOut }], "CLOCK_IN_OUT", function (res) {
+		exports.sonorancms.performApiRequest([{ accId: accID, intention: intention }], "CLOCK_IN_OUT", function (res) {
 			res = JSON.parse(res);
 			if (res) {
 				resolve(res.completed);
@@ -164,14 +162,9 @@ async function initialize() {
 					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogin event... ignoring...`)
 					return
 				}
-				if (clockedInUnits[accID.accId]) {
-					emit('SonoranCMS::core:writeLog', 'debug', `Player ${accID.accId} is already clocked in... ignoring...`)
-					return
-				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${accID.accId} based on UnitLogin event...`)
-				await clockPlayerInFromCad(accID.accId, true, false)
+				await clockPlayerInFromCad(accID.accId, 'in')
 					.then((inOrOut) => {
-						clockedInUnits[accID.accId] = inOrOut;
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
@@ -191,7 +184,7 @@ async function initialize() {
 					return
 				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${foundUnit.accId} based on UnitLogout event...`)
-				await clockPlayerInFromCad(foundUnit.accId, false, true)
+				await clockPlayerInFromCad(foundUnit.accId, 'out')
 					.then((inOrOut) => {
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${foundUnit.accId} ${inOrOut ? "out" : "in"}!`)
 					})
