@@ -76,12 +76,12 @@ const cmsUpdateRanksBasedOnCad = (accID, intention) => {
 	let remove = [];
 	if (intention == 'add') {
 		for (let rank of config.ranksWhileCadActive) {
-			ranks.add.push(rank);
+			add.push(rank);
 		}
 	}
 	if (intention == 'remove') {
-		for (let rank of config.ranksWhileCadInactive) {
-			ranks.remove.push(rank);
+		for (let rank of config.ranksWhileCadActive) {
+			remove.push(rank);
 		}
 	}
 	return new Promise(async (resolve, reject) => {
