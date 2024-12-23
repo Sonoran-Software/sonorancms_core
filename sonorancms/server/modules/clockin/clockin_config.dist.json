@@ -20,5 +20,8 @@
     "cad": {
         "use": false,
         "note": "This will automatically clock in users when they enter a Police/EMS/Fire CAD panel. This will not correlate to the users actual in-game status, but will allow them to use the CAD without having to manually clock in."
-    }
+    },
+    "ranksWhileCadActive": [
+        "00000000-0000-0000-0000-000000000000"
+    ]
 }
