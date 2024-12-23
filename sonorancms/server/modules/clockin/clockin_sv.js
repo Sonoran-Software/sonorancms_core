@@ -66,6 +66,36 @@ const clockPlayerInFromCad = (accID, intention) => {
 	});
 };
 
+/**
+ * @param {string} accID
+ * @param {string} intention
+ * @returns {Promise}
+ */
+const cmsUpdateRanksBasedOnCad = (accID, intention) => {
+	let add = [];
+	let remove = [];
+	if (intention == 'add') {
+		for (let rank of config.ranksWhileCadActive) {
+			ranks.add.push(rank);
+		}
+	}
+	if (intention == 'remove') {
+		for (let rank of config.ranksWhileCadInactive) {
+			ranks.remove.push(rank);
+		}
+	}
+	return new Promise(async (resolve, reject) => {
+		exports.sonorancms.performApiRequest([{ accId: accID, add: add, remove: remove }], "SET_ACCOUNT_RANKS", function (res) {
+			res = JSON.parse(res);
+			if (res) {
+				resolve(res.completed);
+			} else {
+				reject("There was an error");
+			}
+		});
+	});
+}
+
 async function initialize() {
 	await exports.sonorancms.sleep(2000);
 	if (config) {
@@ -193,6 +223,47 @@ async function initialize() {
 					});
 			});
 		}
+
+		// Updating ranks based on CAD status | Jordan 12/23/2024
+		if (GetResourceState("sonorancad") !== "started") {
+			errorLog(`[SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
+			return
+		}
+		onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
+			if (!accID?.accId) {
+				emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogin event... ignoring adding CMS rank...`)
+				return
+			}
+			emit('SonoranCMS::core:writeLog', 'debug', `Triggering cmsUpdateRanksBasedOnCad for ${accID.accId} based on UnitLogin event...`)
+			await cmsUpdateRanksBasedOnCad(accID.accId, 'add')
+				.then((sucess) => {
+					emit('SonoranCMS::core:writeLog', 'debug', `Added CMS rank(s) for ${accID.accId}!`)
+				})
+				.catch((err) => {
+					emit('SonoranCMS::core:writeLog', 'warn', `Failed to add CMS rank(s) for ${accID.accId}...`)
+			});
+		})
+		onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
+			if (!accID) {
+				emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogout event... ignoring...`)
+				return
+			}
+			let unitId = exports.sonorancad.GetUnitById(accID);
+			let unitCache = exports.sonorancad.GetUnitCache();
+			let foundUnit = unitCache[unitId - 1];
+			if (!foundUnit && !foundUnit?.accId) {
+				emit('SonoranCMS::core:writeLog', 'warn', `No unit found in UnitLogout event... ignoring adding CMS rank...`)
+				return
+			}
+			emit('SonoranCMS::core:writeLog', 'debug', `Triggering cmsUpdateRanksBasedOnCad for ${foundUnit.accId} based on UnitLogout event...`)
+			await cmsUpdateRanksBasedOnCad(foundUnit.accId, 'remove')
+				.then((sucess) => {
+					emit('SonoranCMS::core:writeLog', 'debug', `Removed CMS rank(s) for ${foundUnit.accId}!`)
+				})
+				.catch((err) => {
+					emit('SonoranCMS::core:writeLog', 'warn', `Failed to remove CMS rank(s) for ${foundUnit.accId}...`)
+				});
+		});
 	} else {
 		errorLog("No config found... looked for clockin_config.json & server convars...");
 	}
