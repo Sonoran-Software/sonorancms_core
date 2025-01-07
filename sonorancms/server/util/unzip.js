@@ -1,4 +1,4 @@
-const unzipper = require("@jordan2139/unzipper");
+const unzipper = require("@sonoransoftware/unzipper");
 const deepMerge = require("deepmerge"); // for merging JSON objects
 const path = require("path");
 const fs = require("fs");
