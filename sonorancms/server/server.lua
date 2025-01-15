@@ -341,7 +341,8 @@ ApiEndpoints = {
 	['GAMESTATE'] = 'servers',
 	['ACTIVITY_TRACKER_START_STOP'] = 'servers',
 	['ACTIVITY_TRACKER_SERVER_START'] = 'servers',
-	['IDENTIFIERS'] = 'game'
+	['IDENTIFIERS'] = 'game',
+	['GET_ACE_CONFIG'] = 'servers'
 }
 
 function registerApiType(type, endpoint)
