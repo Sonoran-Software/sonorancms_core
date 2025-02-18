@@ -366,7 +366,7 @@ initialize();
 AddEventHandler('onResourceStart', function(resource)
 	if resource == GetCurrentResourceName() then
 		TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Resource ' .. resource .. ' started. Requesting ace permissions from CMS.')
-		performApiRequest({}, 'GET_ACE_CONFIG', function(result, ok)
+		performApiRequest({serverId = Config.serverId}, 'GET_ACE_CONFIG', function(result, ok)
 			if ok then
 				local data = json.decode(result)
 				setRankList(data)
