@@ -368,8 +368,10 @@ AddEventHandler('onResourceStart', function(resource)
 		TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Resource ' .. resource .. ' started. Requesting ace permissions from CMS.')
 		performApiRequest({serverId = Config.serverId}, 'GET_ACE_CONFIG', function(result, ok)
 			if ok then
-				local data = json.decode(result)
-				setRankList(data)
+				local resultDecoded = json.decode(result)
+				if resultDecoded.success and resultDecoded.data and resultDecoded.data.mappings then 
+					setRankList(resultDecoded.data.mappings)
+				end
 			else
 				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to get ACE permissions from CMS. Please check your API key and connection.')
 			end
