@@ -57,7 +57,7 @@ SetHttpHandler(function(req, res)
 			elseif GetResourceState('ps-inventory') == 'started' then
 				imagePath = GetResourcePath('ps-inventory') .. '/html/' .. path .. '.png'
 			elseif GetResourceState('ox_inventory') == 'started' then
-				imagePath = GetResourcePath('ox_inventory') .. '/html/' .. path .. '.png'
+				imagePath = GetResourcePath('ox_inventory') .. '/web/' .. path .. '.png'
 			elseif GetResourceState('qs-inventory') == 'started' then
 				imagePath = GetResourcePath('qs-inventory') .. '/html/' .. path .. '.png'
 			elseif GetResourceState('origen_inventory') == 'started' then
@@ -163,6 +163,16 @@ end
 CreateThread(function()
 	print('Starting SonoranCMS from ' .. GetResourcePath('sonorancms'))
 	exports['sonorancms']:initializeCMS(Config.CommID, Config.APIKey, Config.serverId, Config.apiUrl, Config.debug_mode)
+	local serverType = Config.framework
+	if serverType == 'none' then serverType = nil end
+	local setTypeData = { serverId = Config.serverId, type = serverType }
+	performApiRequest(setTypeData, 'SET_SERVER_TYPE', function(result, ok)
+		if not ok then
+			infoLog(('Failed to set server type to %s: %s'):format(serverType, result))
+			return
+		end
+		infoLog(('Set server type to %s'):format(serverType))
+	end)
 	performApiRequest({}, 'GET_SUB_VERSION', function(result, ok)
 		if not ok then
 			logError('API_ERROR')
@@ -342,7 +352,8 @@ ApiEndpoints = {
 	['ACTIVITY_TRACKER_START_STOP'] = 'servers',
 	['ACTIVITY_TRACKER_SERVER_START'] = 'servers',
 	['IDENTIFIERS'] = 'game',
-	['GET_ACE_CONFIG'] = 'servers'
+	['GET_ACE_CONFIG'] = 'servers',
+	['SET_SERVER_TYPE'] = 'servers'
 }
 
 function registerApiType(type, endpoint)

@@ -270,38 +270,46 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_PLAYER_MONEY', function(data)
 		if data ~= nil then
-			MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
-				data.data.citizenId
-			}, function(row)
-				if not row then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
-					return
-				end
-				local PlayerData = row
-				local PlayerDataMoney = json.decode(PlayerData.money)
-				local validType = false
-				for k, _ in pairs(PlayerDataMoney) do
-					if k == data.data.moneyType then
-						PlayerDataMoney[k] = data.data.amount
-						validType = true
+			if Config.framework == 'qb-core' then
+				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
+					data.data.citizenId
+				}, function(row)
+					if not row then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
+						return
 					end
-				end
-				PlayerDataMoney = json.encode(PlayerDataMoney)
-				if validType then
-					MySQL.update('UPDATE players SET money = ? WHERE citizenid = ?', {
-						PlayerDataMoney,
-						data.data.citizenId
-					})
-					local QBCore = exports['qb-core']:GetCoreObject()
-					local Player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
-					if Player ~= nil then
-						Player.Functions.SetMoney(data.data.moneyType, data.data.amount)
+					local PlayerData = row
+					local PlayerDataMoney = json.decode(PlayerData.money)
+					local validType = false
+					for k, _ in pairs(PlayerDataMoney) do
+						if k == data.data.moneyType then
+							PlayerDataMoney[k] = data.data.amount
+							validType = true
+						end
 					end
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
-				else
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but money type ' .. data.data.moneyType .. ' was not found')
-				end
-			end)
+					PlayerDataMoney = json.encode(PlayerDataMoney)
+					if validType then
+						MySQL.update('UPDATE players SET money = ? WHERE citizenid = ?', {
+							PlayerDataMoney,
+							data.data.citizenId
+						})
+						local QBCore = exports['qb-core']:GetCoreObject()
+						local Player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
+						if Player ~= nil then
+							Player.Functions.SetMoney(data.data.moneyType, data.data.amount)
+						end
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but money type ' .. data.data.moneyType .. ' was not found')
+					end
+				end)
+			elseif Config.framework == 'qbox' then
+				local citizenId = data.data.citizenId
+				local moneyType = data.data.moneyType
+				local amount = data.data.amount
+				exports['qbx_core']:SetMoney(citizenId, moneyType, amount, 'Set from Sonoran CMS')
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
+			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_DESPAWN_VEHICLE', function(data)
@@ -366,49 +374,54 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_CHAR_INFO', function(data)
 		if data ~= nil then
-			MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
-				data.data.citizenId
-			}, function(row)
-				if not row then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
-					return
-				end
-				local PlayerData = row
-				PlayerData.charinfo = json.decode(PlayerData.charinfo)
-				if data.data.charInfo.firstName and data.data.charInfo.firstName ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting first name to ' .. data.data.charInfo.firstName)
-					PlayerData.charinfo.firstname = data.data.charInfo.firstName
-				end
-				if data.data.charInfo.lastName and data.data.charInfo.lastName ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting last name to ' .. data.data.charInfo.lastName)
-					PlayerData.charinfo.lastname = data.data.charInfo.lastName
-				end
-				if data.data.charInfo.birthDate and data.data.charInfo.birthDate ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting birth date to ' .. data.data.charInfo.birthDate)
-					PlayerData.charinfo.birthdate = data.data.charInfo.birthDate
-				end
-				if data.data.charInfo.gender and data.data.charInfo.gender ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting gender to ' .. data.data.charInfo.gender)
-					PlayerData.charinfo.gender = data.data.charInfo.gender
-				end
-				if data.data.charInfo.nationality and data.data.charInfo.nationality ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting nationality to ' .. data.data.charInfo.nationality)
-					PlayerData.charinfo.nationality = data.data.charInfo.nationality
-				end
-				if data.data.charInfo.phoneNumber and data.data.charInfo.phoneNumber ~= '' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting phone number to ' .. data.data.charInfo.phoneNumber)
-					PlayerData.charinfo.phone = data.data.charInfo.phoneNumber
-				end
-				local NewCharInfo = json.encode(PlayerData.charinfo)
-				MySQL.update('UPDATE players SET charinfo = ? WHERE citizenid = ?', {
-					NewCharInfo,
-					PlayerData.citizenid
-				}, function(affectedRows)
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Updated charinfo for ' .. PlayerData.name .. ' to ' .. NewCharInfo .. ' with ' .. affectedRows .. ' rows affected')
+			if Config.framework == 'qb-core' then
+				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
+					data.data.citizenId
+				}, function(row)
+					if not row then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
+						return
+					end
+					local PlayerData = row
+					PlayerData.charinfo = json.decode(PlayerData.charinfo)
+					if data.data.charInfo.firstName and data.data.charInfo.firstName ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting first name to ' .. data.data.charInfo.firstName)
+						PlayerData.charinfo.firstname = data.data.charInfo.firstName
+					end
+					if data.data.charInfo.lastName and data.data.charInfo.lastName ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting last name to ' .. data.data.charInfo.lastName)
+						PlayerData.charinfo.lastname = data.data.charInfo.lastName
+					end
+					if data.data.charInfo.birthDate and data.data.charInfo.birthDate ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting birth date to ' .. data.data.charInfo.birthDate)
+						PlayerData.charinfo.birthdate = data.data.charInfo.birthDate
+					end
+					if data.data.charInfo.gender and data.data.charInfo.gender ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting gender to ' .. data.data.charInfo.gender)
+						PlayerData.charinfo.gender = data.data.charInfo.gender
+					end
+					if data.data.charInfo.nationality and data.data.charInfo.nationality ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting nationality to ' .. data.data.charInfo.nationality)
+						PlayerData.charinfo.nationality = data.data.charInfo.nationality
+					end
+					if data.data.charInfo.phoneNumber and data.data.charInfo.phoneNumber ~= '' then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Setting phone number to ' .. data.data.charInfo.phoneNumber)
+						PlayerData.charinfo.phone = data.data.charInfo.phoneNumber
+					end
+					local NewCharInfo = json.encode(PlayerData.charinfo)
+					MySQL.update('UPDATE players SET charinfo = ? WHERE citizenid = ?', {
+						NewCharInfo,
+						PlayerData.citizenid
+					}, function(affectedRows)
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Updated charinfo for ' .. PlayerData.name .. ' to ' .. NewCharInfo .. ' with ' .. affectedRows .. ' rows affected')
+					end)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' saving player ' .. PlayerData.name)
+	
 				end)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' saving player ' .. PlayerData.name)
-
-			end)
+			elseif Config.framework == 'qbox' then
+				local PlayerData = exports['qbx_core']:GetPlayerByCitizenId(data.data.citizenId)
+				print(table.unpack(PlayerData))
+			end
 		else
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but character ID ' .. data.data.citizenId .. ' was not found')
 		end
@@ -1735,6 +1748,10 @@ local function getQBChars(callback)
 					QBItem = QBItems[item.name:lower()]
 				end
 				if item and QBItem and next(QBItem) ~= nil then
+					local itemImage = item.image or QBItem.image or ''
+					if Config.framework == 'qbox' then
+						itemImage = item.name
+					end
 					table.insert(playerInventory, {
 						slot = item.slot,
 						name = item.name,
@@ -1744,7 +1761,7 @@ local function getQBChars(callback)
 						weight = item.weight or 0,
 						type = item.type,
 						unique = item.unique or false,
-						image = item.image or QBItem.image or '',
+						image = itemImage,
 						info = item.info or {},
 						shouldClose = item.shouldClose or false,
 						combinable = v.combinable or nil
@@ -1799,6 +1816,10 @@ local function getQBChars(callback)
 						QBItem = QBItems[item.name:lower()]
 					end
 					if item and QBItem and next(QBItem) ~= nil then
+						local itemImage = item.image or QBItem.image or ''
+						if Config.framework == 'qbox' then
+							itemImage = item.name
+						end
 						table.insert(liveInv, {
 							slot = item.slot,
 							name = item.name,
@@ -1808,7 +1829,7 @@ local function getQBChars(callback)
 							weight = item.weight or 0,
 							type = item.type,
 							unique = item.unique or false,
-							image = item.image or QBItem.image or '',
+							image = itemImage,
 							info = item.info or {},
 							shouldClose = item.shouldClose or false,
 							combinable = v.combinable or nil
@@ -1956,9 +1977,7 @@ local function requestGangs()
 end
 
 local function requestFileJobs()
-	-- Request the hardcoded jobs from the qb-core shared file (shared/jobs.lua)
-	local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
-	local validJobs = {}
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterJobs(jobs)
 		local validJobs = {}
 		for jobName, jobData in pairs(jobs) do
@@ -1993,32 +2012,48 @@ local function requestFileJobs()
 		end
 		return validJobs
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'jobData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
-	if not loadedJobs or next(loadedJobs) == nil then
-		print('Error: QBShared.Jobs table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_JOBS_NOT_LOADED',
-			message = 'QBShared.Jobs table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile(resourceName, './shared/jobs.lua')
+		local validJobs = {}
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'jobData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
+		if not loadedJobs or next(loadedJobs) == nil then
+				print('Error: QBShared.Jobs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_JOBS_NOT_LOADED',
+				message = 'QBShared.Jobs table is missing or empty.'
+			})
+			return
+		end
+		validJobs = filterJobs(loadedJobs)
+		return validJobs
+	elseif Config.framework == 'qbox' then
+		local fileJobs = exports['qbx_core']:GetJobs()
+		local validJobs = {}
+		if not fileJobs or next(fileJobs) == nil then
+				print('Error: qbox_core/shared/jobs.lua table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_JOBS_NOT_LOADED',
+				message = 'qbox_core/shared/jobs.lua table is missing or empty.'
+			})
+			return
+		end
+		validJobs = filterJobs(fileJobs)
+		return validJobs
 	end
-	validJobs = filterJobs(loadedJobs)
-	return validJobs
 end
 
 local function requestFileGangs()
-	local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
-	local validGangs = {}
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterGangs(gangs)
 		local validGangs = {}
 		for gangName, gangData in pairs(gangs) do
@@ -2058,27 +2093,45 @@ local function requestFileGangs()
 		end
 		return validGangs
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'gangData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
-	if not loadedGangs or next(loadedGangs) == nil then
-		print('Error: QBShared.Gangs table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_GANGS_NOT_LOADED',
-			message = 'QBShared.Gangs table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
+		local validGangs = {}
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'gangData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
+		if not loadedGangs or next(loadedGangs) == nil then
+			print('Error: QBShared.Gangs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_GANGS_NOT_LOADED',
+				message = 'QBShared.Gangs table is missing or empty.'
+			})
+			return
+		end
+		validGangs = filterGangs(loadedGangs)
+		return validGangs
+	elseif Config.framework == 'qbox' then
+		local fileGangs = exports['qbx_core']:GetGangs()
+		local validGangs = {}
+		if not fileGangs or next(fileGangs) == nil then
+			print('Error: qbox_core/shared/gangs.lua table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_GANGS_NOT_LOADED',
+				message = 'qbox_core/shared/gangs.lua table is missing or empty.'
+			})
+			return
+		end
+		validGangs = filterGangs(fileGangs)
+		return validGangs
 	end
-	validGangs = filterGangs(loadedGangs)
-	return validGangs
+	return {}
 end
 
 local function requestGarageData()
@@ -2248,8 +2301,7 @@ local function requestQBItems()
 end
 
 local function requestFileItems()
-	local originalData = LoadResourceFile('qb-core', './shared/items.lua')
-	local validItems = {}
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterItems(items)
 		local validItems = {}
 		for itemName, itemData in pairs(items) do
@@ -2258,7 +2310,7 @@ local function requestFileItems()
 				label = itemData.label,
 				weight = itemData.weight or 0,
 				type = itemData.type,
-				image = itemData.image or '',
+				image = itemData.image or itemName,
 				description = itemData.description or '',
 				unique = itemData.unique or false,
 				useable = itemData.useable or false,
@@ -2269,27 +2321,45 @@ local function requestFileItems()
 		end
 		return validItems
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'itemData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
-	if not loadedItems or next(loadedItems) == nil then
-		print('Error: QBShared.Items table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_ITEMS_NOT_LOADED',
-			message = 'QBShared.Items table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile('qb-core', './shared/items.lua')
+		local validItems = {}
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'itemData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
+		if not loadedItems or next(loadedItems) == nil then
+			print('Error: QBShared.Items table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'QBShared.Items table is missing or empty.'
+			})
+			return
+		end
+		validItems = filterItems(loadedItems)
+		return validItems
+	elseif Config.framework == 'qbox' then
+		local fileItems = exports['ox_inventory']:Items()
+		local validItems = {}
+		if not fileItems or next(fileItems) == nil then
+			print('Error: qbox_core/shared/items.lua table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'qbox_core/shared/items.lua table is missing or empty.'
+			})
+			return
+		end
+		validItems = filterItems(fileItems)
+		return validItems
 	end
-	validItems = filterItems(loadedItems)
-	return validItems
+	return {}
 end
 
 local function requestAcePerms()
