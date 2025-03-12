@@ -149,6 +149,22 @@ AddEventHandler('onResourceStart', function(resource)
 		Citizen.Wait(100)
 		SetConvar('SONORAN_CMS_API_KEY', Config.APIKey)
 		SetConvar('SONORAN_CMS_COMMUNITY_ID', Config.CommID)
+
+		if GetResourceState('qb-core') == 'started' then
+			if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
+							and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' then
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				return
+			end
+			if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
+							~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			end
+			if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				return
+			end
+		end
 	end
 end)
 
