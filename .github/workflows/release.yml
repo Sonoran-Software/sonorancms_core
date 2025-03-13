@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+      - '**'  # This will trigger on all branches
 
 jobs:
   release:
+    if: github.ref == 'refs/heads/master'  # Run only on master branch
     runs-on: ubuntu-latest
 
     steps:
