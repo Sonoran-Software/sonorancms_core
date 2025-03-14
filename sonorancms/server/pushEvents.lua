@@ -674,34 +674,100 @@ CreateThread(function()
 				end
 			elseif Config.framework == 'qbox' then
 				local gangId = data.data.gangId
-        local filePath = './shared/gangs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
 
-        -- Ensure the file exists
-        if not existingData or existingData == "" then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: gangs.lua not found or empty.')
-            return
-        end
+				-- Function to convert gang data to the correct format
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'--- Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
 
-        -- Check if the item exists before attempting to remove it
-        if not string.find(existingData, string.format("['%s']", gangId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' does not exist.')
-            return
-        end
+					-- Iterate through gang table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local jobLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add gang label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
 
-        -- Remove the item entry (Handles cases with or without a trailing comma)
-        local updatedData = existingData
-            :gsub("\n%s*%[%'" .. gangId .. "%'%]%s*=%s*{.-},?", "") -- Remove the item line
-        
-        -- Ensure the file isn't empty after removal
-        if updatedData:match("%S") == nil then
-            updatedData = "return {\n}" -- Reset to an empty items file
-        end
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+								
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
 
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Removed gang: ' .. gangId)
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Load the current gangs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading gangs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the gangs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: gangs.lua did not return a table.')
+					return
+				end
+
+				-- Check if the job exists
+				if loadedGangs[gangId:lower()] then
+					-- Remove the job from the table
+					loadedGangs[gangId:lower()] = nil
+
+					-- Convert the updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/gans.lua', modifiedData, -1)
+
+					print('Gang ' .. gangId .. ' removed successfully.')
+				else
+					print('Error: Gang ' .. gangId .. ' does not exist.')
+				end
 			end
 		end
 	end)
@@ -794,35 +860,117 @@ CreateThread(function()
 
 				end
 			elseif Config.framework == 'qbox' then
-				local gangId = data.data.gangId
-        local gangEntry = string.format(
-            "\n    ['%s'] = { label = '%s', grades = %s },",
-						gangId,
-            escapeQuotes(data.data.label),
-						data.data.grades
-        )
+				local gangId = data.data.id
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
 
-        local filePath = './shared/gangs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
-        
-        -- Ensure the file exists
-        if not existingData then
-            existingData = "return {\n}" -- Create a default structure if the file is missing
-        end
+				-- Function to convert job data to the correct format
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'--- Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
 
-        -- Check if the item already exists
-        if not string.find(existingData, string.format("['%s']", gangId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' doesn\'t exist.')
-            return
-        end
+					-- Iterate through job table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local gangLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, gangLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
 
-        -- Append new item before the closing bracket
-        local updatedData = existingData:gsub("}$", gangEntry .. "\n}")
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
-        
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Gang edited: ' .. gangId)
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+							
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Load the current gangs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading gangs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the gangs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
+
+				-- Updated gang entry
+				local gangEntry = {
+					label = escapeQuotes(data.data.label),
+					grades = gradesTable
+				}
+
+
+				-- Check if the gang exists
+				if loadedGangs[gangId:lower()] then
+					-- Replace the existing gang data with the new data
+					loadedGangs[gangId:lower()] = gangEntry
+
+					-- Convert the updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/gangs.lua', modifiedData, -1)
+
+					print('Gang ' .. gangId .. ' updated successfully.')
+				else
+					print('Error: Gang ' .. gangId .. ' does not exist.')
+				end
 			end
 		end
 	end)
@@ -919,35 +1067,114 @@ CreateThread(function()
 
 				end
 			elseif Config.framework == 'qbox' then
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'---Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
+
+					-- Iterate through gang table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local gangLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, gangLine)
+
+						-- Add gang label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+									gradeLine = gradeLine .. ", isboss = true"
+							end
+
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+									gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Example gang data (assuming `data.data` contains the gang information)
 				local gangId = data.data.id
-        local gangEntry = string.format(
-            "\n    ['%s'] = { label = '%s', grades = %s },",
-						gangId,
-            escapeQuotes(data.data.label),
-						data.data.grades
-        )
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
 
-        local filePath = './shared/gangs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
-        
-        -- Ensure the file exists
-        if not existingData then
-            existingData = "return {\n}" -- Create a default structure if the file is missing
-        end
+				-- Create gang entry
+				local gangEntry = {
+					label = escapeQuotes(data.data.label),
+					grades = gradesTable
+				}
 
-        -- Check if the item already exists
-        if string.find(existingData, string.format("['%s']", gangId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' already exists.')
-            return
-        end
+				-- Load the current gang.lua file from the qbox resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangss.lua')
 
-        -- Append new item before the closing bracket
-        local updatedData = existingData:gsub("}$", gangEntry .. "\n}")
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
-        
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new gang: ' .. gangId)
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: gangs.lua did not return a table.')
+					return
+				end
+
+				-- Check if gang already exists
+				if loadedGangs[gangId:lower()] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' already exists.')
+					return
+				else
+					-- Add new gang to valid gangs
+					loadedGangs[gangId:lower()] = gangEntry
+
+					-- Convert updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua (without overwriting the entire file)
+					SaveResourceFile('qbx_core', './shared/gangs.lua', modifiedData, -1)
+					local gangEntries = {}
+					gangEntries[gangId] = gangEntry
+					exports('qbx_core'):CreateGangs(gangEntries)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Gang ' .. gangId .. ' added successfully.')
+				end
 			end
 		end
 	end)
@@ -2947,27 +3174,47 @@ local function requestGarageData()
 	return QBGarages
 end
 
-local function requestQBItems()
-	local QBCore = exports['qb-core']:GetCoreObject()
-	local QBItems = QBCore.Shared.Items
-	local formattedQBItems = {}
-	for k, v in pairs(QBItems) do
-		local item = {
-			name = k,
-			label = v.label or 'Unknown',
-			weight = v.weight or 0,
-			type = v.type,
-			image = v.image or '',
-			description = v.description or '',
-			unique = v.unique or false,
-			useable = v.useable or false,
-			ammoType = v.ammoType or nil,
-			shouldClose = v.shouldClose or false,
-			combinable = v.combinable or nil
-		}
-		table.insert(formattedQBItems, item)
+local function requestItems()
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
+	local function filterItems(items)
+		local validItems = {}
+		for itemName, itemData in pairs(items) do
+			table.insert(validItems, {
+				name = itemName,
+				label = itemData.label,
+				weight = itemData.weight or 0,
+				type = itemData.type,
+				image = itemData.image or itemName,
+				description = itemData.description or '',
+				unique = itemData.unique or false,
+				useable = itemData.useable or false,
+				ammoType = itemData.ammoType or nil,
+				shouldClose = itemData.shouldClose or false,
+				combinable = itemData.combinable or nil
+			})
+		end
+		return validItems
 	end
-	return formattedQBItems
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		local QBItems = QBCore.Shared.Items
+		local validItems = filterItems(QBItems)
+		return validItems
+	elseif Config.framework == 'qbox' then
+		local fileItems = exports['ox_inventory']:Items()
+		local validItems = {}
+		if not fileItems or next(fileItems) == nil then
+			print('Error: qbox_core/shared/items.lua table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'qbox_core/shared/items.lua table is missing or empty.'
+			})
+			return
+		end
+		validItems = filterItems(fileItems)
+		return validItems
+	end
+	return {}
 end
 
 local function requestFileItems()
@@ -3016,18 +3263,34 @@ local function requestFileItems()
 		validItems = filterItems(loadedItems)
 		return validItems
 	elseif Config.framework == 'qbox' then
-		local fileItems = exports['ox_inventory']:Items()
-		local validItems = {}
-		if not fileItems or next(fileItems) == nil then
-			print('Error: qbox_core/shared/items.lua table is missing or empty.')
+		local originalData = LoadResourceFile('ox_inventory', 'data/items.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading items.lua from ox_inventory resource.')
+			return
+		end
+
+		-- Load the contents of items.lua as a Lua chunk
+		local func, err = load(originalData, 'itemsData', 't')
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+
+		-- Execute the loaded chunk to get the items table
+		local loadedItems = func()
+
+		-- Check if loadedItems is a table and is not empty
+		if type(loadedItems) ~= 'table' then
+			print('Error: items.lua did not return a table.')
 			table.insert(errors, {
 				code = 'ERR_ITEMS_NOT_LOADED',
-				message = 'qbox_core/shared/items.lua table is missing or empty.'
+				message = 'items.lua did not return a table.'
 			})
 			return
 		end
-		validItems = filterItems(fileItems)
-		return validItems
+
+		local validItems = filterItems(loadedItems)
 	end
 	return {}
 end
@@ -3226,7 +3489,7 @@ function handleDataRequest(data)
 			payload.data[v] = requestFileGangs()
 		end
 		if v == 'items' then
-			payload.data[v] = requestQBItems()
+			payload.data[v] = requestItems()
 		end
 		if v == 'fileItems' then
 			payload.data[v] = requestFileItems()
