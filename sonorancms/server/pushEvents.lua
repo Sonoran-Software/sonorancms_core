@@ -1037,34 +1037,110 @@ CreateThread(function()
 				end
 			elseif Config.framework == 'qbox' then
 				local jobId = data.data.jobId
-        local filePath = './shared/jobs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
 
-        -- Ensure the file exists
-        if not existingData or existingData == "" then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: jobs.lua not found or empty.')
-            return
-        end
+				-- Function to convert job data to the correct format
+				local function convertToPlainText(jobTable)
+					local lines = {
+						'--- Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
+					}
 
-        -- Check if the item exists before attempting to remove it
-        if not string.find(existingData, string.format("['%s']", jobId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. jobId .. ' does not exist.')
-            return
-        end
+					-- Iterate through job table and format them according to QBox structure
+					for jobName, jobData in pairs(jobTable) do
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
+						table.insert(lines, labelLine)
+						
+						-- Add defaultDuty and offDutyPay
+						if jobData.defaultDuty ~= nil then
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
+							table.insert(lines, defaultDutyLine)
+						end
+						if jobData.offDutyPay ~= nil then
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
+							table.insert(lines, offDutyPayLine)
+						end
 
-        -- Remove the item entry (Handles cases with or without a trailing comma)
-        local updatedData = existingData
-            :gsub("\n%s*%[%'" .. jobId .. "%'%]%s*=%s*{.-},?", "") -- Remove the item line
-        
-        -- Ensure the file isn't empty after removal
-        if updatedData:match("%S") == nil then
-            updatedData = "return {\n}" -- Reset to an empty items file
-        end
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+								
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
 
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Removed job: ' .. jobId)
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the job entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the jobs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Load the current jobs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				-- Check if the job exists
+				if loadedJobs[jobId:lower()] then
+					-- Remove the job from the table
+					loadedJobs[jobId:lower()] = nil
+
+					-- Convert the updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+
+					print('Job ' .. jobId .. ' removed successfully.')
+				else
+					print('Error: Job ' .. jobId .. ' does not exist.')
+				end
 			end
 		end
 	end)
@@ -1172,57 +1248,133 @@ CreateThread(function()
 					-- Too spammy
 					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
 					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
-
+					exports('qbx_core'):RemoveJob(data.data.id)
 				end
 			elseif Config.framework == 'qbox' then
 				local jobId = data.data.id
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
+
+				-- Function to convert job data to the correct format
+				local function convertToPlainText(jobTable)
+					local lines = {
+						'--- Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
+					}
+
+					-- Iterate through job table and format them according to QBox structure
+					for jobName, jobData in pairs(jobTable) do
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
+						table.insert(lines, labelLine)
+						
+						-- Add defaultDuty and offDutyPay
+						if jobData.defaultDuty ~= nil then
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
+							table.insert(lines, defaultDutyLine)
+						end
+						if jobData.offDutyPay ~= nil then
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
+							table.insert(lines, offDutyPayLine)
+						end
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+							
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the job entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the jobs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Load the current jobs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
 				local gradesTable = {}
 				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment,
-							isboss = gradeData.isboss or false,
-							bankAuth = gradeData.bankAuth or false
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment
-						}
-					end
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						payment = gradeData.payment,
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
 				end
-        local jobEntry = string.format(
-            "\n    ['%s'] = { label = '%s', type = '%s', defaultDuty = %s, offDutyPay = %s, grades = %s },",
-						jobId,
-            escapeQuotes(data.data.label),
-						escapeQuotes(data.data.type),
-						data.data.defaultDuty,
-						data.data.offDutyPay,
-						gradesTable
-        )
 
-        local filePath = './shared/jobs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
-        
-        -- Ensure the file exists
-        if not existingData then
-            existingData = "return {\n}" -- Create a default structure if the file is missing
-        end
+				-- Updated job entry
+				local jobEntry = {
+					label = escapeQuotes(data.data.label),
+					defaultDuty = data.data.defaultDuty,
+					offDutyPay = data.data.offDutyPay,
+					grades = gradesTable
+				}
 
-        -- Check if the item already exists
-        if not string.find(existingData, string.format("['%s']", jobId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. jobId .. ' doesn\'t exist.')
-            return
-        end
 
-        -- Append new item before the closing bracket
-        local updatedData = existingData:gsub("}$", jobEntry .. "\n}")
+				-- Check if the job exists
+				if loadedJobs[jobId:lower()] then
+					-- Replace the existing job data with the new data
+					loadedJobs[jobId:lower()] = jobEntry
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
-        
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job edited: ' .. jobId)
+					-- Convert the updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+
+					print('Job ' .. jobId .. ' updated successfully.')
+				else
+					print('Error: Job ' .. jobId .. ' does not exist.')
+				end
 			end
 		end
 	end)
@@ -1337,55 +1489,128 @@ CreateThread(function()
 					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
 					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
 				end
-			elseif Config.framework == 'qbox' then
+			elseif Config.framework == 'qbox' then-- Function to convert job data to the correct format
+				local function convertToPlainText(jobTable)
+					local lines = {
+						'---Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
+					}
+
+					-- Iterate through job table and format them according to QBox structure
+					for jobName, jobData in pairs(jobTable) do
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
+						table.insert(lines, labelLine)
+
+						-- Add defaultDuty and offDutyPay
+						if jobData.defaultDuty ~= nil then
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
+							table.insert(lines, defaultDutyLine)
+						end
+						if jobData.offDutyPay ~= nil then
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
+							table.insert(lines, offDutyPayLine)
+						end
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+									gradeLine = gradeLine .. ", isboss = true"
+							end
+
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+									gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+
+						-- Close the job entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the jobs table
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				-- Example job data (assuming `data.data` contains the job information)
 				local jobId = data.data.id
 				local gradesTable = {}
 				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment,
-							isboss = gradeData.isboss or false,
-							bankAuth = gradeData.bankAuth or false
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment
-						}
-					end
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						payment = gradeData.payment,
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
 				end
-        local jobEntry = string.format(
-            "\n    ['%s'] = { label = '%s', type = '%s', defaultDuty = %s, offDutyPay = %s, grades = %s },",
-						jobId,
-            escapeQuotes(data.data.label),
-						escapeQuotes(data.data.type),
-						data.data.defaultDuty,
-						data.data.offDutyPay,
-						gradesTable
-        )
 
-        local filePath = './shared/jobs.lua'
-        local existingData = LoadResourceFile('qbx_core', filePath)
-        
-        -- Ensure the file exists
-        if not existingData then
-            existingData = "return {\n}" -- Create a default structure if the file is missing
-        end
+				-- Create job entry
+				local jobEntry = {
+					label = escapeQuotes(data.data.label),
+					defaultDuty = data.data.defaultDuty,
+					offDutyPay = data.data.offDutyPay,
+					grades = gradesTable
+				}
 
-        -- Check if the item already exists
-        if string.find(existingData, string.format("['%s']", jobId), 1, true) then
-            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. jobId .. ' already exists.')
-            return
-        end
+				-- Load the current jobs.lua file from the qb-core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
 
-        -- Append new item before the closing bracket
-        local updatedData = existingData:gsub("}$", jobEntry .. "\n}")
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
 
-        -- Save the modified file
-        SaveResourceFile('qbx_core', filePath, updatedData, -1)
-        
-        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new gang: ' .. jobId)
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				-- Check if job already exists
+				if loadedJobs[jobId:lower()] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. jobId .. ' already exists.')
+					return
+				else
+					-- Add new job to valid jobs
+					loadedJobs[jobId:lower()] = jobEntry
+
+					-- Convert updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua (without overwriting the entire file)
+					SaveResourceFile('qbx_core', './shared/jobs.lua', modifiedData, -1)
+					local jobEntries = {}
+					jobEntries[jobId] = jobEntry
+					exports('qbx_core'):CreateJobs(jobEntries)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job ' .. jobId .. ' added successfully.')
+				end
 			end
 		end
 	end)
@@ -2390,18 +2615,67 @@ local function requestFileJobs()
 		validJobs = filterJobs(loadedJobs)
 		return validJobs
 	elseif Config.framework == 'qbox' then
-		local fileJobs = exports['qbx_core']:GetJobs()
-		local validJobs = {}
-		if not fileJobs or next(fileJobs) == nil then
-				print('Error: qbox_core/shared/jobs.lua table is missing or empty.')
+		local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading jobs.lua from qbx_core resource.')
+			return
+		end
+
+		-- Load the contents of jobs.lua as a Lua chunk
+		local func, err = load(originalData, 'jobData', 't')
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+
+		-- Execute the loaded chunk to get the jobs table
+		local loadedJobs = func()
+
+		-- Check if loadedJobs is a table and is not empty
+		if type(loadedJobs) ~= 'table' then
+			print('Error: jobs.lua did not return a table.')
 			table.insert(errors, {
 				code = 'ERR_JOBS_NOT_LOADED',
-				message = 'qbox_core/shared/jobs.lua table is missing or empty.'
+				message = 'jobs.lua did not return a table.'
 			})
 			return
 		end
-		validJobs = filterJobs(fileJobs)
-		return validJobs
+		local formatJobs = function(jobs)
+			local validJobs = {}
+			for jobName, jobData in pairs(jobs) do
+				local numericGrades = {}
+				for k, v in pairs(jobData.grades) do
+					local numericKey = tonumber(k)
+					if numericKey then
+						numericGrades[numericKey] = v
+					end
+				end
+				local sortedKeys = {}
+				for k in pairs(numericGrades) do
+					table.insert(sortedKeys, k)
+				end
+				table.sort(sortedKeys)
+				local gradesTable = {}
+				for _, k in ipairs(sortedKeys) do
+					local grade = numericGrades[k]
+					table.insert(gradesTable, {
+						name = grade.name,
+						payment = grade.payment,
+						isBoss = grade.isboss
+					})
+				end
+				table.insert(validJobs, {
+					id = jobName,
+					label = jobData.label,
+					defaultDuty = jobData.defaultDuty,
+					offDutyPay = jobData.offDutyPay,
+					grades = gradesTable
+				})
+			end
+			return validJobs
+		end
+		return formatJobs(loadedJobs)
 	end
 end
 
@@ -2427,15 +2701,12 @@ local function requestFileGangs()
 				local grade = numericGrades[k]
 				table.insert(gradesTable, {
 					name = grade.name,
-					payment = grade.payment,
 					isBoss = grade.isboss
 				})
 			end
 			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
-				defaultDuty = gangData.defaultDuty,
-				offDutyPay = gangData.offDutyPay,
 				grades = gradesTable
 			})
 			table.insert(validGangs, {
@@ -2471,18 +2742,64 @@ local function requestFileGangs()
 		validGangs = filterGangs(loadedGangs)
 		return validGangs
 	elseif Config.framework == 'qbox' then
-		local fileGangs = exports['qbx_core']:GetGangs()
-		local validGangs = {}
-		if not fileGangs or next(fileGangs) == nil then
-			print('Error: qbox_core/shared/gangs.lua table is missing or empty.')
+		local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading gangs.lua from qbx_core resource.')
+			return
+		end
+
+		-- Load the contents of gangs.lua as a Lua chunk
+		local func, err = load(originalData, 'jobData', 't')
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+
+		-- Execute the loaded chunk to get the gangs table
+		local loadedGangs = func()
+
+		-- Check if loadedGangs is a table and is not empty
+		if type(loadedGangs) ~= 'table' then
+			print('Error: gangs.lua did not return a table.')
 			table.insert(errors, {
 				code = 'ERR_GANGS_NOT_LOADED',
-				message = 'qbox_core/shared/gangs.lua table is missing or empty.'
+				message = 'gangs.lua did not return a table.'
 			})
 			return
 		end
-		validGangs = filterGangs(fileGangs)
-		return validGangs
+		local formatGangs = function(gangs)
+			local validGangs = {}
+			for gangName, gangData in pairs(gangs) do
+				local numericGrades = {}
+				for k, v in pairs(gangData.grades) do
+					local numericKey = tonumber(k)
+					if numericKey then
+						numericGrades[numericKey] = v
+					end
+				end
+				local sortedKeys = {}
+				for k in pairs(numericGrades) do
+					table.insert(sortedKeys, k)
+				end
+				table.sort(sortedKeys)
+				local gradesTable = {}
+				for _, k in ipairs(sortedKeys) do
+					local grade = numericGrades[k]
+					table.insert(gradesTable, {
+						name = grade.name,
+						isBoss = grade.isboss
+					})
+				end
+				table.insert(validGangs, {
+					id = gangName,
+					label = gangData.label,
+					grades = gradesTable
+				})
+			end
+			return validGangs
+		end
+		return formatGangs(loadedGangs)
 	end
 	return {}
 end
