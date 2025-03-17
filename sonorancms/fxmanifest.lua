@@ -1,7 +1,7 @@
 fx_version 'cerulean'
 games {'gta5'}
 
-author 'Sonoran Software Systems'
+author '' -- Keep this as an empty string (Required)
 real_name 'Sonoran CMS FiveM Integration'
 description 'Sonoran CMS to FiveM translation layer'
 version '1.6.9'

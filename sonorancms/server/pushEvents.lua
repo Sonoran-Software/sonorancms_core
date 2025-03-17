@@ -1172,7 +1172,7 @@ CreateThread(function()
 					SaveResourceFile('qbx_core', './shared/gangs.lua', modifiedData, -1)
 					local gangEntries = {}
 					gangEntries[gangId] = gangEntry
-					exports('qbx_core'):CreateGangs(gangEntries)
+					exports['qbx_core']:CreateGangs(gangEntries)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Gang ' .. gangId .. ' added successfully.')
 				end
 			end
@@ -1475,7 +1475,7 @@ CreateThread(function()
 					-- Too spammy
 					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
 					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
-					exports('qbx_core'):RemoveJob(data.data.id)
+					exports['qbx_core']:RemoveJob(data.data.id)
 				end
 			elseif Config.framework == 'qbox' then
 				local jobId = data.data.id
@@ -1835,7 +1835,7 @@ CreateThread(function()
 					SaveResourceFile('qbx_core', './shared/jobs.lua', modifiedData, -1)
 					local jobEntries = {}
 					jobEntries[jobId] = jobEntry
-					exports('qbx_core'):CreateJobs(jobEntries)
+					exports['qbx_core']:CreateJobs(jobEntries)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job ' .. jobId .. ' added successfully.')
 				end
 			end
@@ -2291,13 +2291,12 @@ CreateThread(function()
 					local player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Attempting to find character with citizenId: ' .. data.data.citizenId .. ' to edit inventory.')
 					if player then
-						player.Functions.ClearInventory();
-						for _, item in pairs(data.data.slots) do
-							if item.name then
-								player.Functions.AddItem(item.name, item.amount, item.slot, item.info or {})
+							player.Functions.ClearInventory();
+							for _, item in pairs(data.data.slots) do
+								if item.name then
+									player.Functions.AddItem(item.name, item.amount or 1, item.slot, item.info or {})
+								end
 							end
-						end
-						-- exports['qb-inventory']:SetInventory(player.PlayerData.source, data.data.slots)
 					else
 						MySQL.query('UPDATE `players` SET inventory = ? WHERE citizenid = ?', {
 							json.encode(data.data.slots),
@@ -2561,6 +2560,7 @@ local function getQBChars(callback)
 						slot = item.slot,
 						name = item.name,
 						amount = item.amount,
+						count = item.count,
 						label = item.label or QBItem.label or 'Unknown',
 						description = item.description or '',
 						weight = item.weight or 0,
@@ -2568,6 +2568,7 @@ local function getQBChars(callback)
 						unique = item.unique or false,
 						image = itemImage,
 						info = item.info or {},
+						metadata = item.metadata or {},
 						shouldClose = item.shouldClose or false,
 						combinable = v.combinable or nil
 					})
@@ -2629,6 +2630,7 @@ local function getQBChars(callback)
 							slot = item.slot,
 							name = item.name,
 							amount = item.amount,
+							count = item.count,
 							label = item.label or QBItem.label or 'Unknown',
 							description = item.description or '',
 							weight = item.weight or 0,
@@ -2636,6 +2638,7 @@ local function getQBChars(callback)
 							unique = item.unique or false,
 							image = itemImage,
 							info = item.info or {},
+							metadata = item.metadata or {},
 							shouldClose = item.shouldClose or false,
 							combinable = v.combinable or nil
 						})
