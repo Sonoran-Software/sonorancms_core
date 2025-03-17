@@ -144,4 +144,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sonorancms_core-artifact
-          path: sonorancms_core-*.zip
+          path: release/sonorancms_core-*.zip
