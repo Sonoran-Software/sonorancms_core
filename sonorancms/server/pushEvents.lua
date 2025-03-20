@@ -2714,72 +2714,139 @@ local function getCharVehicles(callback)
 end
 
 local function requestJobs()
-	-- Request the active runtime jobs and their grades
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local jobTable = {}
-	local QBCore = exports['qb-core']:GetCoreObject()
-	for i, v in pairs(QBCore.Shared.Jobs) do
-		local numericGrades = {}
-		for k, h in pairs(v.grades) do
-			local numericKey = tonumber(k)
-			if numericKey then
-				numericGrades[numericKey] = h
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		for i, v in pairs(QBCore.Shared.Jobs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
 			end
-		end
-		local sortedKeys = {}
-		for k in pairs(numericGrades) do
-			table.insert(sortedKeys, k)
-		end
-		table.sort(sortedKeys)
-		local gradesTable = {}
-		for _, k in ipairs(sortedKeys) do
-			local grade = numericGrades[k]
-			table.insert(gradesTable, {
-				name = grade.name,
-				payment = grade.payment,
-				isBoss = grade.isboss
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(jobTable, {
+				id = i,
+				label = v.label,
+				defaultDuty = v.defaultDuty,
+				offDutyPay = v.offDutyPay,
+				grades = gradesTable
 			})
 		end
-		table.insert(jobTable, {
-			id = i,
-			label = v.label,
-			defaultDuty = v.defaultDuty,
-			offDutyPay = v.offDutyPay,
-			grades = gradesTable
-		})
+	elseif Config.framework == 'qbox' then
+		local jobs = exports['qbx_core']:GetJobs()
+		for i, v in pairs(jobs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(jobTable, {
+				id = i,
+				label = v.label,
+				defaultDuty = v.defaultDuty,
+				offDutyPay = v.offDutyPay,
+				grades = gradesTable
+			})
+		end
 	end
 	return jobTable
 end
 
 local function requestGangs()
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local gangTable = {}
-	local QBCore = exports['qb-core']:GetCoreObject()
-	for i, v in pairs(QBCore.Shared.Gangs) do
-		local numericGrades = {}
-		for k, h in pairs(v.grades) do
-			local numericKey = tonumber(k)
-			if numericKey then
-				numericGrades[numericKey] = h
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		for i, v in pairs(QBCore.Shared.Gangs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
 			end
-		end
-		local sortedKeys = {}
-		for k in pairs(numericGrades) do
-			table.insert(sortedKeys, k)
-		end
-		table.sort(sortedKeys)
-		local gradesTable = {}
-		for _, k in ipairs(sortedKeys) do
-			local grade = numericGrades[k]
-			table.insert(gradesTable, {
-				name = grade.name,
-				payment = grade.payment,
-				isBoss = grade.isboss
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(gangTable, {
+				id = i,
+				label = v.label,
+				grades = gradesTable
 			})
 		end
-		table.insert(gangTable, {
-			id = i,
-			label = v.label,
-			grades = gradesTable
-		})
+	elseif Config.framework == 'qbox' then
+		local gangs = exports['qbx_core']:GetGangs()
+		for i, v in pairs(gangs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(gangTable, {
+				id = i,
+				label = v.label,
+				grades = gradesTable
+			})
+		end
 	end
 	return gangTable
 end
@@ -2835,7 +2902,7 @@ local function requestFileJobs()
 		func()
 		local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
 		if not loadedJobs or next(loadedJobs) == nil then
-				print('Error: QBShared.Jobs table is missing or empty.')
+      print('Error: QBShared.Jobs table is missing or empty.')
 			table.insert(errors, {
 				code = 'ERR_JOBS_NOT_LOADED',
 				message = 'QBShared.Jobs table is missing or empty.'
@@ -2858,59 +2925,22 @@ local function requestFileJobs()
 			print('Error loading data: ' .. err)
 			return
 		end
-
-		-- Execute the loaded chunk to get the jobs table
 		local loadedJobs = func()
-
-		-- Check if loadedJobs is a table and is not empty
-		if type(loadedJobs) ~= 'table' then
-			print('Error: jobs.lua did not return a table.')
+		if not loadedJobs or next(loadedJobs) == nil then
+			print('Error: QBox.Jobs table is missing or empty.')
 			table.insert(errors, {
 				code = 'ERR_JOBS_NOT_LOADED',
-				message = 'jobs.lua did not return a table.'
+				message = 'QBox.Jobs table is missing or empty.'
 			})
 			return
 		end
-		local formatJobs = function(jobs)
-			local validJobs = {}
-			for jobName, jobData in pairs(jobs) do
-				local numericGrades = {}
-				for k, v in pairs(jobData.grades) do
-					local numericKey = tonumber(k)
-					if numericKey then
-						numericGrades[numericKey] = v
-					end
-				end
-				local sortedKeys = {}
-				for k in pairs(numericGrades) do
-					table.insert(sortedKeys, k)
-				end
-				table.sort(sortedKeys)
-				local gradesTable = {}
-				for _, k in ipairs(sortedKeys) do
-					local grade = numericGrades[k]
-					table.insert(gradesTable, {
-						name = grade.name,
-						payment = grade.payment,
-						isBoss = grade.isboss
-					})
-				end
-				table.insert(validJobs, {
-					id = jobName,
-					label = jobData.label,
-					defaultDuty = jobData.defaultDuty,
-					offDutyPay = jobData.offDutyPay,
-					grades = gradesTable
-				})
-			end
-			return validJobs
-		end
-		return formatJobs(loadedJobs)
+		validJobs = filterJobs(loadedJobs)
 	end
+	return validJobs
 end
 
 local function requestFileGangs()
-	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
+	local validGangs = {}
 	local function filterGangs(gangs)
 		local validGangs = {}
 		for gangName, gangData in pairs(gangs) do
@@ -2949,7 +2979,6 @@ local function requestFileGangs()
 	end
 	if Config.framework == 'qb-core' then
 		local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
-		local validGangs = {}
 		local tempEnv = {}
 		setmetatable(tempEnv, {
 			__index = _G
@@ -2985,7 +3014,7 @@ local function requestFileGangs()
 			print('Error loading data: ' .. err)
 			return
 		end
-
+      
 		-- Execute the loaded chunk to get the gangs table
 		local loadedGangs = func()
 
@@ -2998,40 +3027,8 @@ local function requestFileGangs()
 			})
 			return
 		end
-		local formatGangs = function(gangs)
-			local validGangs = {}
-			for gangName, gangData in pairs(gangs) do
-				local numericGrades = {}
-				for k, v in pairs(gangData.grades) do
-					local numericKey = tonumber(k)
-					if numericKey then
-						numericGrades[numericKey] = v
-					end
-				end
-				local sortedKeys = {}
-				for k in pairs(numericGrades) do
-					table.insert(sortedKeys, k)
-				end
-				table.sort(sortedKeys)
-				local gradesTable = {}
-				for _, k in ipairs(sortedKeys) do
-					local grade = numericGrades[k]
-					table.insert(gradesTable, {
-						name = grade.name,
-						isBoss = grade.isboss
-					})
-				end
-				table.insert(validGangs, {
-					id = gangName,
-					label = gangData.label,
-					grades = gradesTable
-				})
-			end
-			return validGangs
-		end
 		return formatGangs(loadedGangs)
 	end
-	return {}
 end
 
 local function requestGarageData()
@@ -3294,6 +3291,7 @@ local function requestFileItems()
 		end
 
 		local validItems = filterItems(loadedItems)
+		return validItems
 	end
 	return {}
 end

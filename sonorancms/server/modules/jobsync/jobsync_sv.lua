@@ -185,9 +185,17 @@ RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
         exports['sonorancms']:performApiRequest({payload}, 'SET_ACCOUNT_RANKS', function(res, success)
             res = json.decode(res)
             if not success then
-                TriggerEvent('SonoranCMS::core:writeLog', 'error',
-                    'Failed to set job for ' .. GetPlayerName(source) ..
-                    ' (' .. identifier .. ') - ' .. json.encode(res))
+                local logMessage = 'Failed to set job for '
+                if GetPlayerName(source) then
+                    logMessage = logMessage .. GetPlayerName(source) or 'ERR_PLAYER_NAME' .. ' '
+                end
+                if identifier then
+                    logMessage = logMessage .. '(' .. identifier or 'ERR_IDENTIFIER' .. ') '
+                end
+                if res then
+                    logMessage = logMessage .. '- ' .. json.encode(res) or 'ERR_RES'
+                end
+                TriggerEvent('SonoranCMS::core:writeLog', 'error', logMessage)
             end
         end)
     end)
