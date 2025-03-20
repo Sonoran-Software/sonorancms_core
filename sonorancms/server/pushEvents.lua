@@ -1885,79 +1885,145 @@ local function getCharVehicles(callback)
 end
 
 local function requestJobs()
-	-- Request the active runtime jobs and their grades
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local jobTable = {}
-	local QBCore = exports['qb-core']:GetCoreObject()
-	for i, v in pairs(QBCore.Shared.Jobs) do
-		local numericGrades = {}
-		for k, h in pairs(v.grades) do
-			local numericKey = tonumber(k)
-			if numericKey then
-				numericGrades[numericKey] = h
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		for i, v in pairs(QBCore.Shared.Jobs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
 			end
-		end
-		local sortedKeys = {}
-		for k in pairs(numericGrades) do
-			table.insert(sortedKeys, k)
-		end
-		table.sort(sortedKeys)
-		local gradesTable = {}
-		for _, k in ipairs(sortedKeys) do
-			local grade = numericGrades[k]
-			table.insert(gradesTable, {
-				name = grade.name,
-				payment = grade.payment,
-				isBoss = grade.isboss
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(jobTable, {
+				id = i,
+				label = v.label,
+				defaultDuty = v.defaultDuty,
+				offDutyPay = v.offDutyPay,
+				grades = gradesTable
 			})
 		end
-		table.insert(jobTable, {
-			id = i,
-			label = v.label,
-			defaultDuty = v.defaultDuty,
-			offDutyPay = v.offDutyPay,
-			grades = gradesTable
-		})
+	elseif Config.framework == 'qbox' then
+		local jobs = exports['qbx_core']:GetJobs()
+		for i, v in pairs(jobs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(jobTable, {
+				id = i,
+				label = v.label,
+				defaultDuty = v.defaultDuty,
+				offDutyPay = v.offDutyPay,
+				grades = gradesTable
+			})
+		end
 	end
 	return jobTable
 end
 
 local function requestGangs()
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local gangTable = {}
-	local QBCore = exports['qb-core']:GetCoreObject()
-	for i, v in pairs(QBCore.Shared.Gangs) do
-		local numericGrades = {}
-		for k, h in pairs(v.grades) do
-			local numericKey = tonumber(k)
-			if numericKey then
-				numericGrades[numericKey] = h
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		for i, v in pairs(QBCore.Shared.Gangs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
 			end
-		end
-		local sortedKeys = {}
-		for k in pairs(numericGrades) do
-			table.insert(sortedKeys, k)
-		end
-		table.sort(sortedKeys)
-		local gradesTable = {}
-		for _, k in ipairs(sortedKeys) do
-			local grade = numericGrades[k]
-			table.insert(gradesTable, {
-				name = grade.name,
-				payment = grade.payment,
-				isBoss = grade.isboss
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(gangTable, {
+				id = i,
+				label = v.label,
+				grades = gradesTable
 			})
 		end
-		table.insert(gangTable, {
-			id = i,
-			label = v.label,
-			grades = gradesTable
-		})
+	elseif Config.framework == 'qbox' then
+		local gangs = exports['qbx_core']:GetGangs()
+		for i, v in pairs(gangs) do
+			local numericGrades = {}
+			for k, h in pairs(v.grades) do
+				local numericKey = tonumber(k)
+				if numericKey then
+					numericGrades[numericKey] = h
+				end
+			end
+			local sortedKeys = {}
+			for k in pairs(numericGrades) do
+				table.insert(sortedKeys, k)
+			end
+			table.sort(sortedKeys)
+			local gradesTable = {}
+			for _, k in ipairs(sortedKeys) do
+				local grade = numericGrades[k]
+				table.insert(gradesTable, {
+					name = grade.name,
+					payment = grade.payment,
+					isBoss = grade.isboss
+				})
+			end
+			table.insert(gangTable, {
+				id = i,
+				label = v.label,
+				grades = gradesTable
+			})
+		end
 	end
 	return gangTable
 end
 
 local function requestFileJobs()
-	-- Request the hardcoded jobs from the qb-core shared file (shared/jobs.lua)
-	local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local validJobs = {}
 	local function filterJobs(jobs)
 		local validJobs = {}
@@ -1993,31 +2059,55 @@ local function requestFileJobs()
 		end
 		return validJobs
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'jobData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
-	if not loadedJobs or next(loadedJobs) == nil then
-		print('Error: QBShared.Jobs table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_JOBS_NOT_LOADED',
-			message = 'QBShared.Jobs table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'jobData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
+		if not loadedJobs or next(loadedJobs) == nil then
+			print('Error: QBShared.Jobs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_JOBS_NOT_LOADED',
+				message = 'QBShared.Jobs table is missing or empty.'
+			})
+			return
+		end
+		validJobs = filterJobs(loadedJobs)
+	elseif Config.framework == 'qbox' then
+		local originalData = LoadResourceFile('qbx_core', './shared/jobs.lua')
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
+		})
+		local func, err = load(originalData, 'jobData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedJobs = func()
+		if not loadedJobs or next(loadedJobs) == nil then
+			print('Error: QBox.Jobs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_JOBS_NOT_LOADED',
+				message = 'QBox.Jobs table is missing or empty.'
+			})
+			return
+		end
+		validJobs = filterJobs(loadedJobs)
 	end
-	validJobs = filterJobs(loadedJobs)
 	return validJobs
 end
 
 local function requestFileGangs()
-	local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
 	local validGangs = {}
 	local function filterGangs(gangs)
 		local validGangs = {}
@@ -2058,26 +2148,51 @@ local function requestFileGangs()
 		end
 		return validGangs
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'gangData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
-	if not loadedGangs or next(loadedGangs) == nil then
-		print('Error: QBShared.Gangs table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_GANGS_NOT_LOADED',
-			message = 'QBShared.Gangs table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'gangData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
+		if not loadedGangs or next(loadedGangs) == nil then
+			print('Error: QBShared.Gangs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_GANGS_NOT_LOADED',
+				message = 'QBShared.Gangs table is missing or empty.'
+			})
+			return
+		end
+		validGangs = filterGangs(loadedGangs)
+	elseif Config.framework == 'qbox' then
+		local originalData = LoadResourceFile('qbx_core', './shared/gangs.lua')
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
+		})
+		local func, err = load(originalData, 'gangData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedGangs = func()
+		if not loadedGangs or next(loadedGangs) == nil then
+			print('Error: QBox.Gangs table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_GANGS_NOT_LOADED',
+				message = 'QBox.Gangs table is missing or empty.'
+			})
+			return
+		end
+		validGangs = filterGangs(loadedGangs)
 	end
-	validGangs = filterGangs(loadedGangs)
 	return validGangs
 end
 
@@ -2269,27 +2384,62 @@ local function requestFileItems()
 		end
 		return validItems
 	end
-	local tempEnv = {}
-	setmetatable(tempEnv, {
-		__index = _G
-	})
-	local func, err = load(originalData, 'itemData', 't', tempEnv)
-	if not func then
-		print('Error loading data: ' .. err)
-		return
-	end
-	func()
-	local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
-	if not loadedItems or next(loadedItems) == nil then
-		print('Error: QBShared.Items table is missing or empty.')
-		table.insert(errors, {
-			code = 'ERR_ITEMS_NOT_LOADED',
-			message = 'QBShared.Items table is missing or empty.'
+	if Config.framework == 'qb-core' then
+		local originalData = LoadResourceFile('qb-core', './shared/items.lua')
+		local validItems = {}
+		local tempEnv = {}
+		setmetatable(tempEnv, {
+			__index = _G
 		})
-		return
+		local func, err = load(originalData, 'itemData', 't', tempEnv)
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+		func()
+		local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
+		if not loadedItems or next(loadedItems) == nil then
+			print('Error: QBShared.Items table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'QBShared.Items table is missing or empty.'
+			})
+			return
+		end
+		validItems = filterItems(loadedItems)
+		return validItems
+	elseif Config.framework == 'qbox' then
+		local originalData = LoadResourceFile('ox_inventory', 'data/items.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading items.lua from ox_inventory resource.')
+			return
+		end
+
+		-- Load the contents of items.lua as a Lua chunk
+		local func, err = load(originalData, 'itemsData', 't')
+		if not func then
+			print('Error loading data: ' .. err)
+			return
+		end
+
+		-- Execute the loaded chunk to get the items table
+		local loadedItems = func()
+
+		-- Check if loadedItems is a table and is not empty
+		if type(loadedItems) ~= 'table' then
+			print('Error: items.lua did not return a table.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'items.lua did not return a table.'
+			})
+			return
+		end
+
+		local validItems = filterItems(loadedItems)
+		return validItems
 	end
-	validItems = filterItems(loadedItems)
-	return validItems
+	return {}
 end
 
 local function requestAcePerms()
