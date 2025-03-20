@@ -270,15 +270,47 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_PLAYER_MONEY', function(data)
 		if data ~= nil then
-			MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
-				data.data.citizenId
-			}, function(row)
-				if not row then
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
-					return
+			if Config.framework == 'qb-core' then
+				MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
+					data.data.citizenId
+				}, function(row)
+					if not row then
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the PlayerData for ' .. data.data.citizenId .. ' was not found')
+						return
+					end
+					local PlayerData = row
+					local PlayerDataMoney = json.decode(PlayerData.money)
+					local validType = false
+					for k, _ in pairs(PlayerDataMoney) do
+						if k == data.data.moneyType then
+							PlayerDataMoney[k] = data.data.amount
+							validType = true
+						end
+					end
+					PlayerDataMoney = json.encode(PlayerDataMoney)
+					if validType then
+						MySQL.update('UPDATE players SET money = ? WHERE citizenid = ?', {
+							PlayerDataMoney,
+							data.data.citizenId
+						})
+						local QBCore = exports['qb-core']:GetCoreObject()
+						local Player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
+						if Player ~= nil then
+							Player.Functions.SetMoney(data.data.moneyType, data.data.amount)
+						end
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
+					else
+						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but money type ' .. data.data.moneyType .. ' was not found')
+					end
+				end)
+			elseif Config.framework == 'qbox' then
+				local Player = exports['qbx_core']:GetPlayerByCitizenId(data.data.citizenId)
+				if Player == nil then
+					Player = exports['qbx_core']:GetOfflinePlayer(data.data.citizenId)
 				end
-				local PlayerData = row
-				local PlayerDataMoney = json.decode(PlayerData.money)
+				if Player == nil then return end
+				local PlayerData = Player.PlayerData
+				local PlayerDataMoney = PlayerData.money
 				local validType = false
 				for k, _ in pairs(PlayerDataMoney) do
 					if k == data.data.moneyType then
@@ -292,16 +324,13 @@ CreateThread(function()
 						PlayerDataMoney,
 						data.data.citizenId
 					})
-					local QBCore = exports['qb-core']:GetCoreObject()
-					local Player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
-					if Player ~= nil then
-						Player.Functions.SetMoney(data.data.moneyType, data.data.amount)
-					end
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.name .. ' to ' .. PlayerDataMoney)
-				else
-					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but money type ' .. data.data.moneyType .. ' was not found')
+					local citizenId = data.data.citizenId
+					local moneyType = data.data.moneyType
+					local amount = data.data.amount
+					exports['qbx_core']:SetMoney(citizenId, moneyType, amount, 'Set from Sonoran CMS')
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' setting money for ' .. PlayerData.charinfo.firstname .. ' ' .. PlayerData.charinfo.lastname .. ' to ' .. amount)
 				end
-			end)
+			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_DESPAWN_VEHICLE', function(data)
@@ -365,6 +394,7 @@ CreateThread(function()
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_SET_CHAR_INFO', function(data)
+		print('CMD_SET_CHAR_INFO', Config.framework, data)
 		if data ~= nil then
 			MySQL.single('SELECT * FROM `players` WHERE `citizenid` = ? LIMIT 1', {
 				data.data.citizenId
@@ -458,24 +488,24 @@ CreateThread(function()
 						vehData.financetime = data.data.financeTime
 					end
 					MySQL.update(
-									'UPDATE player_vehicles SET plate = ?, garage = ?, fuel = ?, engine = ?, body = ?, state = ?, drivingdistance = ?, balance = ?, paymentamount = ?, paymentsleft = ?, financetime = ? WHERE id = ?',
-									{
-										vehData.plate,
-										vehData.garage,
-										vehData.fuel,
-										vehData.engine,
-										vehData.body,
-										vehData.state,
-										vehData.drivingdistance,
-										vehData.balance,
-										vehData.paymentamount,
-										vehData.paymentsleft,
-										vehData.financetime,
-										data.data.vehicleId
-									}, function(affectedRows)
-										-- Your function code here
-										TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Updated vehicle metadata for ' .. data.data.vehicleId .. ' to ' .. json.encode(vehData) .. ' with ' .. affectedRows .. ' rows affected')
-									end -- Closing the anonymous function
+						'UPDATE player_vehicles SET plate = ?, garage = ?, fuel = ?, engine = ?, body = ?, state = ?, drivingdistance = ?, balance = ?, paymentamount = ?, paymentsleft = ?, financetime = ? WHERE id = ?',
+						{
+							vehData.plate,
+							vehData.garage,
+							vehData.fuel,
+							vehData.engine,
+							vehData.body,
+							vehData.state,
+							vehData.drivingdistance,
+							vehData.balance,
+							vehData.paymentamount,
+							vehData.paymentsleft,
+							vehData.financetime,
+							data.data.vehicleId
+						}, function(affectedRows)
+							-- Your function code here
+							TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Updated vehicle metadata for ' .. data.data.vehicleId .. ' to ' .. json.encode(vehData) .. ' with ' .. affectedRows .. ' rows affected')
+						end -- Closing the anonymous function
 					) -- Closing the MySQL.update call
 
 				end
@@ -572,614 +602,1251 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_GANG_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
-			local validGangs = {}
-			local function filterGangs(gangs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
 				local validGangs = {}
-				for gangName, gangData in pairs(gangs) do
-					validGangs[gangName] = gangData
-				end
-				return validGangs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'gangData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
-			if not loadedGangs or next(loadedGangs) == nil then
-				print('Error: QBShared.Gangs table is missing or empty.')
-				return
-			end
-			local jobTypes = checkObjType(originalData)
-			validGangs = filterGangs(loadedGangs)
-			if not validGangs[data.data.gangId] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.gangId .. ' does not exist.')
-				return
-			else
-				validGangs[data.data.gangId] = nil
-				local function convertToPlainText(gangsTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Gangs = {')
-					for gangName, gangData in pairs(gangsTable) do
-						if jobTypes[gangName] == 'quoted' then
-							local gangLine = '\t[\'' .. gangName .. '\'] = {'
-							table.insert(lines, gangLine)
-						else
-							local gangLine = '\t' .. gangName .. ' = {'
-							table.insert(lines, gangLine)
-						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-						table.insert(lines, '\t\tgrades = {')
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
-								table.insert(lines, gradeLine)
-							end
-						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
+				local function filterGangs(gangs)
+					local validGangs = {}
+					for gangName, gangData in pairs(gangs) do
+						validGangs[gangName] = gangData
 					end
+					return validGangs
+				end
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'gangData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
+				if not loadedGangs or next(loadedGangs) == nil then
+					print('Error: QBShared.Gangs table is missing or empty.')
+					return
+				end
+				local jobTypes = checkObjType(originalData)
+				validGangs = filterGangs(loadedGangs)
+				if not validGangs[data.data.gangId] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.gangId .. ' does not exist.')
+					return
+				else
+					validGangs[data.data.gangId] = nil
+					local function convertToPlainText(gangsTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Gangs = {')
+						for gangName, gangData in pairs(gangsTable) do
+							if jobTypes[gangName] == 'quoted' then
+								local gangLine = '\t[\'' .. gangName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. gangName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
+							table.insert(lines, labelLine)
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(gangData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validGangs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removing gang ' .. data.data.gangId)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
+
+				end
+			elseif Config.framework == 'qbox' then
+				local gangId = data.data.gangId
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
+
+				-- Function to convert gang data to the correct format
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'--- Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
+
+					-- Iterate through gang table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local jobLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add gang label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+								
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validGangs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removing gang ' .. data.data.gangId)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
 
+				-- Load the current gangs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading gangs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the gangs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: gangs.lua did not return a table.')
+					return
+				end
+
+				-- Check if the job exists
+				if loadedGangs[gangId:lower()] then
+					-- Remove the job from the table
+					loadedGangs[gangId:lower()] = nil
+
+					-- Convert the updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/gans.lua', modifiedData, -1)
+
+					print('Gang ' .. gangId .. ' removed successfully.')
+				else
+					print('Error: Gang ' .. gangId .. ' does not exist.')
+				end
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_EDIT_GANG_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
-			local validGangs = {}
-			local function filterGangs(gangs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
 				local validGangs = {}
-				for gangName, gangData in pairs(gangs) do
-					validGangs[gangName] = gangData
-				end
-				return validGangs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'gangData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
-			if not loadedGangs or next(loadedGangs) == nil then
-				print('Error: QBShared.Gangs table is missing or empty.')
-				return
-			end
-			local jobTypes = checkObjType(originalData)
-			validGangs = filterGangs(loadedGangs)
-			if not validGangs[data.data.id] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' does not exist.')
-				return
-			else
-				local gradesTable = {}
-				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							isboss = gradeData.isBoss
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name)
-						}
+				local function filterGangs(gangs)
+					local validGangs = {}
+					for gangName, gangData in pairs(gangs) do
+						validGangs[gangName] = gangData
 					end
+					return validGangs
 				end
-				validGangs[data.data.id] = {
-					label = escapeQuotes(data.data.label),
-					grades = gradesTable
-				}
-				local function convertToPlainText(gangsTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Gangs = {')
-					for gangName, gangData in pairs(gangsTable) do
-						if jobTypes[gangName] == 'quoted' then
-							local gangLine = '\t[\'' .. gangName .. '\'] = {'
-							table.insert(lines, gangLine)
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'gangData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
+				if not loadedGangs or next(loadedGangs) == nil then
+					print('Error: QBShared.Gangs table is missing or empty.')
+					return
+				end
+				local jobTypes = checkObjType(originalData)
+				validGangs = filterGangs(loadedGangs)
+				if not validGangs[data.data.id] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' does not exist.')
+					return
+				else
+					local gradesTable = {}
+					for gradeIndex, gradeData in pairs(data.data.grades) do
+						if gradeData.isBoss then
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								isboss = gradeData.isBoss
+							}
 						else
-							local gangLine = '\t' .. gangName .. ' = {'
-							table.insert(lines, gangLine)
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name)
+							}
 						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-						table.insert(lines, '\t\tgrades = {')
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
-								table.insert(lines, gradeLine)
-							end
-						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
 					end
+					validGangs[data.data.id] = {
+						label = escapeQuotes(data.data.label),
+						grades = gradesTable
+					}
+					local function convertToPlainText(gangsTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Gangs = {')
+						for gangName, gangData in pairs(gangsTable) do
+							if jobTypes[gangName] == 'quoted' then
+								local gangLine = '\t[\'' .. gangName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. gangName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
+							table.insert(lines, labelLine)
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(gangData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validGangs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing gang ' .. data.data.id)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
+
+				end
+			elseif Config.framework == 'qbox' then
+				local gangId = data.data.id
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
+
+				-- Function to convert job data to the correct format
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'--- Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
+
+					-- Iterate through job table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local gangLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, gangLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ", isboss = true"
+							end
+							
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+						
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validGangs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing gang ' .. data.data.id)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
 
+				-- Load the current gangs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading gangs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the gangs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
+
+				-- Updated gang entry
+				local gangEntry = {
+					label = escapeQuotes(data.data.label),
+					grades = gradesTable
+				}
+
+
+				-- Check if the gang exists
+				if loadedGangs[gangId:lower()] then
+					-- Replace the existing gang data with the new data
+					loadedGangs[gangId:lower()] = gangEntry
+
+					-- Convert the updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/gangs.lua', modifiedData, -1)
+
+					print('Gang ' .. gangId .. ' updated successfully.')
+				else
+					print('Error: Gang ' .. gangId .. ' does not exist.')
+				end
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_GANG_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
-			local validGangs = {}
-			local function filterGangs(gangs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/gangs.lua')
 				local validGangs = {}
-				for gangName, gangData in pairs(gangs) do
-					validGangs[gangName] = gangData
-				end
-				return validGangs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'gangData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
-			if not loadedGangs or next(loadedGangs) == nil then
-				print('Error: QBShared.Gangs table is missing or empty.')
-				return
-			end
-			local jobTypes = checkObjType(originalData)
-			validGangs = filterGangs(loadedGangs)
-			if validGangs[data.data.id] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' already exists.')
-				return
-			else
-				local gradesTable = {}
-				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							isboss = gradeData.isBoss
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name)
-						}
+				local function filterGangs(gangs)
+					local validGangs = {}
+					for gangName, gangData in pairs(gangs) do
+						validGangs[gangName] = gangData
 					end
+					return validGangs
 				end
-				validGangs[data.data.id] = {
-					label = escapeQuotes(data.data.label),
-					grades = gradesTable
-				}
-				exports['qb-core']:AddGang(data.data.id, {
-					label = data.data.label,
-					grades = gradesTable
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
 				})
-				local function convertToPlainText(gangsTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Gangs = {')
-					for gangName, gangData in pairs(gangsTable) do
-						if jobTypes[gangName] == 'quoted' then
-							local gangLine = '\t[\'' .. gangName .. '\'] = {'
-							table.insert(lines, gangLine)
+				local func, err = load(originalData, 'gangData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedGangs = tempEnv.QBShared and tempEnv.QBShared.Gangs
+				if not loadedGangs or next(loadedGangs) == nil then
+					print('Error: QBShared.Gangs table is missing or empty.')
+					return
+				end
+				local jobTypes = checkObjType(originalData)
+				validGangs = filterGangs(loadedGangs)
+				if validGangs[data.data.id] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. data.data.id .. ' already exists.')
+					return
+				else
+					local gradesTable = {}
+					for gradeIndex, gradeData in pairs(data.data.grades) do
+						if gradeData.isBoss then
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								isboss = gradeData.isBoss
+							}
 						else
-							local gangLine = '\t' .. gangName .. ' = {'
-							table.insert(lines, gangLine)
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name)
+							}
 						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-						table.insert(lines, '\t\tgrades = {')
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
-								table.insert(lines, gradeLine)
-							end
-						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
 					end
+					validGangs[data.data.id] = {
+						label = escapeQuotes(data.data.label),
+						grades = gradesTable
+					}
+					exports['qb-core']:AddGang(data.data.id, {
+						label = data.data.label,
+						grades = gradesTable
+					})
+					local function convertToPlainText(gangsTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Gangs = {')
+						for gangName, gangData in pairs(gangsTable) do
+							if jobTypes[gangName] == 'quoted' then
+								local gangLine = '\t[\'' .. gangName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. gangName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(gangData.label))
+							table.insert(lines, labelLine)
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(gangData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\' },', gradeIndex, escapeQuotes(gradeData.name))
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validGangs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding gang ' .. data.data.id)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
+
+				end
+			elseif Config.framework == 'qbox' then
+				local function convertToPlainText(gangTable)
+					local lines = {
+						'---Gang names must be lower case (top level table key)',
+						'---@type table<string, Gang>',
+						'return {'
+					}
+
+					-- Iterate through gang table and format them according to QBox structure
+					for gangName, gangData in pairs(gangTable) do
+						-- Add gang entry (convert to lower case for gang name)
+						local gangLine = string.format("    ['%s'] = {", gangName:lower())
+						table.insert(lines, gangLine)
+
+						-- Add gang label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
+						table.insert(lines, labelLine)
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
+						for gradeIndex, gradeData in pairs(gangData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
+
+							-- Add isBoss if true
+							if gradeData.isboss then
+									gradeLine = gradeLine .. ", isboss = true"
+							end
+
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+									gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, "        },")
+
+						-- Close the gang entry
+						table.insert(lines, "    },")
+					end
+
+					-- Close the gangs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validGangs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding gang ' .. data.data.id)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving gangs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/gangs.lua', modifiedData, -1)
 
+				-- Example gang data (assuming `data.data` contains the gang information)
+				local gangId = data.data.id
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
+
+				-- Create gang entry
+				local gangEntry = {
+					label = escapeQuotes(data.data.label),
+					grades = gradesTable
+				}
+
+				-- Load the current gang.lua file from the qbox resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangss.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of gangs.lua as a Lua chunk
+				local func, err = load(originalData, 'gangData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedGangs = func()
+
+				-- Check if loadedGangs is a table and is not empty
+				if type(loadedGangs) ~= 'table' then
+					print('Error: gangs.lua did not return a table.')
+					return
+				end
+
+				-- Check if gang already exists
+				if loadedGangs[gangId:lower()] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' already exists.')
+					return
+				else
+					-- Add new gang to valid gangs
+					loadedGangs[gangId:lower()] = gangEntry
+
+					-- Convert updated gangs table to plain text
+					local modifiedData = convertToPlainText(loadedGangs)
+
+					-- Save the updated gangs.lua (without overwriting the entire file)
+					SaveResourceFile('qbx_core', './shared/gangs.lua', modifiedData, -1)
+					local gangEntries = {}
+					gangEntries[gangId] = gangEntry
+					exports['qbx_core']:CreateGangs(gangEntries)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Gang ' .. gangId .. ' added successfully.')
+				end
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_JOB_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
-			local validJobs = {}
-			local function filterJobs(jobs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
 				local validJobs = {}
-				for jobName, jobData in pairs(jobs) do
-					validJobs[jobName] = jobData
+				local function filterJobs(jobs)
+					local validJobs = {}
+					for jobName, jobData in pairs(jobs) do
+						validJobs[jobName] = jobData
+					end
+					return validJobs
 				end
-				return validJobs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'jobData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
-			if not loadedJobs or next(loadedJobs) == nil then
-				print('Error: QBShared.Jobs table is missing or empty.')
-				return
-			end
-			local jobTypes = checkObjType(originalData)
-			validJobs = filterJobs(loadedJobs)
-			if not validJobs[data.data.jobId] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.jobId .. ' does not exist.')
-				return
-			else
-				validJobs[data.data.jobId] = nil
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'jobData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
+				if not loadedJobs or next(loadedJobs) == nil then
+					print('Error: QBShared.Jobs table is missing or empty.')
+					return
+				end
+				local jobTypes = checkObjType(originalData)
+				validJobs = filterJobs(loadedJobs)
+				if not validJobs[data.data.jobId] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.jobId .. ' does not exist.')
+					return
+				else
+					validJobs[data.data.jobId] = nil
+					local function convertToPlainText(jobTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
+						table.insert(lines, 'QBShared.Jobs = {')
+						for jobName, jobData in pairs(jobTable) do
+							if jobTypes[jobName] == 'quoted' then
+								local gangLine = '\t[\'' .. jobName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. jobName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+							table.insert(lines, labelLine)
+							if jobData.type then
+								local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if jobData.defaultDuty ~= nil then
+								local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+								table.insert(lines, defaultDutyLine)
+							end
+							if jobData.offDutyPay ~= nil then
+								local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+								table.insert(lines, offDutyPayLine)
+							end
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(jobData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validJobs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removing job ' .. data.data.jobId)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
+				end
+			elseif Config.framework == 'qbox' then
+				local jobId = data.data.jobId
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
+
+				-- Function to convert job data to the correct format
 				local function convertToPlainText(jobTable)
 					local lines = {
-						'QBShared = QBShared or {}'
+						'--- Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
 					}
-					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
-					table.insert(lines, 'QBShared.Jobs = {')
+
+					-- Iterate through job table and format them according to QBox structure
 					for jobName, jobData in pairs(jobTable) do
-						if jobTypes[jobName] == 'quoted' then
-							local gangLine = '\t[\'' .. jobName .. '\'] = {'
-							table.insert(lines, gangLine)
-						else
-							local gangLine = '\t' .. jobName .. ' = {'
-							table.insert(lines, gangLine)
-						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
-						if jobData.type then
-							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
-							table.insert(lines, typeLine)
-						end
+						
+						-- Add defaultDuty and offDutyPay
 						if jobData.defaultDuty ~= nil then
-							local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
 							table.insert(lines, defaultDutyLine)
 						end
 						if jobData.offDutyPay ~= nil then
-							local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
 							table.insert(lines, offDutyPayLine)
 						end
-						table.insert(lines, '\t\tgrades = {')
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
 						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+
+							-- Add isBoss if true
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
-								table.insert(lines, gradeLine)
+								gradeLine = gradeLine .. ", isboss = true"
 							end
+								
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
 						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
+						table.insert(lines, "        },")
+						
+						-- Close the job entry
+						table.insert(lines, "    },")
 					end
+
+					-- Close the jobs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validJobs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removing job ' .. data.data.jobId)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
 
+				-- Load the current jobs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				-- Check if the job exists
+				if loadedJobs[jobId:lower()] then
+					-- Remove the job from the table
+					loadedJobs[jobId:lower()] = nil
+
+					-- Convert the updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+
+					print('Job ' .. jobId .. ' removed successfully.')
+				else
+					print('Error: Job ' .. jobId .. ' does not exist.')
+				end
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_EDIT_JOB_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
-			local validJobs = {}
-			local function filterJobs(jobs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
 				local validJobs = {}
-				for jobName, jobData in pairs(jobs) do
-					validJobs[jobName] = jobData
-				end
-				return validJobs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'jobData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local jobTypes = checkObjType(originalData)
-			local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
-			if not loadedJobs or next(loadedJobs) == nil then
-				print('Error: QBShared.Jobs table is missing or empty.')
-				return
-			end
-			validJobs = filterJobs(loadedJobs)
-			if not validJobs[data.data.id] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' does not exist.')
-				return
-			else
-				local gradesTable = {}
-				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment,
-							isboss = gradeData.isBoss
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment
-						}
+				local function filterJobs(jobs)
+					local validJobs = {}
+					for jobName, jobData in pairs(jobs) do
+						validJobs[jobName] = jobData
 					end
+					return validJobs
 				end
-				validJobs[data.data.id] = {
-					type = data.data.type,
-					label = escapeQuotes(data.data.label),
-					grades = gradesTable,
-					defaultDuty = data.data.defaultDuty,
-					offDutyPay = data.data.offDutyPay
-				}
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'jobData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local jobTypes = checkObjType(originalData)
+				local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
+				if not loadedJobs or next(loadedJobs) == nil then
+					print('Error: QBShared.Jobs table is missing or empty.')
+					return
+				end
+				validJobs = filterJobs(loadedJobs)
+				if not validJobs[data.data.id] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' does not exist.')
+					return
+				else
+					local gradesTable = {}
+					for gradeIndex, gradeData in pairs(data.data.grades) do
+						if gradeData.isBoss then
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								payment = gradeData.payment,
+								isboss = gradeData.isBoss
+							}
+						else
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								payment = gradeData.payment
+							}
+						end
+					end
+					validJobs[data.data.id] = {
+						type = data.data.type,
+						label = escapeQuotes(data.data.label),
+						grades = gradesTable,
+						defaultDuty = data.data.defaultDuty,
+						offDutyPay = data.data.offDutyPay
+					}
+					local function convertToPlainText(jobTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
+						table.insert(lines, 'QBShared.Jobs = {')
+						for jobName, jobData in pairs(jobTable) do
+							if jobTypes[jobName] == 'quoted' then
+								local gangLine = '\t[\'' .. jobName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. jobName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+							table.insert(lines, labelLine)
+							if jobData.type and jobData.type ~= nil then
+								local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if jobData.defaultDuty ~= nil then
+								local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+								table.insert(lines, defaultDutyLine)
+							end
+							if jobData.offDutyPay ~= nil then
+								local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+								table.insert(lines, offDutyPayLine)
+							end
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(jobData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validJobs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing job ' .. data.data.id)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
+					exports['qbx_core']:RemoveJob(data.data.id)
+				end
+			elseif Config.framework == 'qbox' then
+				local jobId = data.data.id
+				-- Function to escape single quotes in strings
+				local function escapeQuotes(str)
+					return str:gsub("'", "\\'")
+				end
+
+				-- Function to convert job data to the correct format
 				local function convertToPlainText(jobTable)
 					local lines = {
-						'QBShared = QBShared or {}'
+						'--- Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
 					}
-					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
-					table.insert(lines, 'QBShared.Jobs = {')
+
+					-- Iterate through job table and format them according to QBox structure
 					for jobName, jobData in pairs(jobTable) do
-						if jobTypes[jobName] == 'quoted' then
-							local gangLine = '\t[\'' .. jobName .. '\'] = {'
-							table.insert(lines, gangLine)
-						else
-							local gangLine = '\t' .. jobName .. ' = {'
-							table.insert(lines, gangLine)
-						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+						
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
-						if jobData.type and jobData.type ~= nil then
-							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
-							table.insert(lines, typeLine)
-						end
+						
+						-- Add defaultDuty and offDutyPay
 						if jobData.defaultDuty ~= nil then
-							local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
 							table.insert(lines, defaultDutyLine)
 						end
 						if jobData.offDutyPay ~= nil then
-							local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
 							table.insert(lines, offDutyPayLine)
 						end
-						table.insert(lines, '\t\tgrades = {')
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
 						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+
+							-- Add isBoss if true
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
-								table.insert(lines, gradeLine)
+								gradeLine = gradeLine .. ", isboss = true"
 							end
+							
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
 						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
+						table.insert(lines, "        },")
+						
+						-- Close the job entry
+						table.insert(lines, "    },")
 					end
+
+					-- Close the jobs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validJobs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing job ' .. data.data.id)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
 
+				-- Load the current jobs.lua file from the qbx_core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						payment = gradeData.payment,
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
+
+				-- Updated job entry
+				local jobEntry = {
+					label = escapeQuotes(data.data.label),
+					defaultDuty = data.data.defaultDuty,
+					offDutyPay = data.data.offDutyPay,
+					grades = gradesTable
+				}
+
+
+				-- Check if the job exists
+				if loadedJobs[jobId:lower()] then
+					-- Replace the existing job data with the new data
+					loadedJobs[jobId:lower()] = jobEntry
+
+					-- Convert the updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua back to the qbx_core resource
+					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+
+					print('Job ' .. jobId .. ' updated successfully.')
+				else
+					print('Error: Job ' .. jobId .. ' does not exist.')
+				end
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_JOB_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
-			local validJobs = {}
-			local function filterJobs(jobs)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
 				local validJobs = {}
-				for jobName, jobData in pairs(jobs) do
-					validJobs[jobName] = jobData
-				end
-				return validJobs
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'jobData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
-			if not loadedJobs or next(loadedJobs) == nil then
-				print('Error: QBShared.Jobs table is missing or empty.')
-				return
-			end
-			local jobTypes = checkObjType(originalData)
-			validJobs = filterJobs(loadedJobs)
-			if validJobs[data.data.id] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' already exist.')
-				return
-			else
-				local gradesTable = {}
-				for gradeIndex, gradeData in pairs(data.data.grades) do
-					if gradeData.isBoss then
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment,
-							isboss = gradeData.isBoss
-						}
-					else
-						gradesTable[gradeIndex - 1] = {
-							name = escapeQuotes(gradeData.name),
-							payment = gradeData.payment
-						}
+				local function filterJobs(jobs)
+					local validJobs = {}
+					for jobName, jobData in pairs(jobs) do
+						validJobs[jobName] = jobData
 					end
+					return validJobs
 				end
-				validJobs[data.data.id] = {
-					type = data.data.type,
-					label = escapeQuotes(data.data.label),
-					grades = gradesTable,
-					defaultDuty = data.data.defaultDuty,
-					offDutyPay = data.data.offDutyPay
-				}
-				exports['qb-core']:AddJob(data.data.id, {
-					label = escapeQuotes(data.data.label),
-					grades = gradesTable,
-					defaultDuty = data.data.defaultDuty,
-					offDutyPay = data.data.offDutyPay
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
 				})
+				local func, err = load(originalData, 'jobData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
+				if not loadedJobs or next(loadedJobs) == nil then
+					print('Error: QBShared.Jobs table is missing or empty.')
+					return
+				end
+				local jobTypes = checkObjType(originalData)
+				validJobs = filterJobs(loadedJobs)
+				if validJobs[data.data.id] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. data.data.id .. ' already exist.')
+					return
+				else
+					local gradesTable = {}
+					for gradeIndex, gradeData in pairs(data.data.grades) do
+						if gradeData.isBoss then
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								payment = gradeData.payment,
+								isboss = gradeData.isBoss
+							}
+						else
+							gradesTable[gradeIndex - 1] = {
+								name = escapeQuotes(gradeData.name),
+								payment = gradeData.payment
+							}
+						end
+					end
+					validJobs[data.data.id] = {
+						type = data.data.type,
+						label = escapeQuotes(data.data.label),
+						grades = gradesTable,
+						defaultDuty = data.data.defaultDuty,
+						offDutyPay = data.data.offDutyPay
+					}
+					exports['qb-core']:AddJob(data.data.id, {
+						label = escapeQuotes(data.data.label),
+						grades = gradesTable,
+						defaultDuty = data.data.defaultDuty,
+						offDutyPay = data.data.offDutyPay
+					})
+					local function convertToPlainText(jobTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
+						table.insert(lines, 'QBShared.Jobs = {')
+						for jobName, jobData in pairs(jobTable) do
+							if jobTypes[jobName] == 'quoted' then
+								local gangLine = '\t[\'' .. jobName .. '\'] = {'
+								table.insert(lines, gangLine)
+							else
+								local gangLine = '\t' .. jobName .. ' = {'
+								table.insert(lines, gangLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+							table.insert(lines, labelLine)
+							if jobData.type and jobData.type ~= nil then
+								local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if jobData.defaultDuty ~= nil then
+								local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+								table.insert(lines, defaultDutyLine)
+							end
+							if jobData.offDutyPay ~= nil then
+								local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+								table.insert(lines, offDutyPayLine)
+							end
+							table.insert(lines, '\t\tgrades = {')
+							for gradeIndex, gradeData in pairs(jobData.grades) do
+								if gradeData.isboss then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+									table.insert(lines, gradeLine)
+								end
+							end
+							table.insert(lines, '\t\t},')
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validJobs)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding job ' .. data.data.id)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
+				end
+			elseif Config.framework == 'qbox' then-- Function to convert job data to the correct format
 				local function convertToPlainText(jobTable)
 					local lines = {
-						'QBShared = QBShared or {}'
+						'---Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
 					}
-					table.insert(lines, 'QBShared.ForceJobDefaultDutyAtLogin = true -- true: Force duty state to jobdefaultDuty | false: set duty state from database last saved')
-					table.insert(lines, 'QBShared.Jobs = {')
+
+					-- Iterate through job table and format them according to QBox structure
 					for jobName, jobData in pairs(jobTable) do
-						if jobTypes[jobName] == 'quoted' then
-							local gangLine = '\t[\'' .. jobName .. '\'] = {'
-							table.insert(lines, gangLine)
-						else
-							local gangLine = '\t' .. jobName .. ' = {'
-							table.insert(lines, gangLine)
-						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+						-- Add job entry (convert to lower case for job name)
+						local jobLine = string.format("    ['%s'] = {", jobName:lower())
+						table.insert(lines, jobLine)
+
+						-- Add job label
+						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
 						table.insert(lines, labelLine)
-						if jobData.type and jobData.type ~= nil then
-							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
-							table.insert(lines, typeLine)
-						end
+
+						-- Add defaultDuty and offDutyPay
 						if jobData.defaultDuty ~= nil then
-							local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
 							table.insert(lines, defaultDutyLine)
 						end
 						if jobData.offDutyPay ~= nil then
-							local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
 							table.insert(lines, offDutyPayLine)
 						end
-						table.insert(lines, '\t\tgrades = {')
+
+						-- Add grades table
+						table.insert(lines, "        grades = {")
 						for gradeIndex, gradeData in pairs(jobData.grades) do
+							-- Start the grade entry
+							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+
+							-- Add isBoss if true
 							if gradeData.isboss then
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
-								table.insert(lines, gradeLine)
-							else
-								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
-								table.insert(lines, gradeLine)
+									gradeLine = gradeLine .. ", isboss = true"
 							end
+
+							-- Add bankAuth if true
+							if gradeData.bankAuth then
+									gradeLine = gradeLine .. ", bankAuth = true"
+							end
+
+							-- Close the grade entry
+							gradeLine = gradeLine .. " },"
+							table.insert(lines, gradeLine)
 						end
-						table.insert(lines, '\t\t},')
-						table.insert(lines, '\t},')
+						table.insert(lines, "        },")
+
+						-- Close the job entry
+						table.insert(lines, "    },")
 					end
+
+					-- Close the jobs table
 					table.insert(lines, '}')
 					return table.concat(lines, '\n')
 				end
-				local modifiedData = convertToPlainText(validJobs)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding job ' .. data.data.id)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/jobs.lua', modifiedData, -1)
 
+				-- Example job data (assuming `data.data` contains the job information)
+				local jobId = data.data.id
+				local gradesTable = {}
+				for gradeIndex, gradeData in pairs(data.data.grades) do
+					gradesTable[gradeIndex] = {
+						name = escapeQuotes(gradeData.name),
+						payment = gradeData.payment,
+						isboss = gradeData.isBoss or false,  -- Handle isBoss
+						bankAuth = gradeData.bankAuth or false  -- Handle bankAuth
+					}
+				end
+
+				-- Create job entry
+				local jobEntry = {
+					label = escapeQuotes(data.data.label),
+					defaultDuty = data.data.defaultDuty,
+					offDutyPay = data.data.offDutyPay,
+					grades = gradesTable
+				}
+
+				-- Load the current jobs.lua file from the qb-core resource
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+
+				-- Check if the file was loaded successfully
+				if not originalData then
+					print('Error loading jobs.lua from qbx_core resource.')
+					return
+				end
+
+				-- Load the contents of jobs.lua as a Lua chunk
+				local func, err = load(originalData, 'jobData', 't')
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+
+				-- Execute the loaded chunk to get the jobs table
+				local loadedJobs = func()
+
+				-- Check if loadedJobs is a table and is not empty
+				if type(loadedJobs) ~= 'table' then
+					print('Error: jobs.lua did not return a table.')
+					return
+				end
+
+				-- Check if job already exists
+				if loadedJobs[jobId:lower()] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. jobId .. ' already exists.')
+					return
+				else
+					-- Add new job to valid jobs
+					loadedJobs[jobId:lower()] = jobEntry
+
+					-- Convert updated jobs table to plain text
+					local modifiedData = convertToPlainText(loadedJobs)
+
+					-- Save the updated jobs.lua (without overwriting the entire file)
+					SaveResourceFile('qbx_core', './shared/jobs.lua', modifiedData, -1)
+					local jobEntries = {}
+					jobEntries[jobId] = jobEntry
+					exports['qbx_core']:CreateJobs(jobEntries)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job ' .. jobId .. ' added successfully.')
+				end
 			end
 		end
 	end)
 	-- Adding Items to QBCore
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			local QBCore = exports['qb-core']:GetCoreObject()
-			local item = {
-				name = data.data.name,
-				label = data.data.label,
-				weight = data.data.weight or 0,
-				type = data.data.type,
-				image = data.data.image or '',
-				description = data.data.description or '',
-				unique = data.data.unique or false,
-				useable = data.data.useable or false,
-				ammoType = data.data.ammoType or nil,
-				shouldClose = data.data.shouldClose or false,
-				combinable = data.data.combinable or nil
-			}
-			QBCore.Functions.AddItem(item.name, item)
-			local originalData = LoadResourceFile('qb-core', './shared/items.lua')
-			local validItems = {}
-			local function filterJobs(items)
-				local validItems = {}
-				for itemName, itemData in pairs(items) do
-					validItems[itemName] = itemData
-				end
-				return validItems
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'itemData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
-			if not loadedItems or next(loadedItems) == nil then
-				print('Error: QBShared.Items table is missing or empty.')
-				return
-			end
-			local itemTypes = checkObjType(originalData)
-			validItems = filterJobs(loadedItems)
-			if validItems[data.data.name] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' already exist.')
-				return
-			else
-				validItems[data.data.name] = {
+			if Config.framework == 'qb-core' then
+				local QBCore = exports['qb-core']:GetCoreObject()
+				local item = {
 					name = data.data.name,
 					label = data.data.label,
 					weight = data.data.weight or 0,
@@ -1192,277 +1859,422 @@ CreateThread(function()
 					shouldClose = data.data.shouldClose or false,
 					combinable = data.data.combinable or nil
 				}
-				local function convertToPlainText(itemTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Items = {')
-					for itemName, itemData in pairs(itemTable) do
-						if itemTypes[itemName] == 'quoted' then
-							local itemLine = '\t[\'' .. itemName .. '\'] = {'
-							table.insert(lines, itemLine)
-						else
-							local itemLine = '\t' .. itemName .. ' = {'
-							table.insert(lines, itemLine)
-						end
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
-						table.insert(lines, labelLine)
-						if itemData.type and itemData.type ~= nil then
-							local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
-							table.insert(lines, typeLine)
-						end
-						if itemData.weight ~= nil then
-							local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
-							table.insert(lines, weightLine)
-						end
-						if itemData.image and itemData.image ~= '' then
-							local imageLine = '\t\timage = \'' .. itemData.image .. '\','
-							table.insert(lines, imageLine)
-						end
-						if itemData.description and itemData.description ~= '' then
-							local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
-							table.insert(lines, descLine)
-						end
-						if itemData.unique ~= nil then
-							local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
-							table.insert(lines, uniqueLine)
-						end
-						if itemData.useable ~= nil then
-							local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
-							table.insert(lines, useableLine)
-						end
-						if itemData.ammoType ~= nil then
-							local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
-							table.insert(lines, ammoTypeLine)
-						end
-						if itemData.shouldClose ~= nil then
-							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
-							table.insert(lines, shouldCloseLine)
-						end
-						if itemData.combinable then
-							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
-							table.insert(lines, combinableLine)
-						end
-						table.insert(lines, '\t},')
+				QBCore.Functions.AddItem(item.name, item)
+				local originalData = LoadResourceFile('qb-core', './shared/items.lua')
+				local validItems = {}
+				local function filterJobs(items)
+					local validItems = {}
+					for itemName, itemData in pairs(items) do
+						validItems[itemName] = itemData
 					end
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
+					return validItems
 				end
-				local modifiedData = convertToPlainText(validItems)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding item ' .. data.data.name)
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'itemData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
+				if not loadedItems or next(loadedItems) == nil then
+					print('Error: QBShared.Items table is missing or empty.')
+					return
+				end
+				local itemTypes = checkObjType(originalData)
+				validItems = filterJobs(loadedItems)
+				if validItems[data.data.name] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' already exist.')
+					return
+				else
+					validItems[data.data.name] = {
+						name = data.data.name,
+						label = data.data.label,
+						weight = data.data.weight or 0,
+						type = data.data.type,
+						image = data.data.image or '',
+						description = data.data.description or '',
+						unique = data.data.unique or false,
+						useable = data.data.useable or false,
+						ammoType = data.data.ammoType or nil,
+						shouldClose = data.data.shouldClose or false,
+						combinable = data.data.combinable or nil
+					}
+					local function convertToPlainText(itemTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Items = {')
+						for itemName, itemData in pairs(itemTable) do
+							if itemTypes[itemName] == 'quoted' then
+								local itemLine = '\t[\'' .. itemName .. '\'] = {'
+								table.insert(lines, itemLine)
+							else
+								local itemLine = '\t' .. itemName .. ' = {'
+								table.insert(lines, itemLine)
+							end
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
+							table.insert(lines, labelLine)
+							if itemData.type and itemData.type ~= nil then
+								local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if itemData.weight ~= nil then
+								local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
+								table.insert(lines, weightLine)
+							end
+							if itemData.image and itemData.image ~= '' then
+								local imageLine = '\t\timage = \'' .. itemData.image .. '\','
+								table.insert(lines, imageLine)
+							end
+							if itemData.description and itemData.description ~= '' then
+								local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
+								table.insert(lines, descLine)
+							end
+							if itemData.unique ~= nil then
+								local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
+								table.insert(lines, uniqueLine)
+							end
+							if itemData.useable ~= nil then
+								local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
+								table.insert(lines, useableLine)
+							end
+							if itemData.ammoType ~= nil then
+								local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
+								table.insert(lines, ammoTypeLine)
+							end
+							if itemData.shouldClose ~= nil then
+								local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
+								table.insert(lines, shouldCloseLine)
+							end
+							if itemData.combinable then
+								local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
+								table.insert(lines, combinableLine)
+							end
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validItems)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding item ' .. data.data.name)
+				end
+			elseif Config.framework == 'qbox' then
+				local itemName = data.data.name
+        local itemEntry = string.format(
+            "\n    ['%s'] = { label = '%s', weight = %s, stack = %s, description = '%s', close = %s },",
+            itemName,
+            data.data.label,
+            data.data.weight or 0,
+            tostring(not data.data.unique), -- stack = true if unique is false
+            data.data.description or '',
+            tostring(data.data.shouldClose or false)
+        )
+
+        local filePath = './data/items.lua'
+        local existingData = LoadResourceFile('ox_inventory', filePath)
+        
+        -- Ensure the file exists
+        if not existingData then
+            existingData = "return {\n}" -- Create a default structure if the file is missing
+        end
+
+        -- Check if the item already exists
+        if string.find(existingData, string.format("['%s']", itemName), 1, true) then
+            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. itemName .. ' already exists.')
+            return
+        end
+
+        -- Append new item before the closing bracket
+        local updatedData = existingData:gsub("}$", itemEntry .. "\n}")
+
+        -- Save the modified file
+        SaveResourceFile('ox_inventory', filePath, updatedData, -1)
+        
+        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new item: ' .. itemName)
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_EDIT_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/items.lua')
-			local validItems = {}
-			local function filterJobs(items)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/items.lua')
 				local validItems = {}
-				for itemName, itemData in pairs(items) do
-					validItems[itemName] = itemData
-				end
-				return validItems
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'itemData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
-			if not loadedItems or next(loadedItems) == nil then
-				print('Error: QBShared.Items table is missing or empty.')
-				return
-			end
-			local itemTypes = checkObjType(originalData)
-			validItems = filterJobs(loadedItems)
-			if not validItems[data.data.name] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' does not exist.')
-				return
-			else
-				validItems[data.data.name] = {
-					name = data.data.name,
-					label = data.data.label,
-					weight = data.data.weight or 0,
-					type = data.data.type,
-					image = data.data.image or '',
-					description = data.data.description or '',
-					unique = data.data.unique or false,
-					useable = data.data.useable or false,
-					ammoType = data.data.ammoType or nil,
-					shouldClose = data.data.shouldClose or false,
-					combinable = data.data.combinable or nil
-				}
-				local function convertToPlainText(itemTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Items = {')
-					for itemName, itemData in pairs(itemTable) do
-						if itemTypes[itemName] == 'quoted' then
-							local itemLine = '\t[\'' .. itemName .. '\'] = {'
-							table.insert(lines, itemLine)
-						else
-							local itemLine = '\t' .. itemName .. ' = {'
-							table.insert(lines, itemLine)
-						end
-						table.insert(lines, itemLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
-						table.insert(lines, labelLine)
-						if itemData.type and itemData.type ~= nil then
-							local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
-							table.insert(lines, typeLine)
-						end
-						if itemData.weight ~= nil then
-							local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
-							table.insert(lines, weightLine)
-						end
-						if itemData.image and itemData.image ~= '' then
-							local imageLine = '\t\timage = \'' .. itemData.image .. '\','
-							table.insert(lines, imageLine)
-						end
-						if itemData.description and itemData.description ~= '' then
-							local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
-							table.insert(lines, descLine)
-						end
-						if itemData.unique ~= nil then
-							local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
-							table.insert(lines, uniqueLine)
-						end
-						if itemData.useable ~= nil then
-							local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
-							table.insert(lines, useableLine)
-						end
-						if itemData.ammoType ~= nil then
-							local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
-							table.insert(lines, ammoTypeLine)
-						end
-						if itemData.shouldClose ~= nil then
-							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
-							table.insert(lines, shouldCloseLine)
-						end
-						if itemData.combinable then
-							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
-							table.insert(lines, combinableLine)
-						end
-						table.insert(lines, '\t},')
+				local function filterJobs(items)
+					local validItems = {}
+					for itemName, itemData in pairs(items) do
+						validItems[itemName] = itemData
 					end
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
+					return validItems
 				end
-				local modifiedData = convertToPlainText(validItems)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'itemData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
+				if not loadedItems or next(loadedItems) == nil then
+					print('Error: QBShared.Items table is missing or empty.')
+					return
+				end
+				local itemTypes = checkObjType(originalData)
+				validItems = filterJobs(loadedItems)
+				if not validItems[data.data.name] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.name .. ' does not exist.')
+					return
+				else
+					validItems[data.data.name] = {
+						name = data.data.name,
+						label = data.data.label,
+						weight = data.data.weight or 0,
+						type = data.data.type,
+						image = data.data.image or '',
+						description = data.data.description or '',
+						unique = data.data.unique or false,
+						useable = data.data.useable or false,
+						ammoType = data.data.ammoType or nil,
+						shouldClose = data.data.shouldClose or false,
+						combinable = data.data.combinable or nil
+					}
+					local function convertToPlainText(itemTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Items = {')
+						for itemName, itemData in pairs(itemTable) do
+							if itemTypes[itemName] == 'quoted' then
+								local itemLine = '\t[\'' .. itemName .. '\'] = {'
+								table.insert(lines, itemLine)
+							else
+								local itemLine = '\t' .. itemName .. ' = {'
+								table.insert(lines, itemLine)
+							end
+							table.insert(lines, itemLine)
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
+							table.insert(lines, labelLine)
+							if itemData.type and itemData.type ~= nil then
+								local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if itemData.weight ~= nil then
+								local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
+								table.insert(lines, weightLine)
+							end
+							if itemData.image and itemData.image ~= '' then
+								local imageLine = '\t\timage = \'' .. itemData.image .. '\','
+								table.insert(lines, imageLine)
+							end
+							if itemData.description and itemData.description ~= '' then
+								local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
+								table.insert(lines, descLine)
+							end
+							if itemData.unique ~= nil then
+								local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
+								table.insert(lines, uniqueLine)
+							end
+							if itemData.useable ~= nil then
+								local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
+								table.insert(lines, useableLine)
+							end
+							if itemData.ammoType ~= nil then
+								local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
+								table.insert(lines, ammoTypeLine)
+							end
+							if itemData.shouldClose ~= nil then
+								local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
+								table.insert(lines, shouldCloseLine)
+							end
+							if itemData.combinable then
+								local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
+								table.insert(lines, combinableLine)
+							end
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validItems)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
 
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing item ' .. data.data.name)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing item ' .. data.data.name)
+				end
+			elseif Config.framework == 'qbox' then
+				local itemName = data.data.name
+        local itemEntry = string.format(
+            "\n    ['%s'] = { label = '%s', weight = %s, stack = %s, description = '%s', close = %s },",
+            itemName,
+            data.data.label,
+            data.data.weight or 0,
+            tostring(not data.data.unique), -- stack = true if unique is false
+            data.data.description or '',
+            tostring(data.data.shouldClose or false)
+        )
+
+        local filePath = './data/items.lua'
+        local existingData = LoadResourceFile('ox_inventory', filePath)
+        
+        -- Ensure the file exists
+        if not existingData then
+            existingData = "return {\n}" -- Create a default structure if the file is missing
+        end
+
+        -- Check if the item already exists
+        if not string.find(existingData, string.format("['%s']", itemName), 1, true) then
+            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. itemName .. ' doesn\'t exist.')
+            return
+        end
+
+        -- Append new item before the closing bracket
+        local updatedData = existingData:gsub("}$", itemEntry .. "\n}")
+
+        -- Save the modified file
+        SaveResourceFile('ox_inventory', filePath, updatedData, -1)
+        
+        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new item: ' .. itemName)
 			end
 		end
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			local originalData = LoadResourceFile('qb-core', './shared/items.lua')
-			local validItems = {}
-			local function filterJobs(items)
+			if Config.framework == 'qb-core' then
+				local originalData = LoadResourceFile('qb-core', './shared/items.lua')
 				local validItems = {}
-				for itemName, itemData in pairs(items) do
-					validItems[itemName] = itemData
-				end
-				return validItems
-			end
-			local tempEnv = {}
-			setmetatable(tempEnv, {
-				__index = _G
-			})
-			local func, err = load(originalData, 'itemData', 't', tempEnv)
-			if not func then
-				print('Error loading data: ' .. err)
-				return
-			end
-			func()
-			local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
-			if not loadedItems or next(loadedItems) == nil then
-				print('Error: QBShared.Items table is missing or empty.')
-				return
-			end
-			local itemTypes = checkObjType(originalData)
-			validItems = filterJobs(loadedItems)
-			if not validItems[data.data.itemName] then
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.itemName .. ' does not exist.')
-				return
-			else
-				validItems[data.data.itemName] = nil
-				local function convertToPlainText(itemTable)
-					local lines = {
-						'QBShared = QBShared or {}'
-					}
-					table.insert(lines, 'QBShared.Items = {')
-					for itemName, itemData in pairs(itemTable) do
-						if itemTypes[itemName] == 'quoted' then
-							local itemLine = '\t[\'' .. itemName .. '\'] = {'
-							table.insert(lines, itemLine)
-						else
-							local itemLine = '\t' .. itemName .. ' = {'
-							table.insert(lines, itemLine)
-						end
-						table.insert(lines, itemLine)
-						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
-						table.insert(lines, labelLine)
-						if itemData.type and itemData.type ~= nil then
-							local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
-							table.insert(lines, typeLine)
-						end
-						if itemData.weight ~= nil then
-							local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
-							table.insert(lines, weightLine)
-						end
-						if itemData.image and itemData.image ~= '' then
-							local imageLine = '\t\timage = \'' .. itemData.image .. '\','
-							table.insert(lines, imageLine)
-						end
-						if itemData.description and itemData.description ~= '' then
-							local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
-							table.insert(lines, descLine)
-						end
-						if itemData.unique ~= nil then
-							local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
-							table.insert(lines, uniqueLine)
-						end
-						if itemData.useable ~= nil then
-							local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
-							table.insert(lines, useableLine)
-						end
-						if itemData.ammoType ~= nil then
-							local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
-							table.insert(lines, ammoTypeLine)
-						end
-						if itemData.shouldClose ~= nil then
-							local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
-							table.insert(lines, shouldCloseLine)
-						end
-						if itemData.combinable then
-							local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
-							table.insert(lines, combinableLine)
-						end
-						table.insert(lines, '\t},')
+				local function filterJobs(items)
+					local validItems = {}
+					for itemName, itemData in pairs(items) do
+						validItems[itemName] = itemData
 					end
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
+					return validItems
 				end
-				local modifiedData = convertToPlainText(validItems)
-				-- Too spammy
-				-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
-				SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
+				local tempEnv = {}
+				setmetatable(tempEnv, {
+					__index = _G
+				})
+				local func, err = load(originalData, 'itemData', 't', tempEnv)
+				if not func then
+					print('Error loading data: ' .. err)
+					return
+				end
+				func()
+				local loadedItems = tempEnv.QBShared and tempEnv.QBShared.Items
+				if not loadedItems or next(loadedItems) == nil then
+					print('Error: QBShared.Items table is missing or empty.')
+					return
+				end
+				local itemTypes = checkObjType(originalData)
+				validItems = filterJobs(loadedItems)
+				if not validItems[data.data.itemName] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. data.data.itemName .. ' does not exist.')
+					return
+				else
+					validItems[data.data.itemName] = nil
+					local function convertToPlainText(itemTable)
+						local lines = {
+							'QBShared = QBShared or {}'
+						}
+						table.insert(lines, 'QBShared.Items = {')
+						for itemName, itemData in pairs(itemTable) do
+							if itemTypes[itemName] == 'quoted' then
+								local itemLine = '\t[\'' .. itemName .. '\'] = {'
+								table.insert(lines, itemLine)
+							else
+								local itemLine = '\t' .. itemName .. ' = {'
+								table.insert(lines, itemLine)
+							end
+							table.insert(lines, itemLine)
+							local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', itemData.label)
+							table.insert(lines, labelLine)
+							if itemData.type and itemData.type ~= nil then
+								local typeLine = '\t\ttype = \'' .. itemData.type .. '\','
+								table.insert(lines, typeLine)
+							end
+							if itemData.weight ~= nil then
+								local weightLine = '\t\tweight = ' .. tostring(itemData.weight) .. ','
+								table.insert(lines, weightLine)
+							end
+							if itemData.image and itemData.image ~= '' then
+								local imageLine = '\t\timage = \'' .. itemData.image .. '\','
+								table.insert(lines, imageLine)
+							end
+							if itemData.description and itemData.description ~= '' then
+								local descLine = '\t\tdescription = \'' .. escapeQuotes(itemData.description) .. '\','
+								table.insert(lines, descLine)
+							end
+							if itemData.unique ~= nil then
+								local uniqueLine = '\t\tunique = ' .. tostring(itemData.unique) .. ','
+								table.insert(lines, uniqueLine)
+							end
+							if itemData.useable ~= nil then
+								local useableLine = '\t\tuseable = ' .. tostring(itemData.useable) .. ','
+								table.insert(lines, useableLine)
+							end
+							if itemData.ammoType ~= nil then
+								local ammoTypeLine = '\t\tammoType = \'' .. itemData.ammoType .. '\','
+								table.insert(lines, ammoTypeLine)
+							end
+							if itemData.shouldClose ~= nil then
+								local shouldCloseLine = '\t\tshouldClose = ' .. tostring(itemData.shouldClose) .. ','
+								table.insert(lines, shouldCloseLine)
+							end
+							if itemData.combinable then
+								local combinableLine = '\t\tcombinable = ' .. encodeCombinable(itemData.combinable) .. ''
+								table.insert(lines, combinableLine)
+							end
+							table.insert(lines, '\t},')
+						end
+						table.insert(lines, '}')
+						return table.concat(lines, '\n')
+					end
+					local modifiedData = convertToPlainText(validItems)
+					-- Too spammy
+					-- TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Saving jobs.lua with new data: ' .. modifiedData)
+					SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
 
-				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removed item ' .. data.data.itemName)
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removed item ' .. data.data.itemName)
+				end
+			elseif Config.framework == 'qbox' then
+				local itemName = data.data.name
+        local filePath = './data/items.lua'
+        local existingData = LoadResourceFile('ox_inventory', filePath)
+
+        -- Ensure the file exists
+        if not existingData or existingData == "" then
+            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: items.lua not found or empty.')
+            return
+        end
+
+        -- Check if the item exists before attempting to remove it
+        if not string.find(existingData, string.format("['%s']", itemName), 1, true) then
+            TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Item ' .. itemName .. ' does not exist.')
+            return
+        end
+
+        -- Remove the item entry (Handles cases with or without a trailing comma)
+        local updatedData = existingData
+            :gsub("\n%s*%[%'" .. itemName .. "%'%]%s*=%s*{.-},?", "") -- Remove the item line
+        
+        -- Ensure the file isn't empty after removal
+        if updatedData:match("%S") == nil then
+            updatedData = "return {\n}" -- Reset to an empty items file
+        end
+
+        -- Save the modified file
+        SaveResourceFile('ox_inventory', filePath, updatedData, -1)
+
+        TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Removed item: ' .. itemName)
 			end
 		end
 	end)
@@ -1479,13 +2291,12 @@ CreateThread(function()
 					local player = QBCore.Functions.GetPlayerByCitizenId(data.data.citizenId)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Attempting to find character with citizenId: ' .. data.data.citizenId .. ' to edit inventory.')
 					if player then
-						player.Functions.ClearInventory();
-						for _, item in pairs(data.data.slots) do
-							if item.name then
-								player.Functions.AddItem(item.name, item.amount, item.slot, item.info or {})
+							player.Functions.ClearInventory();
+							for _, item in pairs(data.data.slots) do
+								if item.name then
+									player.Functions.AddItem(item.name, item.amount or 1, item.slot, item.info or {})
+								end
 							end
-						end
-						-- exports['qb-inventory']:SetInventory(player.PlayerData.source, data.data.slots)
 					else
 						MySQL.query('UPDATE `players` SET inventory = ? WHERE citizenid = ?', {
 							json.encode(data.data.slots),
@@ -1518,10 +2329,16 @@ CreateThread(function()
 						PlayerData.job = json.decode(PlayerData.job)
 						local qbJobs = QBCore.Shared.Jobs
 						local job = qbJobs[data.data.name]
+						local gradeKey
+						if Config.framework == 'qb-core' then
+							gradeKey = tostring(data.data.grade - 1)
+						elseif Config.framework == 'qbox' then
+							gradeKey = data.data.grade - 1
+						end
 						PlayerData.job.name = data.data.name
 						PlayerData.job.grade = {
 							level = data.data.grade - 1,
-							name = job.grades[tostring(data.data.grade - 1)].name
+							name = job.grades[gradeKey].name
 						}
 						PlayerData.job.onduty = data.data.onDuty
 						PlayerData.job.label = data.data.label
@@ -1735,17 +2552,23 @@ local function getQBChars(callback)
 					QBItem = QBItems[item.name:lower()]
 				end
 				if item and QBItem and next(QBItem) ~= nil then
+					local itemImage = item.image or QBItem.image or ''
+					if Config.framework == 'qbox' then
+						itemImage = item.name
+					end
 					table.insert(playerInventory, {
 						slot = item.slot,
 						name = item.name,
 						amount = item.amount,
+						count = item.count,
 						label = item.label or QBItem.label or 'Unknown',
 						description = item.description or '',
 						weight = item.weight or 0,
 						type = item.type,
 						unique = item.unique or false,
-						image = item.image or QBItem.image or '',
+						image = itemImage,
 						info = item.info or {},
+						metadata = item.metadata or {},
 						shouldClose = item.shouldClose or false,
 						combinable = v.combinable or nil
 					})
@@ -1799,17 +2622,23 @@ local function getQBChars(callback)
 						QBItem = QBItems[item.name:lower()]
 					end
 					if item and QBItem and next(QBItem) ~= nil then
+						local itemImage = item.image or QBItem.image or ''
+						if Config.framework == 'qbox' then
+							itemImage = item.name
+						end
 						table.insert(liveInv, {
 							slot = item.slot,
 							name = item.name,
 							amount = item.amount,
+							count = item.count,
 							label = item.label or QBItem.label or 'Unknown',
 							description = item.description or '',
 							weight = item.weight or 0,
 							type = item.type,
 							unique = item.unique or false,
-							image = item.image or QBItem.image or '',
+							image = itemImage,
 							info = item.info or {},
+							metadata = item.metadata or {},
 							shouldClose = item.shouldClose or false,
 							combinable = v.combinable or nil
 						})
@@ -2024,7 +2853,6 @@ end
 
 local function requestFileJobs()
 	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
-	local validJobs = {}
 	local function filterJobs(jobs)
 		local validJobs = {}
 		for jobName, jobData in pairs(jobs) do
@@ -2060,7 +2888,8 @@ local function requestFileJobs()
 		return validJobs
 	end
 	if Config.framework == 'qb-core' then
-		local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
+		local originalData = LoadResourceFile(resourceName, './shared/jobs.lua')
+		local validJobs = {}
 		local tempEnv = {}
 		setmetatable(tempEnv, {
 			__index = _G
@@ -2073,7 +2902,7 @@ local function requestFileJobs()
 		func()
 		local loadedJobs = tempEnv.QBShared and tempEnv.QBShared.Jobs
 		if not loadedJobs or next(loadedJobs) == nil then
-			print('Error: QBShared.Jobs table is missing or empty.')
+      print('Error: QBShared.Jobs table is missing or empty.')
 			table.insert(errors, {
 				code = 'ERR_JOBS_NOT_LOADED',
 				message = 'QBShared.Jobs table is missing or empty.'
@@ -2081,18 +2910,21 @@ local function requestFileJobs()
 			return
 		end
 		validJobs = filterJobs(loadedJobs)
+		return validJobs
 	elseif Config.framework == 'qbox' then
-		local originalData = LoadResourceFile('qbx_core', './shared/jobs.lua')
-		local tempEnv = {}
-		setmetatable(tempEnv, {
-			__index = _G
-		})
-		local func, err = load(originalData, 'jobData', 't', tempEnv)
+		local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading jobs.lua from qbx_core resource.')
+			return
+		end
+
+		-- Load the contents of jobs.lua as a Lua chunk
+		local func, err = load(originalData, 'jobData', 't')
 		if not func then
 			print('Error loading data: ' .. err)
 			return
 		end
-		func()
 		local loadedJobs = func()
 		if not loadedJobs or next(loadedJobs) == nil then
 			print('Error: QBox.Jobs table is missing or empty.')
@@ -2129,15 +2961,12 @@ local function requestFileGangs()
 				local grade = numericGrades[k]
 				table.insert(gradesTable, {
 					name = grade.name,
-					payment = grade.payment,
 					isBoss = grade.isboss
 				})
 			end
 			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
-				defaultDuty = gangData.defaultDuty,
-				offDutyPay = gangData.offDutyPay,
 				grades = gradesTable
 			})
 			table.insert(validGangs, {
@@ -2170,30 +2999,36 @@ local function requestFileGangs()
 			return
 		end
 		validGangs = filterGangs(loadedGangs)
+		return validGangs
 	elseif Config.framework == 'qbox' then
-		local originalData = LoadResourceFile('qbx_core', './shared/gangs.lua')
-		local tempEnv = {}
-		setmetatable(tempEnv, {
-			__index = _G
-		})
-		local func, err = load(originalData, 'gangData', 't', tempEnv)
+		local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
+		-- Check if the file was loaded successfully
+		if not originalData then
+			print('Error loading gangs.lua from qbx_core resource.')
+			return
+		end
+
+		-- Load the contents of gangs.lua as a Lua chunk
+		local func, err = load(originalData, 'jobData', 't')
 		if not func then
 			print('Error loading data: ' .. err)
 			return
 		end
-		func()
+      
+		-- Execute the loaded chunk to get the gangs table
 		local loadedGangs = func()
-		if not loadedGangs or next(loadedGangs) == nil then
-			print('Error: QBox.Gangs table is missing or empty.')
+
+		-- Check if loadedGangs is a table and is not empty
+		if type(loadedGangs) ~= 'table' then
+			print('Error: gangs.lua did not return a table.')
 			table.insert(errors, {
 				code = 'ERR_GANGS_NOT_LOADED',
-				message = 'QBox.Gangs table is missing or empty.'
+				message = 'gangs.lua did not return a table.'
 			})
 			return
 		end
-		validGangs = filterGangs(loadedGangs)
+		return formatGangs(loadedGangs)
 	end
-	return validGangs
 end
 
 local function requestGarageData()
@@ -2339,32 +3174,8 @@ local function requestGarageData()
 	return QBGarages
 end
 
-local function requestQBItems()
-	local QBCore = exports['qb-core']:GetCoreObject()
-	local QBItems = QBCore.Shared.Items
-	local formattedQBItems = {}
-	for k, v in pairs(QBItems) do
-		local item = {
-			name = k,
-			label = v.label or 'Unknown',
-			weight = v.weight or 0,
-			type = v.type,
-			image = v.image or '',
-			description = v.description or '',
-			unique = v.unique or false,
-			useable = v.useable or false,
-			ammoType = v.ammoType or nil,
-			shouldClose = v.shouldClose or false,
-			combinable = v.combinable or nil
-		}
-		table.insert(formattedQBItems, item)
-	end
-	return formattedQBItems
-end
-
-local function requestFileItems()
-	local originalData = LoadResourceFile('qb-core', './shared/items.lua')
-	local validItems = {}
+local function requestItems()
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterItems(items)
 		local validItems = {}
 		for itemName, itemData in pairs(items) do
@@ -2373,7 +3184,50 @@ local function requestFileItems()
 				label = itemData.label,
 				weight = itemData.weight or 0,
 				type = itemData.type,
-				image = itemData.image or '',
+				image = itemData.image or itemName,
+				description = itemData.description or '',
+				unique = itemData.unique or false,
+				useable = itemData.useable or false,
+				ammoType = itemData.ammoType or nil,
+				shouldClose = itemData.shouldClose or false,
+				combinable = itemData.combinable or nil
+			})
+		end
+		return validItems
+	end
+	if Config.framework == 'qb-core' then
+		local QBCore = exports['qb-core']:GetCoreObject()
+		local QBItems = QBCore.Shared.Items
+		local validItems = filterItems(QBItems)
+		return validItems
+	elseif Config.framework == 'qbox' then
+		local fileItems = exports['ox_inventory']:Items()
+		local validItems = {}
+		if not fileItems or next(fileItems) == nil then
+			print('Error: qbox_core/shared/items.lua table is missing or empty.')
+			table.insert(errors, {
+				code = 'ERR_ITEMS_NOT_LOADED',
+				message = 'qbox_core/shared/items.lua table is missing or empty.'
+			})
+			return
+		end
+		validItems = filterItems(fileItems)
+		return validItems
+	end
+	return {}
+end
+
+local function requestFileItems()
+	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
+	local function filterItems(items)
+		local validItems = {}
+		for itemName, itemData in pairs(items) do
+			table.insert(validItems, {
+				name = itemName,
+				label = itemData.label,
+				weight = itemData.weight or 0,
+				type = itemData.type,
+				image = itemData.image or itemName,
 				description = itemData.description or '',
 				unique = itemData.unique or false,
 				useable = itemData.useable or false,
@@ -2636,7 +3490,7 @@ function handleDataRequest(data)
 			payload.data[v] = requestFileGangs()
 		end
 		if v == 'items' then
-			payload.data[v] = requestQBItems()
+			payload.data[v] = requestItems()
 		end
 		if v == 'fileItems' then
 			payload.data[v] = requestFileItems()

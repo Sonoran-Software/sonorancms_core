@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+      - '**'  # This will trigger on all branches
 
 jobs:
   release:
+    if: github.ref == 'refs/heads/master'  # Run only on master branch
     runs-on: ubuntu-latest
 
     steps:
@@ -142,4 +144,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sonorancms_core-artifact
-          path: sonorancms_core-*.zip
+          path: release/sonorancms_core-*.zip
