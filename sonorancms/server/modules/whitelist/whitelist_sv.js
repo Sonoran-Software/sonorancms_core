@@ -129,7 +129,7 @@ let addActivePlayer = async (apiId, src) => {
 	try {
 		exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
 			data = JSON.parse(data);
-			activePlayers[data[0].accId] = src;
+			activePlayers[data[0]?.accId] = src;
 		});
 	} catch (err) {
 		errorLog(`Error adding active player ${src} to activePlayers cache: ${err}`);
