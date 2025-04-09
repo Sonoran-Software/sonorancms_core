@@ -68,6 +68,8 @@ let apiMsgToEnglish = (apiMsg) => {
 			return "this user has a Sonoran CMS role that is preventing them from joining the server";
 		case "NOT ALLOWED ON WHITELIST":
 			return "this user does not have a Sonoran CMS with whitelist permissions";
+		default:
+			return `unknown whitelist error: ${apiMsg}`;
 	}
 };
 
@@ -129,7 +131,7 @@ let addActivePlayer = async (apiId, src) => {
 	try {
 		exports.sonorancms.performApiRequest([{ apiId: apiId }], "GET_COM_ACCOUNT", function (data) {
 			data = JSON.parse(data);
-			activePlayers[data[0].accId] = src;
+			activePlayers[data[0]?.accId] = src;
 		});
 	} catch (err) {
 		errorLog(`Error adding active player ${src} to activePlayers cache: ${err}`);
@@ -163,11 +165,11 @@ async function initialize() {
 					} else {
 						DropPlayer(
 							activePlayers[accountID],
-							"After SonoranCMS role update, you were no longer whitelisted: " + apiMsgToEnglish(whitelist.reason.message)
+							"After SonoranCMS role update, you were no longer whitelisted: " + apiMsgToEnglish(whitelist.reason)
 						);
 						infoLog(
 							`After SonoranCMS role update ${data.data.accName} (${accountID}) was no longer whitelisted, reason returned: ${apiMsgToEnglish(
-								whitelist.reason.message
+								whitelist.reason
 							)}`
 						);
 						activePlayers[accountID] = null;
@@ -203,9 +205,9 @@ async function initialize() {
 					infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`);
 				}
 			} else {
-				deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason.message)} \n\nAPI ID used to check: ${apiId}`);
-				DropPlayer(src, "You are not whitelisted: " + apiMsgToEnglish(whitelist.reason.message));
-				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${apiMsgToEnglish(whitelist.reason.message)}`);
+				deferrals.done(`Failed whitelist check: ${apiMsgToEnglish(whitelist.reason)} \n\nAPI ID used to check: ${apiId}`);
+				DropPlayer(src, "You are not whitelisted: " + apiMsgToEnglish(whitelist.reason));
+				infoLog(`Denied ${name} (${apiId}) through whitelist, reason returned: ${apiMsgToEnglish(whitelist.reason)}`);
 			}
 		});
 	});
