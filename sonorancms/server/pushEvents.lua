@@ -679,55 +679,6 @@ CreateThread(function()
 					return str:gsub("'", "\\'")
 				end
 
-				-- Function to convert gang data to the correct format
-				local function convertToPlainText(gangTable)
-					local lines = {
-						'--- Gang names must be lower case (top level table key)',
-						'---@type table<string, Gang>',
-						'return {'
-					}
-
-					-- Iterate through gang table and format them according to QBox structure
-					for gangName, gangData in pairs(gangTable) do
-						-- Add gang entry (convert to lower case for gang name)
-						local jobLine = string.format("    ['%s'] = {", gangName:lower())
-						table.insert(lines, jobLine)
-						
-						-- Add gang label
-						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-
-						-- Add grades table
-						table.insert(lines, "        grades = {")
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							-- Start the grade entry
-							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
-
-							-- Add isBoss if true
-							if gradeData.isboss then
-								gradeLine = gradeLine .. ", isboss = true"
-							end
-								
-							-- Add bankAuth if true
-							if gradeData.bankAuth then
-								gradeLine = gradeLine .. ", bankAuth = true"
-							end
-
-							-- Close the grade entry
-							gradeLine = gradeLine .. " },"
-							table.insert(lines, gradeLine)
-						end
-						table.insert(lines, "        },")
-						
-						-- Close the gang entry
-						table.insert(lines, "    },")
-					end
-
-					-- Close the gangs table
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
-				end
-
 				-- Load the current gangs.lua file from the qbx_core resource
 				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
 
@@ -758,11 +709,7 @@ CreateThread(function()
 					-- Remove the job from the table
 					loadedGangs[gangId:lower()] = nil
 
-					-- Convert the updated gangs table to plain text
-					local modifiedData = convertToPlainText(loadedGangs)
-
-					-- Save the updated gangs.lua back to the qbx_core resource
-					SaveResourceFile('qbx_core', 'shared/gans.lua', modifiedData, -1)
+					exports['qbx_core']:RemoveGang(gangId:lower(), true)
 
 					print('Gang ' .. gangId .. ' removed successfully.')
 				else
@@ -861,58 +808,10 @@ CreateThread(function()
 				end
 			elseif Config.framework == 'qbox' then
 				local gangId = data.data.id
+
 				-- Function to escape single quotes in strings
 				local function escapeQuotes(str)
 					return str:gsub("'", "\\'")
-				end
-
-				-- Function to convert job data to the correct format
-				local function convertToPlainText(gangTable)
-					local lines = {
-						'--- Gang names must be lower case (top level table key)',
-						'---@type table<string, Gang>',
-						'return {'
-					}
-
-					-- Iterate through job table and format them according to QBox structure
-					for gangName, gangData in pairs(gangTable) do
-						-- Add gang entry (convert to lower case for gang name)
-						local gangLine = string.format("    ['%s'] = {", gangName:lower())
-						table.insert(lines, gangLine)
-						
-						-- Add job label
-						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-
-						-- Add grades table
-						table.insert(lines, "        grades = {")
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							-- Start the grade entry
-							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
-
-							-- Add isBoss if true
-							if gradeData.isboss then
-								gradeLine = gradeLine .. ", isboss = true"
-							end
-							
-							-- Add bankAuth if true
-							if gradeData.bankAuth then
-								gradeLine = gradeLine .. ", bankAuth = true"
-							end
-
-							-- Close the grade entry
-							gradeLine = gradeLine .. " },"
-							table.insert(lines, gradeLine)
-						end
-						table.insert(lines, "        },")
-						
-						-- Close the gang entry
-						table.insert(lines, "    },")
-					end
-
-					-- Close the gangs table
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
 				end
 
 				-- Load the current gangs.lua file from the qbx_core resource
@@ -961,11 +860,7 @@ CreateThread(function()
 					-- Replace the existing gang data with the new data
 					loadedGangs[gangId:lower()] = gangEntry
 
-					-- Convert the updated gangs table to plain text
-					local modifiedData = convertToPlainText(loadedGangs)
-
-					-- Save the updated gangs.lua back to the qbx_core resource
-					SaveResourceFile('qbx_core', 'shared/gangs.lua', modifiedData, -1)
+					exports['qbx_core']:UpsertGangData(gangId:lower(), gangEntry, true)
 
 					print('Gang ' .. gangId .. ' updated successfully.')
 				else
@@ -1067,54 +962,6 @@ CreateThread(function()
 
 				end
 			elseif Config.framework == 'qbox' then
-				local function convertToPlainText(gangTable)
-					local lines = {
-						'---Gang names must be lower case (top level table key)',
-						'---@type table<string, Gang>',
-						'return {'
-					}
-
-					-- Iterate through gang table and format them according to QBox structure
-					for gangName, gangData in pairs(gangTable) do
-						-- Add gang entry (convert to lower case for gang name)
-						local gangLine = string.format("    ['%s'] = {", gangName:lower())
-						table.insert(lines, gangLine)
-
-						-- Add gang label
-						local labelLine = string.format("        label = '%s',", escapeQuotes(gangData.label))
-						table.insert(lines, labelLine)
-
-						-- Add grades table
-						table.insert(lines, "        grades = {")
-						for gradeIndex, gradeData in pairs(gangData.grades) do
-							-- Start the grade entry
-							local gradeLine = string.format("            [%d] = { name = '%s'", gradeIndex, escapeQuotes(gradeData.name))
-
-							-- Add isBoss if true
-							if gradeData.isboss then
-									gradeLine = gradeLine .. ", isboss = true"
-							end
-
-							-- Add bankAuth if true
-							if gradeData.bankAuth then
-									gradeLine = gradeLine .. ", bankAuth = true"
-							end
-
-							-- Close the grade entry
-							gradeLine = gradeLine .. " },"
-							table.insert(lines, gradeLine)
-						end
-						table.insert(lines, "        },")
-
-						-- Close the gang entry
-						table.insert(lines, "    },")
-					end
-
-					-- Close the gangs table
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
-				end
-
 				-- Example gang data (assuming `data.data` contains the gang information)
 				local gangId = data.data.id
 				local gradesTable = {}
@@ -1133,7 +980,7 @@ CreateThread(function()
 				}
 
 				-- Load the current gang.lua file from the qbox resource
-				local originalData = LoadResourceFile('qbx_core', 'shared/gangss.lua')
+				local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
 
 				-- Check if the file was loaded successfully
 				if not originalData then
@@ -1162,17 +1009,9 @@ CreateThread(function()
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Gang ' .. gangId .. ' already exists.')
 					return
 				else
-					-- Add new gang to valid gangs
-					loadedGangs[gangId:lower()] = gangEntry
-
-					-- Convert updated gangs table to plain text
-					local modifiedData = convertToPlainText(loadedGangs)
-
-					-- Save the updated gangs.lua (without overwriting the entire file)
-					SaveResourceFile('qbx_core', './shared/gangs.lua', modifiedData, -1)
 					local gangEntries = {}
 					gangEntries[gangId] = gangEntry
-					exports['qbx_core']:CreateGangs(gangEntries)
+					exports['qbx_core']:CreateGangs(gangEntries, true)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Gang ' .. gangId .. ' added successfully.')
 				end
 			end
@@ -1269,65 +1108,6 @@ CreateThread(function()
 					return str:gsub("'", "\\'")
 				end
 
-				-- Function to convert job data to the correct format
-				local function convertToPlainText(jobTable)
-					local lines = {
-						'--- Job names must be lower case (top level table key)',
-						'---@type table<string, Job>',
-						'return {'
-					}
-
-					-- Iterate through job table and format them according to QBox structure
-					for jobName, jobData in pairs(jobTable) do
-						-- Add job entry (convert to lower case for job name)
-						local jobLine = string.format("    ['%s'] = {", jobName:lower())
-						table.insert(lines, jobLine)
-						
-						-- Add job label
-						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
-						table.insert(lines, labelLine)
-						
-						-- Add defaultDuty and offDutyPay
-						if jobData.defaultDuty ~= nil then
-							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
-							table.insert(lines, defaultDutyLine)
-						end
-						if jobData.offDutyPay ~= nil then
-							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
-							table.insert(lines, offDutyPayLine)
-						end
-
-						-- Add grades table
-						table.insert(lines, "        grades = {")
-						for gradeIndex, gradeData in pairs(jobData.grades) do
-							-- Start the grade entry
-							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
-
-							-- Add isBoss if true
-							if gradeData.isboss then
-								gradeLine = gradeLine .. ", isboss = true"
-							end
-								
-							-- Add bankAuth if true
-							if gradeData.bankAuth then
-								gradeLine = gradeLine .. ", bankAuth = true"
-							end
-
-							-- Close the grade entry
-							gradeLine = gradeLine .. " },"
-							table.insert(lines, gradeLine)
-						end
-						table.insert(lines, "        },")
-						
-						-- Close the job entry
-						table.insert(lines, "    },")
-					end
-
-					-- Close the jobs table
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
-				end
-
 				-- Load the current jobs.lua file from the qbx_core resource
 				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
 
@@ -1361,8 +1141,7 @@ CreateThread(function()
 					-- Convert the updated jobs table to plain text
 					local modifiedData = convertToPlainText(loadedJobs)
 
-					-- Save the updated jobs.lua back to the qbx_core resource
-					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+					exports['qbx_core']:RemoveJob(jobId:lower(), true)
 
 					print('Job ' .. jobId .. ' removed successfully.')
 				else
@@ -1484,65 +1263,6 @@ CreateThread(function()
 					return str:gsub("'", "\\'")
 				end
 
-				-- Function to convert job data to the correct format
-				local function convertToPlainText(jobTable)
-					local lines = {
-						'--- Job names must be lower case (top level table key)',
-						'---@type table<string, Job>',
-						'return {'
-					}
-
-					-- Iterate through job table and format them according to QBox structure
-					for jobName, jobData in pairs(jobTable) do
-						-- Add job entry (convert to lower case for job name)
-						local jobLine = string.format("    ['%s'] = {", jobName:lower())
-						table.insert(lines, jobLine)
-						
-						-- Add job label
-						local labelLine = string.format("        label = '%s',", escapeQuotes(jobData.label))
-						table.insert(lines, labelLine)
-						
-						-- Add defaultDuty and offDutyPay
-						if jobData.defaultDuty ~= nil then
-							local defaultDutyLine = string.format("        defaultDuty = %s,", tostring(jobData.defaultDuty))
-							table.insert(lines, defaultDutyLine)
-						end
-						if jobData.offDutyPay ~= nil then
-							local offDutyPayLine = string.format("        offDutyPay = %s,", tostring(jobData.offDutyPay))
-							table.insert(lines, offDutyPayLine)
-						end
-
-						-- Add grades table
-						table.insert(lines, "        grades = {")
-						for gradeIndex, gradeData in pairs(jobData.grades) do
-							-- Start the grade entry
-							local gradeLine = string.format("            [%d] = { name = '%s', payment = %d", gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
-
-							-- Add isBoss if true
-							if gradeData.isboss then
-								gradeLine = gradeLine .. ", isboss = true"
-							end
-							
-							-- Add bankAuth if true
-							if gradeData.bankAuth then
-								gradeLine = gradeLine .. ", bankAuth = true"
-							end
-
-							-- Close the grade entry
-							gradeLine = gradeLine .. " },"
-							table.insert(lines, gradeLine)
-						end
-						table.insert(lines, "        },")
-						
-						-- Close the job entry
-						table.insert(lines, "    },")
-					end
-
-					-- Close the jobs table
-					table.insert(lines, '}')
-					return table.concat(lines, '\n')
-				end
-
 				-- Load the current jobs.lua file from the qbx_core resource
 				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
 
@@ -1592,11 +1312,7 @@ CreateThread(function()
 					-- Replace the existing job data with the new data
 					loadedJobs[jobId:lower()] = jobEntry
 
-					-- Convert the updated jobs table to plain text
-					local modifiedData = convertToPlainText(loadedJobs)
-
-					-- Save the updated jobs.lua back to the qbx_core resource
-					SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+					exports['qbx_core']:UpsertJobData(jobId:lower(), jobEntry, true)
 
 					print('Job ' .. jobId .. ' updated successfully.')
 				else
@@ -1828,14 +1544,9 @@ CreateThread(function()
 					-- Add new job to valid jobs
 					loadedJobs[jobId:lower()] = jobEntry
 
-					-- Convert updated jobs table to plain text
-					local modifiedData = convertToPlainText(loadedJobs)
-
-					-- Save the updated jobs.lua (without overwriting the entire file)
-					SaveResourceFile('qbx_core', './shared/jobs.lua', modifiedData, -1)
 					local jobEntries = {}
 					jobEntries[jobId] = jobEntry
-					exports['qbx_core']:CreateJobs(jobEntries)
+					exports['qbx_core']:CreateJobs(jobEntries, true)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job ' .. jobId .. ' added successfully.')
 				end
 			end
