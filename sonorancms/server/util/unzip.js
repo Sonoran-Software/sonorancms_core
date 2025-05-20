@@ -60,3 +60,7 @@ exports("UnzipFile", (file, dest, debugMode) => {
 exports("makeDir", (path) => {
 	fs.mkdirSync(path, { recursive: true });
 });
+
+exports("deleteDir", (path) => {
+	fs.rmdirSync(path, { recursive: true });
+});

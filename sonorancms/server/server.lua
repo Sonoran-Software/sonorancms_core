@@ -213,9 +213,9 @@ CreateThread(function()
 		end
 		return os.rename(name, name) and true or false
 	end
-	if not exists(GetResourcePath('sonorancms') .. '/addonupdates') then
-		errorLog('addonupdates folder was not found! Creating now... Please do not delete!')
-		exports['sonorancms']:makeDir(GetResourcePath('sonorancms') .. '/addonupdates')
+	if exists(GetResourcePath('sonorancms') .. '/addonupdates') then
+		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted... Attempting to auto-delete now...')
+		exports['sonorancms']:deleteDir(GetResourcePath('sonorancms') .. '/addonupdates')
 	end
 	if exists(GetResourcePath('sonorancms') .. '/config.NEW.lua') then
 		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file!')
