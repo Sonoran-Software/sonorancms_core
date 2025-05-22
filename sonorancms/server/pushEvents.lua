@@ -2710,7 +2710,6 @@ local function requestFileGangs()
 			return
 		end
 		validGangs = filterGangs(loadedGangs)
-		return validGangs
 	elseif Config.framework == 'qbox' then
 		local originalData = LoadResourceFile('qbx_core', 'shared/gangs.lua')
 		-- Check if the file was loaded successfully
@@ -2738,8 +2737,9 @@ local function requestFileGangs()
 			})
 			return
 		end
-		return formatGangs(loadedGangs)
+		validGangs = filterGangs(loadedGangs)
 	end
+	return validGangs
 end
 
 local function requestGarageData()
