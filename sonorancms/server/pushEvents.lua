@@ -860,7 +860,13 @@ CreateThread(function()
 					-- Replace the existing gang data with the new data
 					loadedGangs[gangId:lower()] = gangEntry
 
-					exports['qbx_core']:UpsertGangData(gangId:lower(), gangEntry, true)
+					exports['qbx_core']:RemoveGang(gangId:lower(), true)
+
+					Wait(500)
+
+					local newGangs = {}
+					newGangs[gangId:lower()] = gangEntry
+					exports['qbx_core']:CreateGangs(newGangs, true)
 
 					print('Gang ' .. gangId .. ' updated successfully.')
 				else
@@ -1312,7 +1318,11 @@ CreateThread(function()
 					-- Replace the existing job data with the new data
 					loadedJobs[jobId:lower()] = jobEntry
 
-					exports['qbx_core']:UpsertJobData(jobId:lower(), jobEntry, true)
+					exports['qbx_core']:RemoveJob(jobId:lower(), true)
+
+					Wait(500)
+
+					exports['qbx_core']:CreateJob(jobId:lower(), jobEntry, true)
 
 					print('Job ' .. jobId .. ' updated successfully.')
 				else
@@ -2675,11 +2685,6 @@ local function requestFileGangs()
 					isBoss = grade.isboss
 				})
 			end
-			table.insert(validGangs, {
-				id = gangName,
-				label = gangData.label,
-				grades = gradesTable
-			})
 			table.insert(validGangs, {
 				id = gangName,
 				label = gangData.label,
