@@ -1700,7 +1700,7 @@ CreateThread(function()
 
         local filePath = './data/items.lua'
         local existingData = LoadResourceFile('ox_inventory', filePath)
-        
+
         -- Ensure the file exists
         if not existingData then
             existingData = "return {\n}" -- Create a default structure if the file is missing
@@ -1717,7 +1717,7 @@ CreateThread(function()
 
         -- Save the modified file
         SaveResourceFile('ox_inventory', filePath, updatedData, -1)
-        
+
         TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new item: ' .. itemName)
 			end
 		end
@@ -1846,7 +1846,7 @@ CreateThread(function()
 
         local filePath = './data/items.lua'
         local existingData = LoadResourceFile('ox_inventory', filePath)
-        
+
         -- Ensure the file exists
         if not existingData then
             existingData = "return {\n}" -- Create a default structure if the file is missing
@@ -1863,7 +1863,7 @@ CreateThread(function()
 
         -- Save the modified file
         SaveResourceFile('ox_inventory', filePath, updatedData, -1)
-        
+
         TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Added new item: ' .. itemName)
 			end
 		end
@@ -1986,7 +1986,7 @@ CreateThread(function()
         -- Remove the item entry (Handles cases with or without a trailing comma)
         local updatedData = existingData
             :gsub("\n%s*%[%'" .. itemName .. "%'%]%s*=%s*{.-},?", "") -- Remove the item line
-        
+
         -- Ensure the file isn't empty after removal
         if updatedData:match("%S") == nil then
             updatedData = "return {\n}" -- Reset to an empty items file
@@ -2609,7 +2609,7 @@ local function requestFileJobs()
 		return validJobs
 	end
 	if Config.framework == 'qb-core' then
-		local originalData = LoadResourceFile(resourceName, './shared/jobs.lua')
+		local originalData = LoadResourceFile('qb-core', './shared/jobs.lua')
 		local validJobs = {}
 		local tempEnv = {}
 		setmetatable(tempEnv, {
@@ -2729,7 +2729,7 @@ local function requestFileGangs()
 			print('Error loading data: ' .. err)
 			return
 		end
-      
+
 		-- Execute the loaded chunk to get the gangs table
 		local loadedGangs = func()
 
