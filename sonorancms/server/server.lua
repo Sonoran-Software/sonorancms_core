@@ -211,7 +211,8 @@ CreateThread(function()
 		if type(name) ~= 'string' then
 			return false
 		end
-		return os.rename(name, name) and true or false
+		local ok, _, code = os.rename(name, name)
+		return ok or code == 13 -- 13 = permission denied (but exists)
 	end
 	if exists(GetResourcePath('sonorancms') .. '/addonupdates') then
 		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted... Attempting to auto-delete now...')
