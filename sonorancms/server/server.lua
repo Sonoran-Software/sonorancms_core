@@ -211,7 +211,7 @@ CreateThread(function()
 		if type(name) ~= 'string' then
 			return false
 		end
-		local ok, _, code = os.rename(path, path)
+		local ok, _, code = os.rename(name, name)
 		return ok or code == 13 -- 13 = permission denied (but exists)
 	end
 	if exists(GetResourcePath('sonorancms') .. '/addonupdates') then
