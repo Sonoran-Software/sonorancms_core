@@ -114,7 +114,8 @@ local function RunAutoUpdater()
 				assert(latestVersion ~= nil, 'Failed to parse remote version. ' .. tostring(latestVersion))
 
 				if latestVersion > localVersion then
-					if os.getenv("OS"):match("^Windows") ~= nil then
+					local osName = os.getenv("OS")
+					if osName and osName:match("^Windows") then
 						-- Running on Windows
 						if not Config['allowAutoUpdate'] then
 							print('^3|===========================================================================|')
