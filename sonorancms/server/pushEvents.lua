@@ -1565,7 +1565,7 @@ CreateThread(function()
 	-- Adding Items to QBCore
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_ADD_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			if Config.framework == 'qb-core' then
+			if Config.inventory == 'qb-core' then
 				local QBCore = exports['qb-core']:GetCoreObject()
 				local item = {
 					name = data.data.name,
@@ -1686,7 +1686,7 @@ CreateThread(function()
 					SaveResourceFile('qb-core', './shared/items.lua', modifiedData, -1)
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' adding item ' .. data.data.name)
 				end
-			elseif Config.framework == 'qbox' then
+			elseif Config.inventory == 'ox_inventory' then
 				local itemName = data.data.name
         local itemEntry = string.format(
             "\n    ['%s'] = { label = '%s', weight = %s, stack = %s, description = '%s', close = %s },",
@@ -1724,7 +1724,7 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_EDIT_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			if Config.framework == 'qb-core' then
+			if Config.inventory == 'qb-core' then
 				local originalData = LoadResourceFile('qb-core', './shared/items.lua')
 				local validItems = {}
 				local function filterJobs(items)
@@ -1832,7 +1832,7 @@ CreateThread(function()
 
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' editing item ' .. data.data.name)
 				end
-			elseif Config.framework == 'qbox' then
+			elseif Config.inventory == 'ox_inventory' then
 				local itemName = data.data.name
         local itemEntry = string.format(
             "\n    ['%s'] = { label = '%s', weight = %s, stack = %s, description = '%s', close = %s },",
@@ -1870,7 +1870,7 @@ CreateThread(function()
 	end)
 	TriggerEvent('sonorancms::RegisterPushEvent', 'CMD_REMOVE_ITEM_CONFIG', function(data)
 		if data ~= nil then
-			if Config.framework == 'qb-core' then
+			if Config.inventory == 'qb-core' then
 				local originalData = LoadResourceFile('qb-core', './shared/items.lua')
 				local validItems = {}
 				local function filterJobs(items)
@@ -1966,7 +1966,7 @@ CreateThread(function()
 
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removed item ' .. data.data.itemName)
 				end
-			elseif Config.framework == 'qbox' then
+			elseif Config.inventory == 'ox_inventory' then
 				local itemName = data.data.name
         local filePath = './data/items.lua'
         local existingData = LoadResourceFile('ox_inventory', filePath)
@@ -2911,12 +2911,12 @@ local function requestItems()
 		end
 		return validItems
 	end
-	if Config.framework == 'qb-core' then
+	if Config.inventory == 'qb-core' then
 		local QBCore = exports['qb-core']:GetCoreObject()
 		local QBItems = QBCore.Shared.Items
 		local validItems = filterItems(QBItems)
 		return validItems
-	elseif Config.framework == 'qbox' then
+	elseif Config.inventory == 'ox_inventory' then
 		local fileItems = exports['ox_inventory']:Items()
 		local validItems = {}
 		if not fileItems or next(fileItems) == nil then
@@ -2954,7 +2954,7 @@ local function requestFileItems()
 		end
 		return validItems
 	end
-	if Config.framework == 'qb-core' then
+	if Config.inventory == 'qb-core' then
 		local originalData = LoadResourceFile('qb-core', './shared/items.lua')
 		local validItems = {}
 		local tempEnv = {}
@@ -2978,7 +2978,7 @@ local function requestFileItems()
 		end
 		validItems = filterItems(loadedItems)
 		return validItems
-	elseif Config.framework == 'qbox' then
+	elseif Config.inventory == 'ox_inventory' then
 		local originalData = LoadResourceFile('ox_inventory', 'data/items.lua')
 		-- Check if the file was loaded successfully
 		if not originalData then

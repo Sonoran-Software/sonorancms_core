@@ -6,6 +6,7 @@ Config.apiUrl = 'https://api.sonorancms.com/'
 Config.apiIdType = 'discord'
 Config.serverId = 1
 Config.framework = 'qb-core' -- none, qb-core, esx, qbox
+Config.inventory = 'qb-core' -- qb-core, ox_inventory
 Config.MaxInventorySlots = 41 -- How many slots your inventory is (Default 41 - QB-Core)
 Config.allowAutoUpdate = true
 Config.debug_mode = false
