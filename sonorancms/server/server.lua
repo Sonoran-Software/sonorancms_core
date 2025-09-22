@@ -218,7 +218,7 @@ CreateThread(function()
 		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted...')
 	end
 	if exists(GetResourcePath('sonorancms') .. '/config.NEW.lua') then
-		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file!')
+		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file! Please see https://sonoran.link/cmsconfig for more information.')
 		return
 	end
 	Wait(5000)
