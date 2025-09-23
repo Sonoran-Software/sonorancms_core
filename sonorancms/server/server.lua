@@ -207,19 +207,42 @@ CreateThread(function()
 		TriggerEvent('sonoran_permissions::rankupdate', data)
 		TriggerEvent('sonoran_jobsync::rankupdate', data)
 	end)
-	function exists(name)
-		if type(name) ~= 'string' then
-			return false
+	-- Returns: "found", "permission", or "missing"
+	function exists(path)
+		if type(path) ~= "string" then
+			return "missing"
 		end
-		local ok, _, code = os.rename(name, name)
-		return ok or code == 13 -- 13 = permission denied (but exists)
+
+		local f = io.open(path, "r")
+		if f then
+			f:close()
+			return "found"
+		else
+			-- If io.open fails, check rename() just in case it's permissions
+			local ok, _, code = os.rename(path, path)
+			if code == 13 then
+				return "permission"
+			else
+				return "missing"
+			end
+		end
 	end
-	if exists(GetResourcePath('sonorancms') .. '/addonupdates') then
+
+	-- Check addonupdates folder
+	local addonStatus = exists(GetResourcePath('sonorancms') .. '/addonupdates')
+	if addonStatus == "found" then
 		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted...')
+	elseif addonStatus == "permission" then
+		warnLog('addonupdates folder exists but permission was denied when checking. Please verify permissions.')
 	end
-	if exists(GetResourcePath('sonorancms') .. '/config.NEW.lua') then
-		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file! Please see https://sonoran.link/cmsconfig for more information.')
+
+	-- Check config.NEW.lua
+	local configStatus = exists(GetResourcePath('sonorancms') .. '/config.NEW.lua')
+	if configStatus == "found" then
+		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
 		return
+	elseif configStatus == "permission" then
+		warnLog('config.NEW.lua exists but permission was denied when checking. Please verify permissions. See https://sonoran.link/cmsconfig for more information.')
 	end
 	Wait(5000)
 	local versionfile = json.decode(LoadResourceFile(GetCurrentResourceName(), '/version.json'))
