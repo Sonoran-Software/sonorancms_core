@@ -3099,7 +3099,7 @@ function handleDataRequest(data)
 	end
 	if GetResourceState('qb-core') == 'started' then
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
-						and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' then
+						and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
 			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
