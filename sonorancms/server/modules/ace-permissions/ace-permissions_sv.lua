@@ -291,6 +291,21 @@ RegisterCommand('refreshpermissions', function(src, _, _)
 end)
 
 RegisterCommand('permissiontest', function(src, args, _)
+	if args[1] == nil then
+		TriggerClientEvent('chat:addMessage', src, {
+			color = {
+				255,
+				0,
+				0
+			},
+			multiline = true,
+			args = {
+				'SonoranCMS',
+				'Usage: /permissiontest [permission]'
+			}
+		})
+		return
+	end
 	if IsPlayerAceAllowed(src, args[1]) then
 		TriggerClientEvent('chat:addMessage', src, {
 			color = {
@@ -371,7 +386,7 @@ AddEventHandler('onResourceStart', function(resource)
 		performApiRequest({serverId = Config.serverId}, 'GET_ACE_CONFIG', function(result, ok)
 			if ok then
 				local resultDecoded = json.decode(result)
-				if resultDecoded.success and resultDecoded.data and resultDecoded.data.mappings then 
+				if resultDecoded.success and resultDecoded.data and resultDecoded.data.mappings then
 					setRankList(resultDecoded.data.mappings)
 				end
 			else
