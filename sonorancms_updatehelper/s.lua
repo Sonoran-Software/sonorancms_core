@@ -3,7 +3,7 @@ ManagedResources = {'sonorancms'}
 CreateThread(function()
     local res = GetCurrentResourceName()
     local line = LoadResourceFile(res, "run.lock")
-    if line and line:match("^core") or line:match("^plugin") then
+    if line and (line:match("^core") or line:match("^plugin")) then
 		ExecuteCommand('refresh')
 		Wait(1000)
         if line:match("^core") then
