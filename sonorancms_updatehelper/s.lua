@@ -1,14 +1,12 @@
 ManagedResources = {'sonorancms'}
 
 CreateThread(function()
-	file = io.open(GetResourcePath(GetCurrentResourceName()) .. '/run.lock', 'a+')
-	io.input(file)
-	line = io.read()
-	file:close()
-	if line == 'core' or line == 'plugin' then
+    local res = GetCurrentResourceName()
+    local line = LoadResourceFile(res, "run.lock")
+    if line and line:match("^core") or line:match("^plugin") then
 		ExecuteCommand('refresh')
 		Wait(1000)
-		if line == 'core' then
+        if line:match("^core") then
 			for _, v in pairs(ManagedResources) do
 				if GetResourceState(v) ~= 'started' then
 					print(('Not restarting resource %s as it is not started. This may be fine. State: %s'):format(v, GetResourceState(v)))
@@ -17,7 +15,7 @@ CreateThread(function()
 					Wait(1000)
 				end
 			end
-		elseif line == 'plugin' then
+        elseif line:match("^plugin") then
 			print('Restarting sonorancms resource for plugin updates...')
 			if GetResourceState('sonorancms') ~= 'started' then
 				print(('Not restarting resource %s as it is not in the started state to avoid server crashing. State: %s'):format('sonorancms', GetResourceState('sonorancms')))
