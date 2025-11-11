@@ -1114,6 +1114,56 @@ CreateThread(function()
 					return str:gsub("'", "\\'")
 				end
 
+				local function convertToPlainText(jobTable)
+					local lines = {
+						'---Job names must be lower case (top level table key)',
+						'---@type table<string, Job>'
+					}
+					table.insert(lines, 'return {')
+					for jobName, jobData in pairs(jobTable) do
+						if jobTypes[jobName] == 'quoted' then
+							local gangLine = '\t[\'' .. jobName .. '\'] = {'
+							table.insert(lines, gangLine)
+						else
+							local gangLine = '\t' .. jobName .. ' = {'
+							table.insert(lines, gangLine)
+						end
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label))
+						table.insert(lines, labelLine)
+						if jobData.type then
+							local typeLine = '\t\ttype = \'' .. jobData.type .. '\','
+							table.insert(lines, typeLine)
+						end
+						if jobData.defaultDuty ~= nil then
+							local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+							table.insert(lines, defaultDutyLine)
+						end
+						if jobData.offDutyPay ~= nil then
+							local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+							table.insert(lines, offDutyPayLine)
+						end
+						table.insert(lines, '\t\tgrades = {')
+						for gradeIndex, gradeData in pairs(jobData.grades) do
+							if gradeData.isboss then
+								if gradeData.bankAuth then
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s, bankAuth = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss, tostring(gradeData.bankAuth))
+									table.insert(lines, gradeLine)
+								else
+									local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s, isboss = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment, gradeData.isboss)
+									table.insert(lines, gradeLine)
+								end
+							else
+								local gradeLine = string.format('\t\t\t[\'%s\'] = { name = \'%s\', payment = %s },', gradeIndex, escapeQuotes(gradeData.name), gradeData.payment)
+								table.insert(lines, gradeLine)
+							end
+						end
+						table.insert(lines, '\t\t},')
+						table.insert(lines, '\t},')
+					end
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
 				-- Load the current jobs.lua file from the qbx_core resource
 				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
 
