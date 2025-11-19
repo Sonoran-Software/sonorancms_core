@@ -152,8 +152,8 @@ AddEventHandler('onResourceStart', function(resource)
 
 		if GetResourceState('qb-core') == 'started' then
 			if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
-							and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+							and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory, core_inventory and tgiann_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 				return
 			end
 			if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')

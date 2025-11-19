@@ -1109,50 +1109,93 @@ CreateThread(function()
 				end
 			elseif Config.framework == 'qbox' then
 				local jobId = data.data.jobId
-				-- Function to escape single quotes in strings
-				local function escapeQuotes(str)
-					return str:gsub("'", "\\'")
+				if not jobId or jobId == '' then
+					print('Error: Job ID missing in CMD_REMOVE_JOB_CONFIG payload.')
+					return
 				end
 
-				-- Load the current jobs.lua file from the qbx_core resource
-				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
+				local function convertToPlainText(jobTable)
+					local lines = {
+						'---Job names must be lower case (top level table key)',
+						'---@type table<string, Job>',
+						'return {'
+					}
 
-				-- Check if the file was loaded successfully
+					for jobName, jobData in pairs(jobTable) do
+						local normalizedName = tostring(jobName):lower()
+						local jobLine = '\t[\'' .. normalizedName .. '\'] = {'
+						table.insert(lines, jobLine)
+						local labelLine = '\t\tlabel = ' .. string.format('\'%s\',', escapeQuotes(jobData.label or ''))
+						table.insert(lines, labelLine)
+						if jobData.defaultDuty ~= nil then
+							local defaultDutyLine = '\t\tdefaultDuty = ' .. tostring(jobData.defaultDuty) .. ','
+							table.insert(lines, defaultDutyLine)
+						end
+						if jobData.offDutyPay ~= nil then
+							local offDutyPayLine = '\t\toffDutyPay = ' .. tostring(jobData.offDutyPay) .. ','
+							table.insert(lines, offDutyPayLine)
+						end
+						table.insert(lines, '\t\tgrades = {')
+						for gradeIndex, gradeData in pairs(jobData.grades or {}) do
+							local numericIndex = tonumber(gradeIndex)
+							local formattedIndex
+							if numericIndex then
+								formattedIndex = string.format('[%d]', numericIndex)
+							else
+								formattedIndex = string.format('[\'%s\']', tostring(gradeIndex))
+							end
+							local gradeLine = string.format('\t\t\t%s = { name = \'%s\'', formattedIndex, escapeQuotes(gradeData.name or ''))
+							if gradeData.payment ~= nil then
+								gradeLine = gradeLine .. ', payment = ' .. tostring(gradeData.payment)
+							end
+							if gradeData.isboss then
+								gradeLine = gradeLine .. ', isboss = true'
+							end
+							if gradeData.bankAuth then
+								gradeLine = gradeLine .. ', bankAuth = true'
+							end
+							gradeLine = gradeLine .. ' },'
+							table.insert(lines, gradeLine)
+						end
+						table.insert(lines, '\t\t},')
+						table.insert(lines, '\t},')
+					end
+
+					table.insert(lines, '}')
+					return table.concat(lines, '\n')
+				end
+
+				local originalData = LoadResourceFile('qbx_core', 'shared/jobs.lua')
 				if not originalData then
 					print('Error loading jobs.lua from qbx_core resource.')
 					return
 				end
 
-				-- Load the contents of jobs.lua as a Lua chunk
 				local func, err = load(originalData, 'jobData', 't')
 				if not func then
 					print('Error loading data: ' .. err)
 					return
 				end
 
-				-- Execute the loaded chunk to get the jobs table
 				local loadedJobs = func()
-
-				-- Check if loadedJobs is a table and is not empty
 				if type(loadedJobs) ~= 'table' then
 					print('Error: jobs.lua did not return a table.')
 					return
 				end
 
-				-- Check if the job exists
-				if loadedJobs[jobId:lower()] then
-					-- Remove the job from the table
-					loadedJobs[jobId:lower()] = nil
-
-					-- Convert the updated jobs table to plain text
-					local modifiedData = convertToPlainText(loadedJobs)
-
-					exports['qbx_core']:RemoveJob(jobId:lower(), true)
-
-					print('Job ' .. jobId .. ' removed successfully.')
-				else
-					print('Error: Job ' .. jobId .. ' does not exist.')
+				local normalizedJobId = jobId:lower()
+				if not loadedJobs[normalizedJobId] then
+					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Error: Job ' .. jobId .. ' does not exist.')
+					return
 				end
+
+				loadedJobs[normalizedJobId] = nil
+				local modifiedData = convertToPlainText(loadedJobs)
+
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' removing job ' .. jobId)
+				SaveResourceFile('qbx_core', 'shared/jobs.lua', modifiedData, -1)
+				exports['qbx_core']:RemoveJob(normalizedJobId, true)
+				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Job ' .. jobId .. ' removed successfully.')
 			end
 		end
 	end)
