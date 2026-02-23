@@ -205,6 +205,12 @@ local function getServerPort()
 			port = intPort
 		end
 	end
+	if not port then
+		local lastCheck = GetConvar('netPort', '')
+			if lastCheck ~= '' then
+				port = tonumber(lastCheck)
+			end
+	end
 	return port
 end
 
@@ -263,8 +269,9 @@ local function ensureCmsServerRegistered()
 				id = tonumber(Config.serverId) or Config.serverId,
 				name = getServerName(),
 				description = getServerDescription(),
-				ip = nil,
-				port = port
+				ip = json.null,
+				port = port,
+				type = Config.framework or json.null
 			}
 		}
 		performApiRequest(addPayload, 'ADD_GAME_SERVERS', function(addResult, addOk)
