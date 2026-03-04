@@ -176,6 +176,114 @@ function getServerVersion()
     return i
 end
 
+local function extractPort(endpoint)
+	if type(endpoint) ~= 'string' then
+		return nil
+	end
+	local cleaned = endpoint:gsub('"', '')
+	local port = cleaned:match(':(%d+)%s*$')
+	if port then
+		return tonumber(port)
+	end
+	return nil
+end
+
+local function getServerPort()
+	local port = extractPort(GetConvar('endpoint_add_tcp', ''))
+	if not port then
+		port = extractPort(GetConvar('endpoint_add_udp', ''))
+	end
+	if not port then
+		local convarPort = GetConvar('sv_port', '')
+		if convarPort ~= '' then
+			port = tonumber(convarPort)
+		end
+	end
+	if not port and GetConvarInt then
+		local intPort = GetConvarInt('sv_port', 0)
+		if intPort and intPort > 0 then
+			port = intPort
+		end
+	end
+	if not port then
+		local lastCheck = GetConvar('netPort', '')
+			if lastCheck ~= '' then
+				port = tonumber(lastCheck)
+			end
+	end
+	return port
+end
+
+local function getServerName()
+	local name = GetConvar('sv_projectName', '')
+	if name == '' then
+		name = GetConvar('sv_hostname', '')
+	end
+	if name == '' then
+		name = ('Server %s'):format(tostring(Config.serverId))
+	end
+	return name
+end
+
+local function getServerDescription()
+	local desc = GetConvar('sv_projectDesc', '')
+	if desc == '' then
+		desc = 'Auto-created by SonoranCMS'
+	end
+	return desc
+end
+
+local function ensureCmsServerRegistered()
+	performApiRequest({}, 'GET_GAME_SERVERS', function(result, ok)
+		if not ok then
+			warnLog(('Failed to fetch CMS servers: %s'):format(tostring(result)))
+			return
+		end
+		local decoded = result
+		if type(result) == 'string' then
+			local okDecode, decodedRes = pcall(json.decode, result)
+			if not okDecode then
+				warnLog(('Failed to parse GET_GAME_SERVERS response: %s'):format(tostring(result)))
+				return
+			end
+			decoded = decodedRes
+		end
+		if type(decoded) ~= 'table' or type(decoded.servers) ~= 'table' then
+			warnLog(('Unexpected GET_GAME_SERVERS response: %s'):format(tostring(result)))
+			return
+		end
+		local targetId = tostring(Config.serverId)
+		for _, server in ipairs(decoded.servers) do
+			if tostring(server.id) == targetId then
+				debugLog(('CMS server id %s already registered.'):format(targetId))
+				return
+			end
+		end
+		local port = getServerPort()
+		if not port then
+			warnLog('Unable to detect server port. Defaulting to 30120 for CMS registration.')
+			port = 30120
+		end
+		local addPayload = {
+			{
+				id = tonumber(Config.serverId) or Config.serverId,
+				name = getServerName(),
+				description = getServerDescription(),
+				ip = json.null,
+				port = port,
+				type = Config.framework or json.null
+			}
+		}
+		performApiRequest(addPayload, 'ADD_GAME_SERVERS', function(addResult, addOk)
+			if not addOk then
+				warnLog(('Failed to add CMS server %s: %s'):format(targetId, tostring(addResult)))
+				return
+			end
+			infoLog(('Added CMS server %s (%s).'):format(targetId, addPayload[1].name))
+		end)
+	end)
+end
+
 CreateThread(function()
 	print('Starting SonoranCMS from ' .. GetResourcePath('sonorancms'))
 	exports['sonorancms']:initializeCMS(Config.CommID, Config.APIKey, Config.serverId, Config.apiUrl, Config.debug_mode)
@@ -258,6 +366,7 @@ CreateThread(function()
 		TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Stopping update helper... Please do not manually start this resource.')
 	end
 	TriggerEvent(GetCurrentResourceName() .. '::CheckConfig')
+	ensureCmsServerRegistered()
 	TriggerEvent(GetCurrentResourceName() .. '::StartUpdateLoop')
 end)
 
@@ -384,6 +493,7 @@ ApiEndpoints = {
 	['EDIT_ACC_PROFLIE_FIELDS'] = 'general',
 	['GET_GAME_SERVERS'] = 'servers',
 	['SET_GAME_SERVERS'] = 'servers',
+	['ADD_GAME_SERVERS'] = 'servers',
 	['VERIFY_WHITELIST'] = 'servers',
 	['FULL_WHITELIST'] = 'servers',
 	['RSVP'] = 'events',
