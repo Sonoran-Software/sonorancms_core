@@ -2,6 +2,15 @@ local helper_name = 'sonorancms_updatehelper'
 local update_url = 'https://github.com/Sonoran-Software/sonorancms_core/releases/download/%s/sonorancms_core-%s.zip'
 local version_url = 'https://raw.githubusercontent.com/Sonoran-Software/sonorancms_core/master/sonorancms/version.json'
 local pendingRestart = false
+local helper_signal_key = 'sonorancms_updatehelper_action'
+
+local function signalUpdateHelper(action)
+	SetConvar(helper_signal_key, action or 'core')
+end
+
+local function clearUpdateHelperSignal()
+	SetConvar(helper_signal_key, '')
+end
 
 function doUnzip(path)
 	local unzipPath = GetResourcePath(GetCurrentResourceName()) .. '/../../'
@@ -16,9 +25,7 @@ exports('unzipCoreCompleted', function(success, error)
 			return
 		end
 		Utilities.Logging.logWarn('Auto-restarting...')
-		local f = assert(io.open(GetResourcePath(helper_name) .. '/run.lock', 'w+'))
-		f:write('core')
-		f:close()
+		signalUpdateHelper('core')
 		Citizen.Wait(5000)
 		ExecuteCommand('ensure ' .. helper_name)
 	else
@@ -89,7 +96,7 @@ local function RunAutoUpdater()
 	if f ~= nil then
 		ExecuteCommand('stop ' .. helper_name)
 		os.remove(GetResourcePath(GetCurrentResourceName()) .. '/update.zip')
-		os.remove(GetResourcePath(helper_name) .. '/run.lock')
+		clearUpdateHelperSignal()
 	end
 	if FileExists(GetResourcePath(helper_name) .. '/config.lock') then
 		os.remove(GetResourcePath(helper_name) .. '/config.lock')
@@ -156,9 +163,7 @@ AddEventHandler(GetCurrentResourceName() .. '::StartUpdateLoop', function()
 									                          .. ' Restart delayed until server is empty.')
 				else
 					Utilities.Logging.logInfo('Server is empty, restarting resources...')
-					local f = assert(io.open(GetResourcePath(helper_name) .. '/run.lock', 'w+'))
-					f:write('core')
-					f:close()
+					signalUpdateHelper('core')
 					ExecuteCommand('ensure ' .. helper_name)
 				end
 			else

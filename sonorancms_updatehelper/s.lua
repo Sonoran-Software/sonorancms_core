@@ -1,12 +1,21 @@
 ManagedResources = {'sonorancms'}
 
 CreateThread(function()
+	local helperSignalKey = 'sonorancms_updatehelper_action'
+	local action = GetConvar(helperSignalKey, '')
     local res = GetCurrentResourceName()
-    local line = LoadResourceFile(res, "run.lock")
-    if line and (line:match("^core") or line:match("^plugin")) then
+    local runLock = LoadResourceFile(res, 'run.lock')
+	local hasRunLock = runLock and (runLock:match('^core') or runLock:match('^plugin'))
+	local validAction = (action == 'core' or action == 'plugin')
+
+	-- Check both convar signal and run.lock for compatibility during updater transitions.
+    if validAction or hasRunLock then
+		local mode = validAction and action or runLock
+		SetConvar(helperSignalKey, '')
+		os.remove(GetResourcePath(res) .. '/run.lock')
 		ExecuteCommand('refresh')
 		Wait(1000)
-        if line:match("^core") then
+        if mode:match('^core') then
 			for _, v in pairs(ManagedResources) do
 				if GetResourceState(v) ~= 'started' then
 					print(('Not restarting resource %s as it is not started. This may be fine. State: %s'):format(v, GetResourceState(v)))
@@ -15,7 +24,7 @@ CreateThread(function()
 					Wait(1000)
 				end
 			end
-        elseif line:match("^plugin") then
+        elseif mode:match('^plugin') then
 			print('Restarting sonorancms resource for plugin updates...')
 			if GetResourceState('sonorancms') ~= 'started' then
 				print(('Not restarting resource %s as it is not in the started state to avoid server crashing. State: %s'):format('sonorancms', GetResourceState('sonorancms')))
@@ -26,8 +35,7 @@ CreateThread(function()
 			end
 		end
 	else
-		os.remove(GetResourcePath(GetCurrentResourceName()) .. '/run.lock')
+		os.remove(GetResourcePath(res) .. '/run.lock')
 		print('sonorancms_updatehelper is for internal use and should not be started as a resource.')
 	end
-	os.remove(GetResourcePath(GetCurrentResourceName()) .. '/run.lock')
 end)
