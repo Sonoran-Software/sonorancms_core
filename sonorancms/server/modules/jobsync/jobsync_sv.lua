@@ -78,6 +78,7 @@ RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
     if not jobsyncEnabled then return end
     local identifier
     local source = source
+    local playerName = GetPlayerName(source) or 'Unknown'
     for _, v in pairs(GetPlayerIdentifiers(source)) do
         if string.sub(v, 1, string.len(Config.apiIdType .. ':')) ==
             Config.apiIdType .. ':' then
@@ -108,7 +109,7 @@ RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
     end
     if identifier == nil then
         TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-                        'Unable to set job for ' .. GetPlayerName(source) ..
+                        'Unable to set job for ' .. playerName ..
                             ' due to missing ' .. Config.apiIdType ..
                             ' identifier.')
         return
@@ -122,8 +123,9 @@ RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
         res = json.decode(res)
         if not success then
             TriggerEvent('SonoranCMS::core:writeLog', 'error',
-                            'Failed to set job for ' .. GetPlayerName(source) ..
-                                ' (' .. identifier .. ') - ' .. json.encode(res))
+                            'Failed to set job for ' .. playerName ..
+                                ' (' .. (identifier or 'N/A') .. ') - ' ..
+                                (res and json.encode(res) or 'ERR_RES'))
         end
     end)
 end)
@@ -132,6 +134,7 @@ local debounceTime = 5 * 1000 -- 3 seconds in milliseconds
 RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
     if not jobsyncEnabled then return end
     local source = source
+    local playerName = GetPlayerName(source) or 'Unknown'
 
     -- If there's an existing timer, cancel it
     if jobUpdateTimers[source] then
@@ -174,7 +177,7 @@ RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
 
         if identifier == nil then
             TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-                'Unable to set job for ' .. GetPlayerName(source) ..
+                'Unable to set job for ' .. playerName ..
                 ' due to missing ' .. Config.apiIdType .. ' identifier.')
             return
         end
@@ -185,16 +188,9 @@ RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
         exports['sonorancms']:performApiRequest({payload}, 'SET_ACCOUNT_RANKS', function(res, success)
             res = json.decode(res)
             if not success then
-                local logMessage = 'Failed to set job for '
-                if GetPlayerName(source) then
-                    logMessage = logMessage .. GetPlayerName(source) or 'ERR_PLAYER_NAME' .. ' '
-                end
-                if identifier then
-                    logMessage = logMessage .. '(' .. identifier or 'ERR_IDENTIFIER' .. ') '
-                end
-                if res then
-                    logMessage = logMessage .. '- ' .. json.encode(res) or 'ERR_RES'
-                end
+                local logMessage = 'Failed to set job for ' .. playerName ..
+                    ' (' .. (identifier or 'N/A') .. ') - ' ..
+                    (res and json.encode(res) or 'ERR_RES')
                 TriggerEvent('SonoranCMS::core:writeLog', 'error', logMessage)
             end
         end)
@@ -204,6 +200,7 @@ AddEventHandler('playerDropped', function()
     if not jobsyncEnabled then return end
     local identifier
     local source = source
+    local playerName = GetPlayerName(source) or 'Unknown'
     for _, v in pairs(GetPlayerIdentifiers(source)) do
         if string.sub(v, 1, string.len(Config.apiIdType .. ':')) ==
             Config.apiIdType .. ':' then
@@ -220,7 +217,7 @@ AddEventHandler('playerDropped', function()
     end
     if identifier == nil then
         TriggerEvent('SonoranCMS::core:writeLog', 'warn',
-                        'Unable to set job for ' .. GetPlayerName(source) ..
+                        'Unable to set job for ' .. playerName ..
                             ' due to missing ' .. Config.apiIdType ..
                             ' identifier.')
         return
@@ -231,8 +228,9 @@ AddEventHandler('playerDropped', function()
         res = json.decode(res)
         if not success then
             TriggerEvent('SonoranCMS::core:writeLog', 'error',
-                            'Failed to set job for ' .. GetPlayerName(source) ..
-                                ' (' .. identifier .. ') - ' .. json.encode(res))
+                            'Failed to set job for ' .. playerName ..
+                                ' (' .. (identifier or 'N/A') .. ') - ' ..
+                                (res and json.encode(res) or 'ERR_RES'))
         end
     end)
 end)
