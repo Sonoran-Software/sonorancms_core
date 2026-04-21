@@ -16,7 +16,7 @@ exports("HandleHttpRequest", (dest, callback, method, data, headers) => {
   const requestHeaders = headers || {};
   const options = {
     hostname: urlObj.hostname,
-    path: urlObj.pathname,
+    path: urlObj.path || urlObj.pathname,
     method: requestMethod,
     headers: requestHeaders,
   };

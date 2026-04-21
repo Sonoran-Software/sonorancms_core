@@ -13,6 +13,31 @@ const parseJsonMaybe = (value) => {
 	}
 };
 
+const whitelistDenialReasons = new Set([
+	"BLOCKED FOR WHITELIST",
+	"NOT ALLOWED ON WHITELIST",
+	"UNKNOWN_ACC_API_ID",
+	"INVALID_SERVER_ID",
+	"SERVER_CONFIG_ERROR",
+]);
+
+const normalizeErrorReason = (value) => {
+	if (typeof value === "string") {
+		return value.trim();
+	}
+
+	if (value && typeof value === "object") {
+		return JSON.stringify(value);
+	}
+
+	return String(value);
+};
+
+const isExpectedWhitelistDenial = (value) => {
+	const reason = normalizeErrorReason(value);
+	return whitelistDenialReasons.has(reason);
+};
+
 exports("initializeCMS", (CommID, APIKey, serverId, apiUrl, debug_mode) => {
 	void CommID;
 	void APIKey;
@@ -46,9 +71,18 @@ exports("checkCMSWhitelist", async (apiId, cb) => {
 					return;
 				}
 
+				const reason = parseJsonMaybe(result);
+				if (isExpectedWhitelistDenial(reason)) {
+					cb({
+						success: false,
+						reason: normalizeErrorReason(reason),
+					});
+					return;
+				}
+
 				cb({
 					success: false,
-					error: parseJsonMaybe(result),
+					error: reason,
 					backendError: true,
 				});
 			}
