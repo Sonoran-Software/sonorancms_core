@@ -303,7 +303,12 @@ CreateThread(function()
 			Config.critError = true
 			return
 		end
-		Config.apiVersion = tonumber(string.sub(result, 1, 1))
+		local subVersionData = json.decode(result)
+		if type(subVersionData) == 'table' and subVersionData.subVersion then
+			Config.apiVersion = tonumber(subVersionData.subVersion)
+		else
+			Config.apiVersion = tonumber(string.sub(tostring(result), 1, 1))
+		end
 		-- if Config.apiVersion < 2 then
 		-- 	logError('API_PAID_ONLY')
 		-- 	Config.critError = true
@@ -479,7 +484,7 @@ end)
 	Sonoran CMS API Wrapper
 ]]
 
-ApiEndpoints = {
+local LegacyApiEndpoints = {
 	['GET_SUB_VERSION'] = 'general',
 	['CHECK_COM_APIID'] = 'general',
 	['GET_COM_ACCOUNT'] = 'general',
@@ -505,40 +510,463 @@ ApiEndpoints = {
 	['SET_SERVER_TYPE'] = 'servers'
 }
 
-function registerApiType(type, endpoint)
-	ApiEndpoints[type] = endpoint
+function registerApiType(requestType, endpoint)
+	LegacyApiEndpoints[requestType] = endpoint
 end
 exports('registerApiType', registerApiType)
 
 local rateLimitedEndpoints = {}
 
-function performApiRequest(postData, type, cb)
-	-- apply required headers
-	local payload = {}
-	payload['id'] = Config.CommID
-	payload['key'] = Config.APIKey
-	payload['serverId'] = Config.serverId
-	payload['data'] = postData
-	payload['type'] = type
-	local endpoint = nil
-	if ApiEndpoints[type] ~= nil then
-		endpoint = ApiEndpoints[type]
-	else
-		return warnLog(('API request failed: endpoint %s is not registered. Use the registerApiType function to register this endpoint with the appropriate type.'):format(type))
+local function trimTrailingSlash(value)
+	return (tostring(value or ''):gsub('/+$', ''))
+end
+
+local function urlEncode(value)
+	return tostring(value):gsub('\n', '\r\n'):gsub("([^%w%-_%.~])", function(char)
+		return string.format('%%%02X', string.byte(char))
+	end)
+end
+
+local function buildQueryString(params)
+	if _G.type(params) ~= 'table' then
+		return ''
 	end
-	local url = Config.apiUrl .. tostring(endpoint) .. '/' .. tostring(type:lower())
-	assert(type ~= nil, 'No type specified, invalid request.')
+	local query = {}
+	for key, value in pairs(params) do
+		if value ~= nil then
+			table.insert(query, string.format('%s=%s', urlEncode(key), urlEncode(value)))
+		end
+	end
+	table.sort(query)
+	return table.concat(query, '&')
+end
+
+local function buildCmsV2Url(path, query)
+	local base = trimTrailingSlash(Config.apiUrl)
+	local url = base .. '/v2/' .. tostring(path or ''):gsub('^/+', '')
+	local queryString = buildQueryString(query)
+	if queryString ~= '' then
+		url = url .. '?' .. queryString
+	end
+	return url
+end
+
+local function firstArrayValue(value)
+	if _G.type(value) ~= 'table' then
+		return value
+	end
+	if value[1] ~= nil and next(value, 1) == nil then
+		return value[1]
+	end
+	return value
+end
+
+local function normalizeRequestData(postData)
+	local data = firstArrayValue(postData)
+	if _G.type(data) ~= 'table' then
+		return {}
+	end
+	return data
+end
+
+local function decodeJsonBody(body)
+	if _G.type(body) ~= 'string' or body == '' then
+		return nil
+	end
+	local ok, decoded = pcall(json.decode, body)
+	if ok then
+		return decoded
+	end
+	return nil
+end
+
+local function normalizeResponseValue(value)
+	if value == nil then
+		return ''
+	end
+	if _G.type(value) == 'table' then
+		return json.encode(value)
+	end
+	return tostring(value)
+end
+
+local function unwrapV2ResponseBody(res)
+	local decoded = decodeJsonBody(res)
+	if decoded == nil then
+		return res
+	end
+	if _G.type(decoded) == 'table' and decoded.success == true and decoded.data ~= nil then
+		return decoded.data
+	end
+	return decoded
+end
+
+local function extractV2ErrorMessage(res)
+	local decoded = decodeJsonBody(res)
+	if _G.type(decoded) == 'table' then
+		return decoded.detail or decoded.message or decoded.error or decoded.reason or res
+	end
+	return res
+end
+
+local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
+	local url = buildCmsV2Url(path, query)
+	local headers = {
+		['Accept'] = 'application/json',
+		['Authorization'] = 'Bearer ' .. tostring(Config.APIKey),
+		['X-User-Agent'] = 'SonoranCAD'
+	}
+	local requestBody = ''
+	if body ~= nil then
+		requestBody = json.encode(body)
+	end
+	PerformHttpRequestS(url, function(statusCode, res, responseHeaders)
+		if Config.debug_mode and requestType ~= 'GAMESTATE' then
+			debugLog('API Result:', tostring(res))
+		end
+		if requestType ~= 'GAMESTATE' then
+			debugLog(('type %s called with v2 body %s to url %s'):format(requestType, requestBody ~= '' and requestBody or '{}', url))
+		end
+		if statusCode == 200 or statusCode == 201 or statusCode == 204 then
+			cb(normalizeResponseValue(unwrapV2ResponseBody(res)), true)
+			return
+		end
+		if statusCode == 429 then
+			if rateLimitedEndpoints[requestType] then
+				debugLog(('Endpoint %s ratelimited. Dropping request.'):format(requestType))
+				return
+			end
+			rateLimitedEndpoints[requestType] = true
+			warnLog(
+				('WARN_RATELIMIT: You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
+					requestType))
+			SetTimeout(60000, function()
+				rateLimitedEndpoints[requestType] = nil
+				infoLog(('Endpoint %s no longer ignored.'):format(requestType))
+			end)
+			cb(extractV2ErrorMessage(res), false)
+			return
+		end
+		if statusCode == 400 or statusCode == 401 or statusCode == 403 or statusCode == 404 or statusCode == 422 then
+			local errorMessage = extractV2ErrorMessage(res)
+			warnLog(('Bad request was sent to the V2 API. Response: %s'):format(tostring(errorMessage)))
+			if statusCode == 400 and (tostring(errorMessage) == 'INVALID COMMUNITY ID' or tostring(errorMessage) == 'API IS NOT ENABLED FOR THIS COMMUNITY' or string.find(tostring(errorMessage), 'IS NOT ENABLED FOR THIS COMMUNITY') or tostring(errorMessage) == 'INVALID API KEY') then
+				errorLog('Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(errorMessage))
+				Config.critError = true
+			end
+			cb(errorMessage, false)
+			return
+		end
+		if string.match(tostring(statusCode), '50') then
+			local errorMessage = extractV2ErrorMessage(res)
+			errorLog(('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
+			debugLog(('API_ERROR Error returned: %s %s'):format(statusCode, tostring(errorMessage)))
+			cb(errorMessage, false)
+			return
+		end
+		errorLog(('CMS API ERROR (from %s): %s %s'):format(url, statusCode, tostring(res)))
+		cb(res, false)
+	end, requestMethod, requestBody, headers)
+end
+
+local function resolveAccountSearchQuery(postData)
+	local data = normalizeRequestData(postData)
+	return {
+		accountId = data.accountId,
+		apiId = data.apiId,
+		username = data.username,
+		accId = data.accId,
+		discord = data.discordId or data.discord,
+		uniqueId = data.uniqueId
+	}
+end
+
+local function parseAccountsFromResponse(result)
+	local decoded = decodeJsonBody(result)
+	if _G.type(decoded) ~= 'table' then
+		return {}
+	end
+	if _G.type(decoded.items) == 'table' then
+		return decoded.items
+	end
+	if decoded[1] ~= nil then
+		return decoded
+	end
+	return {}
+end
+
+local function requestAccountSearch(postData, requestType, cb)
+	requestCmsV2('GET', 'community/accounts/search', nil, resolveAccountSearchQuery(postData), requestType, cb)
+end
+
+local function resolveAccountId(postData, requestType, cb)
+	local data = normalizeRequestData(postData)
+	if data.accId or data.accountId then
+		cb(data.accId or data.accountId, data, true)
+		return
+	end
+	requestAccountSearch(data, requestType, function(result, ok)
+		if not ok then
+			cb(nil, data, false, result)
+			return
+		end
+		local accounts = parseAccountsFromResponse(result)
+		if #accounts == 0 then
+			cb(nil, data, false, 'ACCOUNT_NOT_FOUND')
+			return
+		end
+		if #accounts > 1 then
+			cb(nil, data, false, 'TOO_MANY_ACCOUNTS')
+			return
+		end
+		cb(accounts[1].accId, data, true)
+	end)
+end
+
+function performApiRequest(postData, requestType, cb)
+	local payload = {
+		id = Config.CommID,
+		key = Config.APIKey,
+		serverId = Config.serverId,
+		data = postData,
+		type = requestType
+	}
+	assert(requestType ~= nil, 'No type specified, invalid request.')
 	if Config.critError then
 		errorLog('API request failed: critical error encountered, API version too low, aborting request.')
 		return
 	end
-	if rateLimitedEndpoints[type] == nil then
+
+	if rateLimitedEndpoints[requestType] ~= nil then
+		debugLog(('Endpoint %s is ratelimited. Dropped request: %s'):format(requestType, json.encode(payload)))
+		return
+	end
+
+	if requestType == 'GET_SUB_VERSION' then
+		requestCmsV2('GET', 'community/sub-version', nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'GET_GAME_SERVERS' then
+		requestCmsV2('GET', 'community/servers', nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'ADD_GAME_SERVERS' then
+		local data = normalizeRequestData(postData)
+		local servers = data.servers or postData
+		requestCmsV2('POST', 'community/servers', { servers = servers }, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'SET_GAME_SERVERS' then
+		local data = normalizeRequestData(postData)
+		local servers = data.servers or postData
+		requestCmsV2('PUT', 'community/servers', { servers = servers }, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'SET_SERVER_TYPE' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2('PATCH', ('community/servers/%s/type'):format(tostring(data.serverId or Config.serverId)), { type = data.type }, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'GET_ACE_CONFIG' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2('GET', ('community/servers/%s/ace-config'):format(tostring(data.serverId or Config.serverId)), nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'VERIFY_WHITELIST' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2(
+			'POST',
+			('community/servers/%s/whitelist/check'):format(tostring(data.serverId or Config.serverId)),
+			{
+				apiId = data.apiId,
+				accId = data.accId,
+				username = data.username,
+				discord = data.discord or data.discordId,
+				uniqueId = data.uniqueId
+			},
+			nil,
+			requestType,
+			cb
+		)
+		return
+	end
+
+	if requestType == 'FULL_WHITELIST' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2('GET', ('community/servers/%s/whitelist'):format(tostring(data.serverId or Config.serverId)), nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'ACTIVITY_TRACKER_START_STOP' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2(
+			'POST',
+			('community/servers/%s/activity'):format(tostring(data.serverId or Config.serverId)),
+			{
+				apiId = data.apiId,
+				accId = data.accId,
+				username = data.username,
+				discord = data.discord or data.discordId,
+				uniqueId = data.uniqueId,
+				forceClear = data.forceClear,
+				forceStart = data.forceStart,
+				forceStop = data.forceStop
+			},
+			nil,
+			requestType,
+			cb
+		)
+		return
+	end
+
+	if requestType == 'ACTIVITY_TRACKER_SERVER_START' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2('POST', ('community/servers/%s/activity/start'):format(tostring(data.serverId or Config.serverId)), nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'GET_COM_ACCOUNT' then
+		requestAccountSearch(postData, requestType, function(result, ok)
+			if not ok then
+				cb(result, false)
+				return
+			end
+			cb(normalizeResponseValue(parseAccountsFromResponse(result)), true)
+		end)
+		return
+	end
+
+	if requestType == 'GET_ACCOUNT_RANKS' then
+		requestAccountSearch(postData, requestType, function(result, ok)
+			if not ok then
+				cb(result, false)
+				return
+			end
+			local accounts = parseAccountsFromResponse(result)
+			local ranks = {}
+			if #accounts > 0 and _G.type(accounts[1].ranks) == 'table' then
+				ranks = accounts[1].ranks
+			end
+			cb(normalizeResponseValue(ranks), true)
+		end)
+		return
+	end
+
+	if requestType == 'CLOCK_IN_OUT' then
+		resolveAccountId(postData, requestType, function(accountId, data, ok, errorMessage)
+			if not ok then
+				cb(errorMessage, false)
+				return
+			end
+			requestCmsV2(
+				'POST',
+				('community/accounts/%s/clock'):format(tostring(accountId)),
+				{
+					accountId = accountId,
+					accId = data.accId,
+					apiId = data.apiId,
+					username = data.username,
+					discord = data.discord or data.discordId,
+					uniqueId = data.uniqueId,
+					forceClockIn = data.forceClockIn,
+					forceClockOut = data.forceClockOut,
+					intention = data.intention,
+					type = data.type
+				},
+				nil,
+				requestType,
+				cb
+			)
+		end)
+		return
+	end
+
+	if requestType == 'SET_ACCOUNT_RANKS' then
+		resolveAccountId(postData, requestType, function(accountId, data, ok, errorMessage)
+			if not ok then
+				cb(errorMessage, false)
+				return
+			end
+			requestCmsV2(
+				'PATCH',
+				('community/accounts/%s/ranks'):format(tostring(accountId)),
+				{
+					accountId = accountId,
+					accId = data.accId,
+					apiId = data.apiId,
+					username = data.username,
+					discord = data.discord or data.discordId,
+					uniqueId = data.uniqueId,
+					add = data.add,
+					remove = data.remove,
+					set = data.set,
+					active = data.active
+				},
+				nil,
+				requestType,
+				cb
+			)
+		end)
+		return
+	end
+
+	if requestType == 'IDENTIFIERS' then
+		resolveAccountId(postData, requestType, function(accountId, data, ok, errorMessage)
+			if not ok then
+				cb(errorMessage, false)
+				return
+			end
+			requestCmsV2(
+				'POST',
+				('community/accounts/%s/identifiers'):format(tostring(accountId)),
+				{
+					identifiers = data.identifiers or {}
+				},
+				nil,
+				requestType,
+				cb
+			)
+		end)
+		return
+	end
+
+	if requestType == 'GET_DEPARTMENTS' then
+		requestCmsV2('GET', 'community/departments', nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'GET_PROFILE_FIELDS' then
+		requestCmsV2('GET', 'community/profile-fields', nil, nil, requestType, cb)
+		return
+	end
+
+	if requestType == 'RSVP' then
+		local data = normalizeRequestData(postData)
+		requestCmsV2('POST', ('community/events/%s/rsvps'):format(tostring(data.eventId or '')), data, nil, requestType, cb)
+		return
+	end
+
+	local endpoint = LegacyApiEndpoints[requestType]
+	if endpoint ~= nil then
+		local url = Config.apiUrl .. tostring(endpoint) .. '/' .. tostring(requestType:lower())
+		local payload = {}
+		payload['id'] = Config.CommID
+		payload['key'] = Config.APIKey
+		payload['serverId'] = Config.serverId
+		payload['data'] = postData
+		payload['type'] = requestType
 		PerformHttpRequestS(url, function(statusCode, res, headers)
-			if Config.debug_mode and type ~= 'GAMESTATE' then
+			if Config.debug_mode and requestType ~= 'GAMESTATE' then
 				debugLog('API Result:', tostring(res))
 			end
-			if type ~= 'GAMESTATE' then
-				debugLog(('type %s called with post data %s to url %s'):format(type, json.encode(payload), url))
+			if requestType ~= 'GAMESTATE' then
+				debugLog(('type %s called with post data %s to url %s'):format(requestType, json.encode(payload), url))
 			end
 			if statusCode == 200 or statusCode == 201 and res ~= nil then
 				debugLog('result: ' .. tostring(res))
@@ -553,33 +981,31 @@ function performApiRequest(postData, type, cb)
 				end
 			elseif statusCode == 400 then
 				warnLog('Bad request was sent to the API. Enable debug mode and retry your request. Response: ' .. tostring(res))
-				-- additional safeguards
 				if res == 'INVALID COMMUNITY ID' or res == 'API IS NOT ENABLED FOR THIS COMMUNITY' or string.find(res, 'IS NOT ENABLED FOR THIS COMMUNITY') or res == 'INVALID API KEY' then
 					errorLog('Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(res))
 					Config.critError = true
 				end
 				cb(res, false)
-			elseif statusCode == 404 then -- handle 404 requests, like from CHECK_APIID
+			elseif statusCode == 404 then
 				debugLog('404 response found')
 				cb(res, false)
-			elseif statusCode == 429 then -- rate limited :(
-				if rateLimitedEndpoints[type] then
-					-- don't warn again, it's spammy. Instead, just print a debug
-					debugLog(('Endpoint %s ratelimited. Dropping request.'))
+			elseif statusCode == 429 then
+				if rateLimitedEndpoints[requestType] then
+					debugLog(('Endpoint %s ratelimited. Dropping request.'):format(requestType))
 					return
 				end
-				rateLimitedEndpoints[type] = true
+				rateLimitedEndpoints[requestType] = true
 				warnLog(
-								('WARN_RATELIMIT: You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
-												type))
+					('WARN_RATELIMIT: You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
+						requestType))
 				SetTimeout(60000, function()
-					rateLimitedEndpoints[type] = nil
-					infoLog(('Endpoint %s no longer ignored.'):format(type))
+					rateLimitedEndpoints[requestType] = nil
+					infoLog(('Endpoint %s no longer ignored.'):format(requestType))
 				end)
 			elseif string.match(tostring(statusCode), '50') then
 				errorLog(('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
 				debugLog(('API_ERROR Error returned: %s %s'):format(statusCode, res))
-				if type == 'GET_ACCOUNT_RANKS' or type == 'FULL_WHITELIST' then
+				if requestType == 'GET_ACCOUNT_RANKS' or requestType == 'FULL_WHITELIST' then
 					cb({}, false)
 				end
 			else
@@ -588,10 +1014,10 @@ function performApiRequest(postData, type, cb)
 		end, 'POST', json.encode(payload), {
 			['Content-Type'] = 'application/json'
 		})
-	else
-		debugLog(('Endpoint %s is ratelimited. Dropped request: %s'):format(type, json.encode(payload)))
+		return
 	end
 
+	warnLog(('API request failed: endpoint %s is not registered. Use the registerApiType function to register this endpoint with the appropriate type.'):format(requestType))
 end
 exports('performApiRequest', performApiRequest)
 

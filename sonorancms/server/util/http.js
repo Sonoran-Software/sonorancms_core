@@ -12,22 +12,28 @@ exports("HandleHttpRequest", (dest, callback, method, data, headers) => {
     JSON.stringify(data)
   );
   const urlObj = url.parse(dest);
+  const requestMethod = String(method || "GET").toUpperCase();
+  const requestHeaders = headers || {};
   const options = {
     hostname: urlObj.hostname,
     path: urlObj.pathname,
-    method: method,
-    headers: headers,
+    method: requestMethod,
+    headers: requestHeaders,
   };
   if (urlObj.hostname === "localhost") options.port = urlObj.port;
-  if (method == "POST") {
+
+  const methodsWithBody = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+  if (methodsWithBody.has(requestMethod)) {
     options.headers["Content-Type"] = "application/json";
-  } else if (method != "GET") {
+  } else if (requestMethod != "GET") {
     console.error(
-      "Invalid request. Only GET/POST supported. Method: " + method
+      "Invalid request. Only GET/POST/PUT/PATCH/DELETE supported. Method: " +
+        requestMethod
     );
     callback(500, "", {});
     return;
   }
+
   options.headers["X-SonoranCMS-Version"] = GetResourceMetadata(
     GetCurrentResourceName(),
     "version",
@@ -51,7 +57,7 @@ exports("HandleHttpRequest", (dest, callback, method, data, headers) => {
       console.debug("HTTP error caught: " + JSON.stringify(error));
     callback(error.errono, {}, {});
   });
-  if (method == "POST") {
+  if (methodsWithBody.has(requestMethod)) {
     req.write(data);
   }
   req.end();
