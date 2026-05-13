@@ -38,12 +38,11 @@ AddEventHandler('playerConnecting', function()
 		end
 	end
 	reqData['identifiers'] = playerIds;
-	exports['sonorancms']:performApiRequest(reqData, 'IDENTIFIERS', function(res)
-		res = json.decode(res)
-		if res.success then
+	exports['sonorancms']:performApiRequest(reqData, 'IDENTIFIERS', function(data, success)
+		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Security Center posted for ' .. identifier)
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to post to Security Center for ' .. identifier .. ' - ' .. res.message)
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to post to Security Center for ' .. identifier .. ' - ' .. data)
 		end
 	end)
 end)

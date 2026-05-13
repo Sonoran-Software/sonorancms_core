@@ -1,56 +1,130 @@
-const Sonoran = require("@sonoransoftware/sonoran.js");
+let initialized = false;
+let cmsServerId = 1;
 
-let instance;
-exports("initializeCMS", (CommID, APIKey, serverId, apiUrl, debug_mode) => {
-	apiUrl = apiUrl.replace(/\/$/, "");
-	try {
-		instance = new Sonoran.Instance({
-			communityId: CommID,
-			apiKey: APIKey,
-			serverId: serverId,
-			product: Sonoran.productEnums.CMS,
-			cmsApiUrl: apiUrl,
-			debug: debug_mode,
-		});
-	} catch (err) {
-		console.log(`Sonoran CMS Setup Unsuccessfully! Error provided: ${err}`);
+const parseJsonMaybe = (value) => {
+	if (typeof value !== "string" || value.trim() === "") {
+		return value;
 	}
 
-	instance.on("CMS_SETUP_SUCCESSFUL", () => {
-		console.log("ready to initialize");
-	});
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
+};
 
-	instance.on("CMS_SETUP_UNSUCCESSFUL", (err) => {
-		console.log(`Sonoran CMS Setup Unsuccessfully! Error provided: ${err}`);
-	});
+const whitelistDenialReasons = new Set([
+	"BLOCKED FOR WHITELIST",
+	"NOT ALLOWED ON WHITELIST",
+	"UNKNOWN_ACC_API_ID",
+	"INVALID_SERVER_ID",
+	"SERVER_CONFIG_ERROR",
+]);
 
-	exports("checkCMSWhitelist", async (apiId, cb) => {
-		try {
-			instance.cms
-				.verifyWhitelist(apiId)
-				.then((whitelist) => {
-					cb(whitelist);
-				})
-				.catch((error) => {
-					cb({ success: false, error: error, backendError: true });
+const normalizeErrorReason = (value) => {
+	if (typeof value === "string") {
+		return value.trim();
+	}
+
+	if (value && typeof value === "object") {
+		return JSON.stringify(value);
+	}
+
+	return String(value);
+};
+
+const isExpectedWhitelistDenial = (value) => {
+	const reason = normalizeErrorReason(value);
+	return whitelistDenialReasons.has(reason);
+};
+
+exports("initializeCMS", (CommID, APIKey, serverId, apiUrl, debug_mode) => {
+	void CommID;
+	void APIKey;
+	void apiUrl;
+	void debug_mode;
+	cmsServerId = serverId;
+
+	if (initialized) {
+		console.log("Sonoran CMS already initialized.");
+		return;
+	}
+
+	initialized = true;
+	console.log("Sonoran CMS v2 helper initialized.");
+});
+
+exports("checkCMSWhitelist", async (apiId, cb) => {
+	try {
+		exports.sonorancms.performApiRequest(
+			{
+				apiId,
+				serverId: cmsServerId,
+			},
+			"VERIFY_WHITELIST",
+			(result, ok) => {
+				if (ok) {
+					cb({
+						success: true,
+						reason: result,
+					});
+					return;
+				}
+
+				const reason = parseJsonMaybe(result);
+				if (isExpectedWhitelistDenial(reason)) {
+					cb({
+						success: false,
+						reason: normalizeErrorReason(reason),
+					});
+					return;
+				}
+
+				cb({
+					success: false,
+					error: reason,
+					backendError: true,
 				});
-		} catch (error) {
-			cb({ success: false, error: error, backendError: true });
-		}
-	});
+			}
+		);
+	} catch (error) {
+		cb({
+			success: false,
+			error,
+			backendError: true,
+		});
+	}
+});
 
-	exports("getFullWhitelist", async (cb) => {
-		try {
-			instance.cms
-				.getFullWhitelist()
-				.then((fullWhitelist) => {
-					cb(fullWhitelist);
-				})
-				.catch((error) => {
-					cb({ success: false, error: error, backendError: true });
+exports("getFullWhitelist", async (cb) => {
+	try {
+		exports.sonorancms.performApiRequest(
+			{
+				serverId: cmsServerId,
+			},
+			"FULL_WHITELIST",
+			(result, ok) => {
+				if (!ok) {
+					cb({
+						success: false,
+						error: parseJsonMaybe(result),
+						backendError: true,
+					});
+					return;
+				}
+
+				const parsed = parseJsonMaybe(result);
+				cb({
+					success: true,
+					data: Array.isArray(parsed) ? parsed : [],
 				});
-		} catch (error) {
-			cb({ success: false, error: error, backendError: true });
-		}
-	});
+			}
+		);
+	} catch (error) {
+		cb({
+			success: false,
+			error,
+			backendError: true,
+		});
+	}
 });

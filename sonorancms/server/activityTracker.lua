@@ -17,12 +17,11 @@ AddEventHandler('playerJoining', function()
 	end
 	reqData['serverId'] = Config.serverId
 	reqData['forceStart'] = true
-	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_START_STOP', function(res)
-		res = json.decode(res)
-		if res.success then
+	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_START_STOP', function(data, success)
+		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker started for ' .. name .. ' (' .. identifier .. ')')
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to start activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. res.message)
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to start activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. data)
 		end
 	end)
 end)
@@ -46,12 +45,11 @@ AddEventHandler('playerDropped', function()
 	end
 	reqData['serverId'] = Config.serverId
 	reqData['forceStop'] = true
-	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_START_STOP', function(res)
-		res = json.decode(res)
-		if res.success then
+	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_START_STOP', function(data, success)
+		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker stopped for ' .. name .. ' (' .. identifier .. ')')
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. res.message .. ' - ' .. json.encode(res.error))
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. json.encode(data))
 		end
 	end)
 end)
@@ -63,14 +61,11 @@ AddEventHandler('onResourceStart', function(resourceName)
 	TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Resource ' .. resourceName .. ' started. Sending activity tracker to stop all active activities to SonoranCMS.')
 	local reqData = {}
 	reqData['serverId'] = Config.serverId
-	exports['sonorancms']:performApiRequest({
-		reqData
-	}, 'ACTIVITY_TRACKER_SERVER_START', function(res)
-		res = json.decode(res)
-		if res.success then
-			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker stopped for all active activities - ' .. json.encode(res.data))
+	exports['sonorancms']:performApiRequest(reqData, 'ACTIVITY_TRACKER_SERVER_START', function(data, success)
+		if success then
+			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker stopped for all active activities - ' .. json.encode(data))
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for all active activities - ' .. res.message .. ' - ' .. json.encode(res.error))
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for all active activities - ' .. json.encode(data))
 		end
 	end)
 end)
