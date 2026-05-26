@@ -868,7 +868,6 @@ function performApiRequest(postData, requestType, cb)
 				'POST',
 				('community/accounts/%s/clock'):format(tostring(accountId)),
 				{
-					accountId = accountId,
 					accId = data.accId,
 					apiId = data.apiId,
 					username = data.username,
@@ -897,7 +896,6 @@ function performApiRequest(postData, requestType, cb)
 				'PATCH',
 				('community/accounts/%s/ranks'):format(tostring(accountId)),
 				{
-					accountId = accountId,
 					accId = data.accId,
 					apiId = data.apiId,
 					username = data.username,
