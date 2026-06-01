@@ -1,4 +1,4 @@
-local jobsyncEnabled = Config.framework == 'qb-core' or Config.framework == 'qbox'
+local jobsyncEnabled = false
 local cache = {}
 local rankMappings = {  -- Default empty mappings
     mappings = {}
@@ -49,6 +49,7 @@ local function setJobSyncCache()
     cache =
     json.decode(LoadResourceFile(GetCurrentResourceName(), 'cache.json'))
     rankMappings = json.decode(LoadResourceFile(GetCurrentResourceName(), '/server/modules/jobsync/jobsync_config.json'))
+    jobsyncEnabled = rankMappings.enabled and (Config.framework == 'qb-core' or Config.framework == 'qbox')
 end
 local function findRankByJob(job, grade, duty)
     local ranks = {add = {}, remove = {}}
