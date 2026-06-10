@@ -481,7 +481,7 @@ local ErrorCodes = {
 }
 
 local function buildErrorDocUrl(code)
-	return ERROR_DOC_BASE_URL .. tostring(string.lower(code))
+	return ERROR_DOC_BASE_URL .. string.lower(tostring(code))
 end
 
 local function getLogMeta(level, key)
