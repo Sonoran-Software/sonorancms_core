@@ -66,6 +66,8 @@ exports("getSystemInfo", () => {
  * @param {string} type
  * @returns {string}
  */
+const supportHint = (code) => `${code} More: https://sonorancms.com/error/${code}`;
+
 const getAppropriateIdentifier = (source, type) => {
 	const identifiers = getPlayerIdentifiers(source);
 	let properIdentifiers = {
@@ -91,7 +93,7 @@ const getAppropriateIdentifier = (source, type) => {
 	});
 	const cleanType = type.replace(/^'(.*)'$/, "$1");
 	if (properIdentifiers[cleanType] === "") {
-		errorLog(`No ${cleanType} identifier found for ${GetPlayerName(source)}...`);
+		errorLog(`${supportHint("ERR-CORE-108")} No ${cleanType} identifier found for ${GetPlayerName(source)}...`);
 		return "NOT FOUND";
 	} else {
 		return properIdentifiers[cleanType];

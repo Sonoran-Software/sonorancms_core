@@ -109,7 +109,7 @@ RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
         payload['apiId'] = identifier
     end
     if identifier == nil then
-        TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+        TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'JOBSYNC_IDENTIFIER_MISSING',
                         'Unable to set job for ' .. playerName ..
                             ' due to missing ' .. Config.apiIdType ..
                             ' identifier.')
@@ -123,7 +123,7 @@ RegisterNetEvent('SonoranCms:JobSync:PlayerSpawned', function()
                                             function(res, success)
         res = json.decode(res)
         if not success then
-            TriggerEvent('SonoranCMS::core:writeLog', 'error',
+            TriggerEvent('SonoranCMS::core:writeLog', 'error', 'JOBSYNC_SET_RANKS_FAILED',
                             'Failed to set job for ' .. playerName ..
                                 ' (' .. (identifier or 'N/A') .. ') - ' ..
                                 (res and json.encode(res) or 'ERR_RES'))
@@ -177,7 +177,7 @@ RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
         end
 
         if identifier == nil then
-            TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+            TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'JOBSYNC_IDENTIFIER_MISSING',
                 'Unable to set job for ' .. playerName ..
                 ' due to missing ' .. Config.apiIdType .. ' identifier.')
             return
@@ -192,7 +192,7 @@ RegisterNetEvent('SonoranCms:JobSync:JobUpdate', function()
                 local logMessage = 'Failed to set job for ' .. playerName ..
                     ' (' .. (identifier or 'N/A') .. ') - ' ..
                     (res and json.encode(res) or 'ERR_RES')
-                TriggerEvent('SonoranCMS::core:writeLog', 'error', logMessage)
+                TriggerEvent('SonoranCMS::core:writeLog', 'error', 'JOBSYNC_SET_RANKS_FAILED', logMessage)
             end
         end)
     end)
@@ -217,7 +217,7 @@ AddEventHandler('playerDropped', function()
         payload['apiId'] = identifier
     end
     if identifier == nil then
-        TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+        TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'JOBSYNC_IDENTIFIER_MISSING',
                         'Unable to set job for ' .. playerName ..
                             ' due to missing ' .. Config.apiIdType ..
                             ' identifier.')
@@ -228,7 +228,7 @@ AddEventHandler('playerDropped', function()
                                             function(res, success)
         res = json.decode(res)
         if not success then
-            TriggerEvent('SonoranCMS::core:writeLog', 'error',
+            TriggerEvent('SonoranCMS::core:writeLog', 'error', 'JOBSYNC_SET_RANKS_FAILED',
                             'Failed to set job for ' .. playerName ..
                                 ' (' .. (identifier or 'N/A') .. ') - ' ..
                                 (res and json.encode(res) or 'ERR_RES'))

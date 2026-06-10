@@ -3,6 +3,9 @@ local update_url = 'https://github.com/Sonoran-Software/sonorancms_core/releases
 local version_url = 'https://raw.githubusercontent.com/Sonoran-Software/sonorancms_core/master/sonorancms/version.json'
 local pendingRestart = false
 local helper_signal_key = 'sonorancms_updatehelper_action'
+local function supportHint(code)
+	return code .. ' More: https://sonorancms.com/error/' .. code
+end
 
 local function signalUpdateHelper(action)
 	SetConvar(helper_signal_key, action or 'core')
@@ -24,12 +27,12 @@ exports('unzipCoreCompleted', function(success, error)
 			Utilities.Logging.logInfo('Delaying auto-update until server is empty.')
 			return
 		end
-		Utilities.Logging.logWarn('Auto-restarting...')
+		Utilities.Logging.logWarn(supportHint('WRN-UPD-101') .. ' Auto-restarting...')
 		signalUpdateHelper('core')
 		Citizen.Wait(5000)
 		ExecuteCommand('ensure ' .. helper_name)
 	else
-		Utilities.Logging.logError('Failed to download core update. ' .. tostring(json.encode(error)))
+		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Failed to download core update. ' .. tostring(json.encode(error)))
 	end
 end)
 
@@ -45,7 +48,7 @@ local function doUpdate(latest)
 			Utilities.Logging.logInfo('Working our magic, this may take a moment, please be patient...')
 			doUnzip(savePath)
 		else
-			Utilities.Logging.logWarn(('Failed to download from %s: %s %s'):format(releaseUrl, code, data))
+			Utilities.Logging.logWarn(supportHint('WRN-UPD-102') .. ' ' .. ('Failed to download from %s: %s %s'):format(releaseUrl, code, data))
 		end
 	end, 'GET')
 
@@ -107,7 +110,7 @@ local function RunAutoUpdater()
 		if code == 200 then
 			local remote = json.decode(data)
 			if remote == nil then
-				Utilities.Logging.logWarn(('Failed to get a valid response for ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' version file. Skipping.'))
+				Utilities.Logging.logWarn(supportHint('WRN-UPD-103') .. ' ' .. ('Failed to get a valid response for ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' version file. Skipping.'))
 				Utilities.Logging.logDebug(('Raw output for %s: %s'):format('version.json', data))
 			else
 				Config.latestVersion = remote.resource
@@ -131,7 +134,7 @@ local function RunAutoUpdater()
 							print('^3| Download at: ^4https://github.com/Sonoran-Software/sonorancms_core          ^3|')
 							print('^3|===========================================================================|^7')
 							if Config['allowAutoUpdate'] == nil then
-								Utilities.Logging.logWarn('You have not configured the automatic updater. Please set allowAutoUpdate' .. ' in config.lua to allow updates.')
+								Utilities.Logging.logWarn(supportHint('WRN-UPD-104') .. ' You have not configured the automatic updater. Please set allowAutoUpdate' .. ' in config.lua to allow updates.')
 							end
 						else
 							Utilities.Logging.logInfo('Running auto-update now...')
@@ -159,7 +162,7 @@ AddEventHandler(GetCurrentResourceName() .. '::StartUpdateLoop', function()
 		while true do
 			if pendingRestart then
 				if GetNumPlayerIndices() > 0 and not Config.restartWithPlayers then
-					Utilities.Logging.logWarn('An update has been applied to ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' but requires a resource restart.'
+					Utilities.Logging.logWarn(supportHint('WRN-UPD-105') .. ' ' .. 'An update has been applied to ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' but requires a resource restart.'
 									                          .. ' Restart delayed until server is empty.')
 				else
 					Utilities.Logging.logInfo('Server is empty, restarting resources...')

@@ -2,6 +2,7 @@ local plugin_handlers = {}
 local MessageBuffer = {}
 local DebugBuffer = {}
 local ErrorBuffer = {}
+local ERROR_DOC_BASE_URL = 'https://sonorancms.com/error/'
 
 SetHttpHandler(function(req, res)
 	local path = req.path
@@ -153,15 +154,15 @@ AddEventHandler('onResourceStart', function(resource)
 		if GetResourceState('qb-core') == 'started' then
 			if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
 							and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory, core_inventory and tgiann_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_INVENTORY_DEPENDENCY_MISSING', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory, core_inventory and tgiann_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 				return
 			end
 			if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
 							~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_GARAGE_DEPENDENCY_MISSING', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			end
 			if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_DATABASE_DEPENDENCY_MISSING', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 				return
 			end
 		end
@@ -236,20 +237,20 @@ end
 local function ensureCmsServerRegistered()
 	performApiRequest({}, 'GET_GAME_SERVERS', function(result, ok)
 		if not ok then
-			warnLog(('Failed to fetch CMS servers: %s'):format(tostring(result)))
+			warnLog('CMS_SERVERS_FETCH_FAILED', ('Failed to fetch CMS servers: %s'):format(tostring(result)))
 			return
 		end
 		local decoded = result
 		if type(result) == 'string' then
 			local okDecode, decodedRes = pcall(json.decode, result)
 			if not okDecode then
-				warnLog(('Failed to parse GET_GAME_SERVERS response: %s'):format(tostring(result)))
+				warnLog('CMS_SERVERS_PARSE_FAILED', ('Failed to parse GET_GAME_SERVERS response: %s'):format(tostring(result)))
 				return
 			end
 			decoded = decodedRes
 		end
 		if type(decoded) ~= 'table' or type(decoded.servers) ~= 'table' then
-			warnLog(('Unexpected GET_GAME_SERVERS response: %s'):format(tostring(result)))
+			warnLog('CMS_SERVERS_RESPONSE_INVALID', ('Unexpected GET_GAME_SERVERS response: %s'):format(tostring(result)))
 			return
 		end
 		local targetId = tostring(Config.serverId)
@@ -261,7 +262,7 @@ local function ensureCmsServerRegistered()
 		end
 		local port = getServerPort()
 		if not port then
-			warnLog('Unable to detect server port. Defaulting to 30120 for CMS registration.')
+			warnLog('CMS_SERVER_PORT_DEFAULTED', 'Unable to detect server port. Defaulting to 30120 for CMS registration.')
 			port = 30120
 		end
 		local addPayload = {
@@ -276,7 +277,7 @@ local function ensureCmsServerRegistered()
 		}
 		performApiRequest(addPayload, 'ADD_GAME_SERVERS', function(addResult, addOk)
 			if not addOk then
-				warnLog(('Failed to add CMS server %s: %s'):format(targetId, tostring(addResult)))
+				warnLog('CMS_SERVER_REGISTER_FAILED', ('Failed to add CMS server %s: %s'):format(targetId, tostring(addResult)))
 				return
 			end
 			infoLog(('Added CMS server %s (%s).'):format(targetId, addPayload[1].name))
@@ -346,16 +347,16 @@ CreateThread(function()
 	if addonStatus == "found" then
 		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted...')
 	elseif addonStatus == "permission" then
-		warnLog('addonupdates folder exists but permission was denied when checking. Please verify permissions.')
+		warnLog('LEGACY_ADDONUPDATES_PERMISSION', 'addonupdates folder exists but permission was denied when checking. Please verify permissions.')
 	end
 
 	-- Check config.NEW.lua
 	local configStatus = exists(GetResourcePath('sonorancms') .. '/config.NEW.lua')
 	if configStatus == "found" then
-		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
+		errorLog('CONFIG_NEW_FOUND', 'config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
 		return
 	elseif configStatus == "permission" then
-		warnLog('config.NEW.lua exists but permission was denied when checking. Please verify permissions. See https://sonoran.link/cmsconfig for more information.')
+		warnLog('CONFIG_NEW_PERMISSION', 'config.NEW.lua exists but permission was denied when checking. Please verify permissions. See https://sonoran.link/cmsconfig for more information.')
 	end
 	Wait(5000)
 	local versionfile = json.decode(LoadResourceFile(GetCurrentResourceName(), '/version.json'))
@@ -363,7 +364,7 @@ CreateThread(function()
 	local currentFxVersion = getServerVersion()
 	if tonumber(currentFxVersion) ~= nil and tonumber(fxversion) ~= nil then
 		if tonumber(currentFxVersion) < tonumber(fxversion) then
-			warnLog(('SonoranCMS has been tested with FXServer version %s, but you\'re running %s. Please update ASAP.'):format(fxversion, currentFxVersion))
+			warnLog('FXSERVER_OUTDATED', ('SonoranCMS has been tested with FXServer version %s, but you\'re running %s. Please update ASAP.'):format(fxversion, currentFxVersion))
 		end
 	end
 	if GetResourceState('sonorancms_updatehelper') == 'started' then
@@ -412,17 +413,17 @@ local function sendConsole(level, color, message)
 	end
 end
 
-AddEventHandler('SonoranCMS::core:writeLog', function(level, message)
+AddEventHandler('SonoranCMS::core:writeLog', function(level, codeOrMessage, message)
 	if level == 'debug' then
-		debugLog(message)
+		debugLog(codeOrMessage)
 	elseif level == 'info' then
-		infoLog(message)
+		infoLog(codeOrMessage)
 	elseif level == 'error' then
-		errorLog(message)
+		errorLog(codeOrMessage, message)
 	elseif level == 'warn' then
-		warnLog(message)
+		warnLog(codeOrMessage, message)
 	else
-		debugLog(message)
+		debugLog(codeOrMessage)
 	end
 end)
 
@@ -438,26 +439,83 @@ function debugLog(message)
 	sendConsole('DEBUG', '^7', message)
 end
 
-local ErrorCodes = {
-	['INVALID_COMMUNITY_ID'] = 'You have set an invalid community ID, please check your Config and SonoranCMS integration'
+local WarningCodes = {
+	['CMS_SERVERS_FETCH_FAILED'] = { code = 'WRN-CORE-101', message = 'Fetching the CMS server list failed.' },
+	['CMS_SERVERS_PARSE_FAILED'] = { code = 'WRN-CORE-102', message = 'The CMS server list response could not be parsed.' },
+	['CMS_SERVERS_RESPONSE_INVALID'] = { code = 'WRN-CORE-103', message = 'The CMS server list response was missing required data.' },
+	['CMS_SERVER_PORT_DEFAULTED'] = { code = 'WRN-CORE-104', message = 'The CMS server port could not be detected automatically and the default port was used.' },
+	['CMS_SERVER_REGISTER_FAILED'] = { code = 'WRN-CORE-105', message = 'Registering the CMS server entry failed.' },
+	['LEGACY_ADDONUPDATES_PERMISSION'] = { code = 'WRN-CORE-106', message = 'The legacy addonupdates folder could not be inspected because of a permission issue.' },
+	['CONFIG_NEW_PERMISSION'] = { code = 'WRN-CORE-107', message = 'config.NEW.lua may exist, but a permission error prevented verification.' },
+	['FXSERVER_OUTDATED'] = { code = 'WRN-CORE-108', message = 'The running FXServer build is older than the version SonoranCMS was tested against.' },
+	['API_ENDPOINT_UNREGISTERED'] = { code = 'WRN-CORE-109', message = 'An API request was attempted for an unregistered endpoint type.' },
+	['API_BAD_REQUEST'] = { code = 'WRN-CORE-110', message = 'The CMS API rejected a request as malformed or invalid.' },
+	['API_RATELIMITED'] = { code = 'WRN-CORE-111', message = 'The CMS API temporarily rate-limited this endpoint.' },
+	['GAME_PANEL_INVENTORY_DEPENDENCY_MISSING'] = { code = 'WRN-GP-101', message = 'Game Panel inventory data could not be sent because no supported inventory resource is started.' },
+	['GAME_PANEL_GARAGE_DEPENDENCY_MISSING'] = { code = 'WRN-GP-102', message = 'Game Panel garage data will be empty because no supported garage resource is started.' },
+	['GAME_PANEL_DATABASE_DEPENDENCY_MISSING'] = { code = 'WRN-GP-103', message = 'Game Panel data could not be sent because no supported database resource is started.' },
+	['GAME_PANEL_PAYLOAD_BLOCKED'] = { code = 'WRN-GP-104', message = 'Game Panel payload delivery was skipped because the resource is in a critical error state.' },
+	['GAME_PANEL_PAYLOAD_BLOCKED_DETAILS'] = { code = 'WRN-GP-105', message = 'Game Panel payload delivery was skipped and additional error details were logged.' },
+	['RESOURCE_NAME_INVALID'] = { code = 'WRN-GP-106', message = 'The SonoranCMS resource is not using the required resource name.' },
+	['LEGACY_RESOURCE_RUNNING'] = { code = 'WRN-GP-107', message = 'A legacy standalone SonoranCMS addon is still running alongside the bundled core module.' },
+	['ACE_IDENTIFIER_MISSING'] = { code = 'WRN-ACE-101', message = 'A player was denied ACE mapping because the configured identifier was missing.' },
+	['JOBSYNC_IDENTIFIER_MISSING'] = { code = 'WRN-JS-101', message = 'JobSync could not update CMS ranks because the configured identifier was missing.' },
 }
 
-function logError(err, msg)
-	local o = ''
-	if msg == nil then
-		o = ('ERR %s: %s - See https://sonoran.software/errorcodes for more information.'):format(err, ErrorCodes[err])
-	else
-		o = ('ERR %s: %s - See https://sonoran.software/errorcodes for more information.'):format(err, msg)
+local ErrorCodes = {
+	['API_ERROR'] = { code = 'ERR-CORE-101', message = 'The CMS API version request failed during startup.' },
+	['CONFIG_NEW_FOUND'] = { code = 'ERR-CORE-102', message = 'config.NEW.lua was detected and the running configuration is out of date.' },
+	['API_ENDPOINT_INVALID'] = { code = 'ERR-CORE-103', message = 'The configured CMS API endpoint is invalid.' },
+	['API_DISABLED_FATAL'] = { code = 'ERR-CORE-104', message = 'The CMS API was disabled after a fatal configuration or authentication error.' },
+	['API_SERVER_ERROR'] = { code = 'ERR-CORE-105', message = 'The CMS API returned a server-side error.' },
+	['API_REQUEST_UNEXPECTED'] = { code = 'ERR-CORE-106', message = 'The CMS API returned an unexpected response.' },
+	['API_REQUEST_BLOCKED'] = { code = 'ERR-CORE-107', message = 'An API request was blocked because the resource is in a critical error state.' },
+	['SECURITY_CENTER_POST_FAILED'] = { code = 'ERR-SEC-101', message = 'Posting a Security Center event to SonoranCMS failed.' },
+	['ACTIVITY_TRACKER_START_FAILED'] = { code = 'ERR-AT-101', message = 'Starting a player activity tracker entry failed.' },
+	['ACTIVITY_TRACKER_STOP_FAILED'] = { code = 'ERR-AT-102', message = 'Stopping a player activity tracker entry failed.' },
+	['ACTIVITY_TRACKER_RESET_FAILED'] = { code = 'ERR-AT-103', message = 'Resetting active activity tracker entries failed.' },
+	['ACE_PERMISSIONS_FETCH_FAILED'] = { code = 'ERR-ACE-102', message = 'Fetching ACE permissions from SonoranCMS failed.' },
+	['JOBSYNC_SET_RANKS_FAILED'] = { code = 'ERR-JS-101', message = 'JobSync could not update account ranks in SonoranCMS.' },
+	['GAME_PANEL_GARAGE_EXPORT_MISSING'] = { code = 'ERR-GP-201', message = 'A garage resource is missing the export SonoranCMS expects.' },
+	['LEGACY_RESOURCE_STOP_FAILED'] = { code = 'ERR-PLUG-101', message = 'A legacy standalone SonoranCMS addon could not be stopped automatically.' },
+}
+
+local function buildErrorDocUrl(code)
+	return ERROR_DOC_BASE_URL .. tostring(string.lower(code))
+end
+
+local function getLogMeta(level, key)
+	local codeTable = level == 'WARNING' and WarningCodes or ErrorCodes
+	return codeTable[key] or ErrorCodes[key]
+end
+
+local function formatStructuredLog(level, key, message)
+	local meta = type(key) == 'string' and getLogMeta(level, key) or nil
+	if meta == nil then
+		return message or key
 	end
-	sendConsole('ERROR', '^1', o)
+	local resolvedMessage = message or meta.message or key
+	return ('%s %s More: %s'):format(meta.code, resolvedMessage, buildErrorDocUrl(meta.code))
 end
 
-function errorLog(message)
-	sendConsole('ERROR', '^1', message)
+function RegisterErrorCode(key, code, message)
+	ErrorCodes[key] = { code = code, message = message }
 end
 
-function warnLog(message)
-	sendConsole('WARNING', '^3', message)
+function RegisterWarningCode(key, code, message)
+	WarningCodes[key] = { code = code, message = message }
+end
+
+function logError(err, msg)
+	sendConsole('ERROR', '^1', formatStructuredLog('ERROR', err, msg))
+end
+
+function errorLog(err, msg)
+	sendConsole('ERROR', '^1', formatStructuredLog('ERROR', err, msg))
+end
+
+function warnLog(err, msg)
+	sendConsole('WARNING', '^3', formatStructuredLog('WARNING', err, msg))
 end
 
 function infoLog(message)
@@ -637,8 +695,8 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 				return
 			end
 			rateLimitedEndpoints[requestType] = true
-			warnLog(
-				('WARN_RATELIMIT: You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
+			warnLog('API_RATELIMITED',
+				('You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
 					requestType))
 			SetTimeout(60000, function()
 				rateLimitedEndpoints[requestType] = nil
@@ -649,9 +707,9 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 		end
 		if statusCode == 400 or statusCode == 401 or statusCode == 403 or statusCode == 404 or statusCode == 422 then
 			local errorMessage = extractV2ErrorMessage(res)
-			warnLog(('Bad request was sent to the V2 API. Response: %s'):format(tostring(errorMessage)))
+			warnLog('API_BAD_REQUEST', ('Bad request was sent to the V2 API. Response: %s'):format(tostring(errorMessage)))
 			if statusCode == 400 and (tostring(errorMessage) == 'INVALID COMMUNITY ID' or tostring(errorMessage) == 'API IS NOT ENABLED FOR THIS COMMUNITY' or string.find(tostring(errorMessage), 'IS NOT ENABLED FOR THIS COMMUNITY') or tostring(errorMessage) == 'INVALID API KEY') then
-				errorLog('Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(errorMessage))
+				errorLog('API_DISABLED_FATAL', 'Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(errorMessage))
 				Config.critError = true
 			end
 			cb(errorMessage, false)
@@ -659,12 +717,12 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 		end
 		if string.match(tostring(statusCode), '50') then
 			local errorMessage = extractV2ErrorMessage(res)
-			errorLog(('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
+			errorLog('API_SERVER_ERROR', ('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
 			debugLog(('API_ERROR Error returned: %s %s'):format(statusCode, tostring(errorMessage)))
 			cb(errorMessage, false)
 			return
 		end
-		errorLog(('CMS API ERROR (from %s): %s %s'):format(url, statusCode, tostring(res)))
+		errorLog('API_REQUEST_UNEXPECTED', ('CMS API ERROR (from %s): %s %s'):format(url, statusCode, tostring(res)))
 		cb(res, false)
 	end, requestMethod, requestBody, headers)
 end
@@ -733,7 +791,7 @@ function performApiRequest(postData, requestType, cb)
 	}
 	assert(requestType ~= nil, 'No type specified, invalid request.')
 	if Config.critError then
-		errorLog('API request failed: critical error encountered, API version too low, aborting request.')
+		errorLog('API_REQUEST_BLOCKED', 'API request failed: critical error encountered, API version too low, aborting request.')
 		return
 	end
 

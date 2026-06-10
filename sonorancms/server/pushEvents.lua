@@ -2259,8 +2259,8 @@ CreateThread(function()
 		if not Config.critErrorGamestate then
 
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
-			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_PAYLOAD_BLOCKED', 'Skipping SonoranCMS Game Panel payload send due to critical error. If you do not use the SonoranCMS Game Panel you can ignore this.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_PAYLOAD_BLOCKED_DETAILS', 'Error code: ' .. Config.gameStateError.code .. ' Message: ' .. Config.gameStateError.message)
 		end
 		Wait(60000)
 	end
@@ -2805,7 +2805,7 @@ local function requestGarageData()
 		if success then
 			QBGarages = garageData
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from qb-garages, the export getAllGarages() is not available. Please update your qb-garages resource.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_GARAGE_EXPORT_MISSING', 'Error getting garage data from qb-garages, the export getAllGarages() is not available. Please update your qb-garages resource.')
 			table.insert(errors, {
 				code = 'ERR_GARAGE_EXPORT_NOT_FOUND',
 				message = 'qb-garages export getAllGarages() is not available.'
@@ -2892,7 +2892,7 @@ local function requestGarageData()
 		if success then
 			QBGarages = garageData
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_GARAGE_EXPORT_MISSING', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
 		end
 	elseif GetResourceState('ak47_qb_garage') == 'started' then
 		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage`', function(row)
@@ -3077,14 +3077,14 @@ end
 
 function handleDataRequest(data)
 	if GetCurrentResourceName() ~= 'sonorancms' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'RESOURCE_NAME_INVALID', 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms')
 		table.insert(errors, {
 			code = 'ERR_RESOURCE_NAME',
 			message = 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms'
 		})
 	end
 	if GetResourceState('sonorancms_ace_perms') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'LEGACY_RESOURCE_RUNNING',
 		             'sonorancms_ace_perms was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_ace_perms resource before continuing.')
 		table.insert(errors, {
 			code = 'ERR_ACE_PERMS_STARTED',
@@ -3095,7 +3095,7 @@ function handleDataRequest(data)
 				ExecuteCommand('stop sonorancms_ace_perms')
 				Wait(1000)
 				if GetResourceState('sonorancms_ace_perms') == 'started' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'LEGACY_RESOURCE_STOP_FAILED', 'Failed to stop the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				else
 					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_ace_perms resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
@@ -3103,7 +3103,7 @@ function handleDataRequest(data)
 		end)
 	end
 	if GetResourceState('sonorancms_clockin') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'LEGACY_RESOURCE_RUNNING',
 		             'sonorancms_clockin was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_clockin resource before continuing.')
 		table.insert(errors, {
 			code = 'ERR_CLOCKIN_STARTED',
@@ -3114,7 +3114,7 @@ function handleDataRequest(data)
 				ExecuteCommand('stop sonorancms_clockin')
 				Wait(1000)
 				if GetResourceState('sonorancms_clockin') == 'started' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'LEGACY_RESOURCE_STOP_FAILED', 'Failed to stop the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				else
 					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_clockin resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
@@ -3122,7 +3122,7 @@ function handleDataRequest(data)
 		end)
 	end
 	if GetResourceState('sonorancms_whitelist') == 'started' then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'LEGACY_RESOURCE_RUNNING',
 		             'sonorancms_whitelist was started, however it is now bundled with the SonoranCMS Core, please remove the sonorancms_whitelist resource before continuing.')
 		table.insert(errors, {
 			code = 'ERR_ACE_PERMS_STARTED',
@@ -3133,7 +3133,7 @@ function handleDataRequest(data)
 				ExecuteCommand('stop sonorancms_whitelist')
 				Wait(1000)
 				if GetResourceState('sonorancms_whitelist') == 'started' then
-					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
+					TriggerEvent('SonoranCMS::core:writeLog', 'error', 'LEGACY_RESOURCE_STOP_FAILED', 'Failed to stop the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				else
 					TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS sonorancms_whitelist resource. Please remove this addon as it is now bundled with SonoranCMS.')
 				end
@@ -3143,7 +3143,7 @@ function handleDataRequest(data)
 	if GetResourceState('qb-core') == 'started' then
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
 						and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
-			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_INVENTORY_DEPENDENCY_MISSING',
 			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
 			table.insert(errors, {
@@ -3160,7 +3160,7 @@ function handleDataRequest(data)
 			})
 		end
 		if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
-			TriggerEvent('SonoranCMS::core:writeLog', 'warn',
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_DATABASE_DEPENDENCY_MISSING',
 			             'Skipping payload send due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			Config.critErrorGamestate = true
 			table.insert(errors, {
@@ -3171,12 +3171,12 @@ function handleDataRequest(data)
 		end
 	end
 	if Config.critErrorGamestate then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Skipping payload send due to critical error.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_PAYLOAD_BLOCKED', 'Skipping payload send due to critical error.')
 		local consoleErrorString = ''
 		for _, error in pairs(errors) do
 			consoleErrorString = consoleErrorString .. ' ' .. error.code .. ' ' .. error.message
 		end
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Error codes: ' .. consoleErrorString)
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_PAYLOAD_BLOCKED_DETAILS', 'Error codes: ' .. consoleErrorString)
 		local errPayload = {
 			data = {},
 			errors = errors
@@ -3399,7 +3399,7 @@ Citizen.CreateThread(function()
 					ExecuteCommand('stop ' .. resource .. '')
 					Wait(1000)
 					if GetResourceState(resource) == 'started' then
-						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop the old SonoranCMS ' .. resource .. ' resource. Please remove this addon as it is now bundled with SonoranCMS.')
+						TriggerEvent('SonoranCMS::core:writeLog', 'error', 'LEGACY_RESOURCE_STOP_FAILED', 'Failed to stop the old SonoranCMS ' .. resource .. ' resource. Please remove this addon as it is now bundled with SonoranCMS.')
 					else
 						TriggerEvent('SonoranCMS::core:writeLog', 'info', 'Successfully stopped the old SonoranCMS ' .. resource .. ' resource. Please remove this addon as it is now bundled with SonoranCMS.')
 					end
