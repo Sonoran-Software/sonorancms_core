@@ -2,6 +2,9 @@ local plugin_handlers = {}
 local MessageBuffer = {}
 local DebugBuffer = {}
 local ErrorBuffer = {}
+local SupportErrorBuffer = {}
+local ERROR_DOC_BASE_URL = 'https://sonorancms.com/error/'
+local SupportRefCounter = 0
 
 SetHttpHandler(function(req, res)
 	local path = req.path
@@ -153,15 +156,15 @@ AddEventHandler('onResourceStart', function(resource)
 		if GetResourceState('qb-core') == 'started' then
 			if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
 							and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory, core_inventory and tgiann_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_INVENTORY_DEPENDENCY_MISSING', 'Unable to send game panel data due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory, core_inventory and tgiann_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 				return
 			end
 			if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
 							~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_GARAGE_DEPENDENCY_MISSING', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			end
 			if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_DATABASE_DEPENDENCY_MISSING', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 				return
 			end
 		end
@@ -236,20 +239,20 @@ end
 local function ensureCmsServerRegistered()
 	performApiRequest({}, 'GET_GAME_SERVERS', function(result, ok)
 		if not ok then
-			warnLog(('Failed to fetch CMS servers: %s'):format(tostring(result)))
+			warnLog('CMS_SERVERS_FETCH_FAILED', ('Failed to fetch CMS servers: %s'):format(tostring(result)))
 			return
 		end
 		local decoded = result
 		if type(result) == 'string' then
 			local okDecode, decodedRes = pcall(json.decode, result)
 			if not okDecode then
-				warnLog(('Failed to parse GET_GAME_SERVERS response: %s'):format(tostring(result)))
+				warnLog('CMS_SERVERS_PARSE_FAILED', ('Failed to parse GET_GAME_SERVERS response: %s'):format(tostring(result)))
 				return
 			end
 			decoded = decodedRes
 		end
 		if type(decoded) ~= 'table' or type(decoded.servers) ~= 'table' then
-			warnLog(('Unexpected GET_GAME_SERVERS response: %s'):format(tostring(result)))
+			warnLog('CMS_SERVERS_RESPONSE_INVALID', ('Unexpected GET_GAME_SERVERS response: %s'):format(tostring(result)))
 			return
 		end
 		local targetId = tostring(Config.serverId)
@@ -261,7 +264,7 @@ local function ensureCmsServerRegistered()
 		end
 		local port = getServerPort()
 		if not port then
-			warnLog('Unable to detect server port. Defaulting to 30120 for CMS registration.')
+			warnLog('CMS_SERVER_PORT_DEFAULTED', 'Unable to detect server port. Defaulting to 30120 for CMS registration.')
 			port = 30120
 		end
 		local addPayload = {
@@ -276,7 +279,7 @@ local function ensureCmsServerRegistered()
 		}
 		performApiRequest(addPayload, 'ADD_GAME_SERVERS', function(addResult, addOk)
 			if not addOk then
-				warnLog(('Failed to add CMS server %s: %s'):format(targetId, tostring(addResult)))
+				warnLog('CMS_SERVER_REGISTER_FAILED', ('Failed to add CMS server %s: %s'):format(targetId, tostring(addResult)))
 				return
 			end
 			infoLog(('Added CMS server %s (%s).'):format(targetId, addPayload[1].name))
@@ -346,16 +349,16 @@ CreateThread(function()
 	if addonStatus == "found" then
 		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted...')
 	elseif addonStatus == "permission" then
-		warnLog('addonupdates folder exists but permission was denied when checking. Please verify permissions.')
+		warnLog('LEGACY_ADDONUPDATES_PERMISSION', 'addonupdates folder exists but permission was denied when checking. Please verify permissions.')
 	end
 
 	-- Check config.NEW.lua
 	local configStatus = exists(GetResourcePath('sonorancms') .. '/config.NEW.lua')
 	if configStatus == "found" then
-		errorLog('config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
+		errorLog('CONFIG_NEW_FOUND', 'config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
 		return
 	elseif configStatus == "permission" then
-		warnLog('config.NEW.lua exists but permission was denied when checking. Please verify permissions. See https://sonoran.link/cmsconfig for more information.')
+		warnLog('CONFIG_NEW_PERMISSION', 'config.NEW.lua exists but permission was denied when checking. Please verify permissions. See https://sonoran.link/cmsconfig for more information.')
 	end
 	Wait(5000)
 	local versionfile = json.decode(LoadResourceFile(GetCurrentResourceName(), '/version.json'))
@@ -363,7 +366,7 @@ CreateThread(function()
 	local currentFxVersion = getServerVersion()
 	if tonumber(currentFxVersion) ~= nil and tonumber(fxversion) ~= nil then
 		if tonumber(currentFxVersion) < tonumber(fxversion) then
-			warnLog(('SonoranCMS has been tested with FXServer version %s, but you\'re running %s. Please update ASAP.'):format(fxversion, currentFxVersion))
+			warnLog('FXSERVER_OUTDATED', ('SonoranCMS has been tested with FXServer version %s, but you\'re running %s. Please update ASAP.'):format(fxversion, currentFxVersion))
 		end
 	end
 	if GetResourceState('sonorancms_updatehelper') == 'started' then
@@ -412,17 +415,17 @@ local function sendConsole(level, color, message)
 	end
 end
 
-AddEventHandler('SonoranCMS::core:writeLog', function(level, message)
+AddEventHandler('SonoranCMS::core:writeLog', function(level, codeOrMessage, message)
 	if level == 'debug' then
-		debugLog(message)
+		debugLog(codeOrMessage)
 	elseif level == 'info' then
-		infoLog(message)
+		infoLog(codeOrMessage)
 	elseif level == 'error' then
-		errorLog(message)
+		errorLog(codeOrMessage, message)
 	elseif level == 'warn' then
-		warnLog(message)
+		warnLog(codeOrMessage, message)
 	else
-		debugLog(message)
+		debugLog(codeOrMessage)
 	end
 end)
 
@@ -434,30 +437,635 @@ function getErrorBuffer()
 	return ErrorBuffer
 end
 
+function getSupportErrorBuffer()
+	return SupportErrorBuffer
+end
+
 function debugLog(message)
 	sendConsole('DEBUG', '^7', message)
 end
 
-local ErrorCodes = {
-	['INVALID_COMMUNITY_ID'] = 'You have set an invalid community ID, please check your Config and SonoranCMS integration'
+local WarningCodes = {
+	['CMS_SERVERS_FETCH_FAILED'] = { code = 'WRN-CORE-101', message = 'Fetching the CMS server list failed.' },
+	['CMS_SERVERS_PARSE_FAILED'] = { code = 'WRN-CORE-102', message = 'The CMS server list response could not be parsed.' },
+	['CMS_SERVERS_RESPONSE_INVALID'] = { code = 'WRN-CORE-103', message = 'The CMS server list response was missing required data.' },
+	['CMS_SERVER_PORT_DEFAULTED'] = { code = 'WRN-CORE-104', message = 'The CMS server port could not be detected automatically and the default port was used.' },
+	['CMS_SERVER_REGISTER_FAILED'] = { code = 'WRN-CORE-105', message = 'Registering the CMS server entry failed.' },
+	['LEGACY_ADDONUPDATES_PERMISSION'] = { code = 'WRN-CORE-106', message = 'The legacy addonupdates folder could not be inspected because of a permission issue.' },
+	['CONFIG_NEW_PERMISSION'] = { code = 'WRN-CORE-107', message = 'config.NEW.lua may exist, but a permission error prevented verification.' },
+	['FXSERVER_OUTDATED'] = { code = 'WRN-CORE-108', message = 'The running FXServer build is older than the version SonoranCMS was tested against.' },
+	['API_ENDPOINT_UNREGISTERED'] = { code = 'WRN-CORE-109', message = 'An API request was attempted for an unregistered endpoint type.' },
+	['API_BAD_REQUEST'] = { code = 'WRN-CORE-110', message = 'The CMS API rejected a request as malformed or invalid.' },
+	['API_RATELIMITED'] = { code = 'WRN-CORE-111', message = 'The CMS API temporarily rate-limited this endpoint.' },
+	['GAME_PANEL_INVENTORY_DEPENDENCY_MISSING'] = { code = 'WRN-GP-101', message = 'Game Panel inventory data could not be sent because no supported inventory resource is started.' },
+	['GAME_PANEL_GARAGE_DEPENDENCY_MISSING'] = { code = 'WRN-GP-102', message = 'Game Panel garage data will be empty because no supported garage resource is started.' },
+	['GAME_PANEL_DATABASE_DEPENDENCY_MISSING'] = { code = 'WRN-GP-103', message = 'Game Panel data could not be sent because no supported database resource is started.' },
+	['GAME_PANEL_PAYLOAD_BLOCKED'] = { code = 'WRN-GP-104', message = 'Game Panel payload delivery was skipped because the resource is in a critical error state.' },
+	['GAME_PANEL_PAYLOAD_BLOCKED_DETAILS'] = { code = 'WRN-GP-105', message = 'Game Panel payload delivery was skipped and additional error details were logged.' },
+	['RESOURCE_NAME_INVALID'] = { code = 'WRN-GP-106', message = 'The SonoranCMS resource is not using the required resource name.' },
+	['LEGACY_RESOURCE_RUNNING'] = { code = 'WRN-GP-107', message = 'A legacy standalone SonoranCMS addon is still running alongside the bundled core module.' },
+	['ACE_IDENTIFIER_MISSING'] = { code = 'WRN-ACE-101', message = 'A player was denied ACE mapping because the configured identifier was missing.' },
+	['JOBSYNC_IDENTIFIER_MISSING'] = { code = 'WRN-JS-101', message = 'JobSync could not update CMS ranks because the configured identifier was missing.' },
+	['UNHANDLED_WARNING'] = { code = 'WRN-CORE-900', message = 'A non-fatal warning occurred.' },
 }
 
-function logError(err, msg)
-	local o = ''
-	if msg == nil then
-		o = ('ERR %s: %s - See https://sonoran.software/errorcodes for more information.'):format(err, ErrorCodes[err])
-	else
-		o = ('ERR %s: %s - See https://sonoran.software/errorcodes for more information.'):format(err, msg)
+local ErrorCodes = {
+	['API_ERROR'] = { code = 'ERR-CORE-101', message = 'The CMS API version request failed during startup.' },
+	['CONFIG_NEW_FOUND'] = { code = 'ERR-CORE-102', message = 'config.NEW.lua was detected and the running configuration is out of date.' },
+	['API_ENDPOINT_INVALID'] = { code = 'ERR-CORE-103', message = 'The configured CMS API endpoint is invalid.' },
+	['API_DISABLED_FATAL'] = { code = 'ERR-CORE-104', message = 'The CMS API was disabled after a fatal configuration or authentication error.' },
+	['API_SERVER_ERROR'] = { code = 'ERR-CORE-105', message = 'The CMS API returned a server-side error.' },
+	['API_REQUEST_UNEXPECTED'] = { code = 'ERR-CORE-106', message = 'The CMS API returned an unexpected response.' },
+	['API_REQUEST_BLOCKED'] = { code = 'ERR-CORE-107', message = 'An API request was blocked because the resource is in a critical error state.' },
+	['SECURITY_CENTER_POST_FAILED'] = { code = 'ERR-SEC-101', message = 'Posting a Security Center event to SonoranCMS failed.' },
+	['ACTIVITY_TRACKER_START_FAILED'] = { code = 'ERR-AT-101', message = 'Starting a player activity tracker entry failed.' },
+	['ACTIVITY_TRACKER_STOP_FAILED'] = { code = 'ERR-AT-102', message = 'Stopping a player activity tracker entry failed.' },
+	['ACTIVITY_TRACKER_RESET_FAILED'] = { code = 'ERR-AT-103', message = 'Resetting active activity tracker entries failed.' },
+	['ACE_PERMISSIONS_FETCH_FAILED'] = { code = 'ERR-ACE-102', message = 'Fetching ACE permissions from SonoranCMS failed.' },
+	['JOBSYNC_SET_RANKS_FAILED'] = { code = 'ERR-JS-101', message = 'JobSync could not update account ranks in SonoranCMS.' },
+	['GAME_PANEL_GARAGE_EXPORT_MISSING'] = { code = 'ERR-GP-201', message = 'A garage resource is missing the export SonoranCMS expects.' },
+	['LEGACY_RESOURCE_STOP_FAILED'] = { code = 'ERR-PLUG-101', message = 'A legacy standalone SonoranCMS addon could not be stopped automatically.' },
+	['UNHANDLED_SERVER_ERROR'] = { code = 'ERR-CORE-900', message = 'An unexpected server error occurred.' },
+	['UNHANDLED_WARNING'] = { code = 'ERR-CORE-901', message = 'A non-fatal warning occurred.' },
+}
+
+local function buildErrorDocUrl(code)
+	local resolvedCode = tostring(code or 'ERR-CORE-900')
+	return ERROR_DOC_BASE_URL .. string.lower(resolvedCode)
+end
+
+local function normalize_log_entry(level, err)
+	local codeTable = level == 'WARNING' and WarningCodes or ErrorCodes
+	local entry = codeTable[err] or ErrorCodes[err]
+	if type(entry) == 'string' then
+		return {
+			key = err,
+			code = err,
+			message = entry,
+			shortlink = buildErrorDocUrl(err)
+		}
 	end
-	sendConsole('ERROR', '^1', o)
+	if type(entry) == 'table' then
+		local resolvedCode = entry.code or err
+		return {
+			key = err,
+			code = resolvedCode,
+			message = entry.message or entry.text or '',
+			shortlink = entry.shortlink or buildErrorDocUrl(resolvedCode)
+		}
+	end
+	if type(err) == 'string' then
+		local inlinePrefix, inlineCode, inlineMessage, inlineDocs = err:match('^(.-)((?:ERR|WRN)%-%u+%-%d+)%s*:?%s*(.-)%s+More:%s+(https?://%S+)$')
+		if inlineCode ~= nil then
+			local resolvedMessage = inlineMessage ~= '' and inlineMessage or 'A SonoranCMS log event occurred.'
+			inlinePrefix = inlinePrefix and inlinePrefix:gsub('%s+$', '') or ''
+			if inlinePrefix ~= '' then
+				resolvedMessage = ('%s %s'):format(inlinePrefix, resolvedMessage)
+			end
+			return {
+				key = inlineCode,
+				code = inlineCode,
+				message = resolvedMessage,
+				shortlink = inlineDocs or buildErrorDocUrl(inlineCode)
+			}
+		end
+
+		local urlCode = err:match('/error/((?:ERR|WRN)%-%u+%-%d+)')
+		local prefixCode = err:match('(?:ERR|WRN)%-%u+%-%d+')
+		local resolvedCode = prefixCode or urlCode
+		if resolvedCode ~= nil then
+			local trimmedMessage = err
+			trimmedMessage = trimmedMessage:gsub('^.-' .. resolvedCode:gsub('%-', '%%-') .. '%s*:?%s*', '')
+			trimmedMessage = trimmedMessage:gsub('%s+More:%s+https?://%S+$', '')
+			trimmedMessage = trimmedMessage:gsub('^%s+', ''):gsub('%s+$', '')
+			if trimmedMessage == '' then
+				trimmedMessage = 'A SonoranCMS log event occurred.'
+			end
+			return {
+				key = resolvedCode,
+				code = resolvedCode,
+				message = trimmedMessage,
+				shortlink = buildErrorDocUrl(resolvedCode)
+			}
+		end
+	end
+	if type(err) == 'table' then
+		local resolvedCode = err.code or err.key or 'ERR-CORE-900'
+		if err.shortlink == nil then
+			err.shortlink = buildErrorDocUrl(resolvedCode)
+		end
+		return err
+	end
+	return nil
 end
 
-function errorLog(message)
-	sendConsole('ERROR', '^1', message)
+local function normalize_error_entry(err)
+	return normalize_log_entry('ERROR', err)
 end
 
-function warnLog(message)
-	sendConsole('WARNING', '^3', message)
+local function normalize_warning_entry(err)
+	return normalize_log_entry('WARNING', err)
+end
+
+function RegisterErrorCode(key, code, message, shortlink)
+	ErrorCodes[key] = {
+		code = code,
+		message = message,
+		shortlink = shortlink or buildErrorDocUrl(code or key)
+	}
+end
+
+function RegisterWarningCode(key, code, message, shortlink)
+	WarningCodes[key] = {
+		code = code,
+		message = message,
+		shortlink = shortlink or buildErrorDocUrl(code or key)
+	}
+end
+
+function getErrorText(err)
+	local entry = normalize_error_entry(err)
+	return entry and entry.message or nil
+end
+
+function getErrorMeta(err)
+	return normalize_error_entry(err)
+end
+
+function getWarningText(err)
+	local entry = normalize_warning_entry(err)
+	return entry and entry.message or nil
+end
+
+function getWarningMeta(err)
+	return normalize_warning_entry(err)
+end
+
+local function nextSupportReference()
+	SupportRefCounter = (SupportRefCounter % 9999) + 1
+	local timestamp = os and os.date('%Y%m%d%H%M%S') or tostring(GetGameTimer and GetGameTimer() or 0)
+	return ('CMS-%s-%04d'):format(timestamp, SupportRefCounter)
+end
+
+local function safeStringFormat(template, ...)
+	if select('#', ...) == 0 then
+		return template
+	end
+	local ok, formatted = pcall(string.format, template, ...)
+	if ok then
+		return formatted
+	end
+	return template
+end
+
+local function sanitizeErrorDetail(value)
+	if value == nil then
+		return nil
+	end
+	local text = tostring(value):gsub('\r', ' '):gsub('\n', ' ')
+	text = text:gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+	if text == '' then
+		return nil
+	end
+	if #text > 400 then
+		text = text:sub(1, 397) .. '...'
+	end
+	return text
+end
+
+function SanitizeErrorDetail(value)
+	return sanitizeErrorDetail(value)
+end
+
+local function getPlayerLabel(playerId)
+	if type(playerId) ~= 'number' or playerId <= 0 or type(GetPlayerName) ~= 'function' then
+		return nil
+	end
+	local ok, playerName = pcall(GetPlayerName, playerId)
+	if not ok or playerName == nil or playerName == '' then
+		return nil
+	end
+	return playerName
+end
+
+local function summarizeArgs(args)
+	if type(args) ~= 'table' then
+		return nil
+	end
+
+	local values = {}
+	for i = 1, math.min(#args, 3) do
+		local text = sanitizeErrorDetail(args[i])
+		if text ~= nil then
+			values[#values + 1] = text
+		end
+	end
+
+	if #values == 0 then
+		return nil
+	end
+
+	return table.concat(values, ' ')
+end
+
+local function captureFrameLocals(level)
+	local captured = {}
+	local index = 1
+	while true do
+		local ok, name, value = pcall(debug.getlocal, level, index)
+		if not ok or name == nil then
+			break
+		end
+		if name ~= '(*temporary)' then
+			captured[name] = value
+		end
+		index = index + 1
+	end
+	return captured
+end
+
+local function splitResourceSource(info)
+	local infoSource = info and info.source or ''
+	if type(infoSource) ~= 'string' then
+		return nil, 'unknown'
+	end
+	if infoSource:find('^@@') then
+		infoSource = infoSource:gsub('^@@', '')
+	elseif infoSource:find('^@') then
+		infoSource = infoSource:gsub('^@', '')
+	end
+
+	local resourceName, relativePath = infoSource:match('^([^/\\]+)[/\\](.+)$')
+	if resourceName == nil or resourceName == '' then
+		resourceName = infoSource
+		relativePath = infoSource
+	end
+
+	return resourceName, relativePath
+end
+
+local function buildActionFrame(level)
+	local ok, info = pcall(debug.getinfo, level, 'nSl')
+	if not ok or type(info) ~= 'table' then
+		return nil
+	end
+
+	local infoSource = info.source or ''
+	if type(infoSource) ~= 'string' then
+		return nil
+	end
+	if not infoSource:find('@@sonorancms') then
+		return nil
+	end
+	local excludedFunctions = {
+		buildActionFrame = true,
+		captureActionTrace = true,
+		formatActionTrace = true,
+		buildErrorReport = true,
+		appendSupportError = true,
+		BuildSupportErrorMessage = true,
+		logError = true,
+		errorLog = true,
+		warnLog = true,
+		sendConsole = true,
+		debugLog = true
+	}
+	if excludedFunctions[info.name] == true then
+		return nil
+	end
+
+	local locals = captureFrameLocals(level)
+	local actionLabel = nil
+	local actionKind = nil
+	local numericSource = tonumber(locals.source)
+	local numericPlayerId = tonumber(locals.playerId)
+	local actorSource = numericSource or numericPlayerId
+	local actorLabel = nil
+	if actorSource == nil and tonumber(_G.source) ~= nil then
+		actorSource = tonumber(_G.source)
+	end
+	if actorSource ~= nil then
+		local playerLabel = getPlayerLabel(actorSource)
+		if playerLabel ~= nil then
+			actorLabel = ('%s (%s)'):format(actorSource, playerLabel)
+		else
+			actorLabel = tostring(actorSource)
+		end
+	end
+
+	local rawCommand = sanitizeErrorDetail(locals.rawCommand)
+	if rawCommand ~= nil then
+		actionKind = 'command'
+		actionLabel = rawCommand
+	elseif type(locals.commandName) == 'string' and locals.commandName ~= '' then
+		actionKind = 'command'
+		actionLabel = ('/%s'):format(locals.commandName)
+	elseif type(locals.action) == 'string' and locals.action ~= '' then
+		actionKind = 'action'
+		actionLabel = locals.action
+	end
+
+	local eventLabel = nil
+	if type(locals.eventType) == 'string' and locals.eventType ~= '' then
+		eventLabel = locals.eventType
+	elseif type(locals.eventName) == 'string' and locals.eventName ~= '' then
+		eventLabel = locals.eventName
+	end
+
+	local method = sanitizeErrorDetail(locals.method)
+	local path = sanitizeErrorDetail(locals.path)
+	local httpLabel = method ~= nil and path ~= nil and ('%s %s'):format(method, path) or nil
+
+	local requesterLabel = nil
+	if type(locals.requester) == 'number' and locals.requester > 0 then
+		local requesterName = getPlayerLabel(locals.requester)
+		if requesterName ~= nil then
+			requesterLabel = ('%s (%s)'):format(locals.requester, requesterName)
+		else
+			requesterLabel = tostring(locals.requester)
+		end
+	end
+
+	local argsSummary = summarizeArgs(locals.args)
+	local resourceName, relativePath = splitResourceSource(info)
+	local lineNumber = info and (info.currentline or info.linedefined) or nil
+	local functionName = sanitizeErrorDetail(info.name)
+	if actionLabel == nil and eventLabel == nil and httpLabel == nil and resourceName == nil and relativePath == nil then
+		return nil
+	end
+
+	return {
+		actionKind = actionKind,
+		actionLabel = actionLabel,
+		event = eventLabel,
+		http = httpLabel,
+		source = actorLabel,
+		requester = requesterLabel,
+		args = rawCommand == nil and argsSummary or nil,
+		resource = resourceName,
+		file = relativePath,
+		line = type(lineNumber) == 'number' and lineNumber > 0 and lineNumber or nil,
+		fn = functionName
+	}
+end
+
+local function captureActionTrace()
+	local frames = {}
+	for level = 4, 10 do
+		local frame = buildActionFrame(level)
+		if frame ~= nil then
+			frames[#frames + 1] = frame
+		end
+	end
+	return frames
+end
+
+local function formatActionTrace(frames)
+	if type(frames) ~= 'table' or #frames == 0 then
+		return nil
+	end
+
+	local function buildFrameHeader(frame)
+		if frame.actionLabel ~= nil then
+			return ('%s `%s`'):format(frame.actionKind == 'action' and 'Action' or 'Command', frame.actionLabel)
+		end
+		if frame.event ~= nil then
+			return ('Event `%s`'):format(frame.event)
+		end
+		if frame.http ~= nil then
+			return ('HTTP `%s`'):format(frame.http)
+		end
+		return 'Execution'
+	end
+
+	local function buildFrameMeta(frame)
+		local meta = {}
+		if frame.event ~= nil and frame.actionLabel ~= nil then
+			meta[#meta + 1] = ('event `%s`'):format(frame.event)
+		end
+		if frame.http ~= nil then
+			meta[#meta + 1] = ('via `%s`'):format(frame.http)
+		end
+		if frame.source ~= nil then
+			meta[#meta + 1] = ('player %s'):format(frame.source)
+		end
+		if frame.requester ~= nil then
+			meta[#meta + 1] = ('requester %s'):format(frame.requester)
+		end
+		if frame.args ~= nil then
+			meta[#meta + 1] = ('args `%s`'):format(frame.args)
+		end
+		if frame.resource ~= nil then
+			meta[#meta + 1] = ('resource `%s`'):format(frame.resource)
+		end
+		return meta
+	end
+
+	local function buildFrameLocation(frame)
+		local location = nil
+		if frame.file ~= nil and frame.line ~= nil then
+			location = ('%s:%s'):format(frame.file, tostring(frame.line))
+		else
+			location = frame.file
+		end
+		if location ~= nil and frame.fn ~= nil then
+			return ('%s in `%s`'):format(location, frame.fn)
+		end
+		if frame.fn ~= nil then
+			return ('function `%s`'):format(frame.fn)
+		end
+		return location
+	end
+
+	local formatted = {}
+	local causeSummary = nil
+	local contextSummary = nil
+	for index, frame in ipairs(frames) do
+		if type(frame) == 'table' then
+			local header = buildFrameHeader(frame)
+			local meta = buildFrameMeta(frame)
+			local location = buildFrameLocation(frame)
+
+			if causeSummary == nil and location ~= nil then
+				causeSummary = ('Likely cause: %s'):format(location)
+			end
+			if contextSummary == nil then
+				local contextParts = { header }
+				if #meta > 0 then
+					contextParts[#contextParts + 1] = ('(%s)'):format(table.concat(meta, ', '))
+				end
+				contextSummary = 'Started from: ' .. table.concat(contextParts, ' ')
+			end
+
+			local line = ('[%d] %s'):format(index, header)
+			if #meta > 0 then
+				line = ('%s (%s)'):format(line, table.concat(meta, ', '))
+			end
+			if location ~= nil then
+				line = ('%s\n    at %s'):format(line, location)
+			end
+			formatted[#formatted + 1] = line
+		elseif frame ~= nil then
+			formatted[#formatted + 1] = ('[%d] %s'):format(index, tostring(frame))
+		end
+	end
+
+	if #formatted == 0 then
+		return nil
+	end
+
+	local sections = {}
+	if causeSummary ~= nil then
+		sections[#sections + 1] = causeSummary
+	end
+	if contextSummary ~= nil then
+		sections[#sections + 1] = contextSummary
+	end
+	sections[#sections + 1] = 'Trace:'
+	sections[#sections + 1] = table.concat(formatted, '\n')
+
+	return table.concat(sections, '\n')
+end
+
+local function buildErrorReport(level, err, msg, ...)
+	local fallbackKey = level == 'WARNING' and 'UNHANDLED_WARNING' or 'UNHANDLED_SERVER_ERROR'
+	local entry = normalize_log_entry(level, err)
+	local rawDetail = nil
+
+	if entry == nil and type(err) == 'string' and msg == nil then
+		rawDetail = err
+		entry = normalize_log_entry(level, fallbackKey)
+	elseif entry == nil then
+		rawDetail = tostring(err)
+		entry = normalize_log_entry(level, fallbackKey)
+	end
+
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	local sanitizedDetail = sanitizeErrorDetail(rawDetail)
+	local supportRef = nextSupportReference()
+	local actionTrace = captureActionTrace()
+	local actionTraceText = formatActionTrace(actionTrace)
+	local userMessage = ('%s Support ref: %s Docs: %s'):format(formatted, supportRef, entry.shortlink)
+	local logMessage = ('%s: %s Support ref: %s Docs: %s'):format(entry.code, formatted, supportRef, entry.shortlink)
+	if sanitizedDetail ~= nil and sanitizedDetail ~= formatted then
+		logMessage = ('%s Details: %s'):format(logMessage, sanitizedDetail)
+	end
+	if actionTraceText ~= nil then
+		logMessage = ('%s\n%s'):format(logMessage, actionTraceText)
+	end
+
+	return {
+		level = level,
+		entry = entry,
+		formatted = formatted,
+		sanitizedDetail = sanitizedDetail,
+		supportRef = supportRef,
+		userMessage = userMessage,
+		logMessage = logMessage,
+		actionTrace = actionTrace,
+		actionTraceText = actionTraceText
+	}
+end
+
+local function appendSupportError(report)
+	if not IsDuplicityVersion() or type(report) ~= 'table' or type(report.entry) ~= 'table' then
+		return
+	end
+
+	local sourceName = 'SonoranCMS'
+	local info = debug.getinfo(4, 'nSl')
+	if info ~= nil and type(info) == 'table' then
+		local resourceName, relativePath = splitResourceSource(info)
+		local lineNumber = info.currentline or info.linedefined
+		local parts = {}
+		if resourceName ~= nil then
+			parts[#parts + 1] = ('resource=%s'):format(resourceName)
+		end
+		if relativePath ~= nil then
+			parts[#parts + 1] = ('file=%s'):format(relativePath)
+		end
+		if type(lineNumber) == 'number' and lineNumber > 0 then
+			parts[#parts + 1] = ('line=%s'):format(tostring(lineNumber))
+		end
+		if type(info.name) == 'string' and info.name ~= '' then
+			parts[#parts + 1] = ('fn=%s'):format(info.name)
+		end
+		if #parts > 0 then
+			sourceName = table.concat(parts, ' | ')
+		end
+	end
+
+	table.insert(SupportErrorBuffer, 1, {
+		timestamp = os and os.date('!%Y-%m-%dT%H:%M:%SZ') or tostring(GetGameTimer and GetGameTimer() or 0),
+		level = report.level,
+		key = report.entry.key,
+		code = report.entry.code,
+		message = report.formatted,
+		supportRef = report.supportRef,
+		docs = report.entry.shortlink,
+		details = report.sanitizedDetail,
+		source = sourceName,
+		actionTrace = report.actionTrace,
+		actionTraceText = report.actionTraceText
+	})
+
+	if #SupportErrorBuffer > 250 then
+		table.remove(SupportErrorBuffer)
+	end
+end
+
+function formatErrorMessage(err, msg, ...)
+	local entry = normalize_error_entry(err)
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	if entry == nil then
+		return formatted
+	end
+	return ('%s: %s More: %s'):format(entry.code, formatted, entry.shortlink)
+end
+
+function formatWarningMessage(err, msg, ...)
+	local entry = normalize_warning_entry(err)
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	if entry == nil then
+		return formatted
+	end
+	return ('%s: %s More: %s'):format(entry.code, formatted, entry.shortlink)
+end
+
+function BuildSupportErrorMessage(err, msg, ...)
+	local report = buildErrorReport('ERROR', err, msg, ...)
+	return ('%s: %s'):format(report.entry.code, report.userMessage), report
+end
+
+function logError(err, msg, ...)
+	local report = buildErrorReport('ERROR', err, msg, ...)
+	appendSupportError(report)
+	sendConsole('ERROR', '^1', report.logMessage)
+end
+
+function errorLog(err, msg, ...)
+	local report
+	if msg ~= nil or normalize_error_entry(err) ~= nil then
+		report = buildErrorReport('ERROR', err, msg, ...)
+	else
+		report = buildErrorReport('ERROR', err)
+	end
+	appendSupportError(report)
+	sendConsole('ERROR', '^1', report.logMessage)
+end
+
+function warnLog(err, msg, ...)
+	local report
+	if msg ~= nil or normalize_warning_entry(err) ~= nil or normalize_error_entry(err) ~= nil then
+		report = buildErrorReport('WARNING', err, msg, ...)
+	else
+		report = buildErrorReport('WARNING', err)
+	end
+	appendSupportError(report)
+	sendConsole('WARNING', '^3', report.logMessage)
 end
 
 function infoLog(message)
@@ -637,8 +1245,8 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 				return
 			end
 			rateLimitedEndpoints[requestType] = true
-			warnLog(
-				('WARN_RATELIMIT: You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
+			warnLog('API_RATELIMITED',
+				('You are being ratelimited (last request made to %s) - Ignoring all API requests to this endpoint for 60 seconds. If this is happening frequently, please review your configuration to ensure you\'re not sending data too quickly.'):format(
 					requestType))
 			SetTimeout(60000, function()
 				rateLimitedEndpoints[requestType] = nil
@@ -649,9 +1257,9 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 		end
 		if statusCode == 400 or statusCode == 401 or statusCode == 403 or statusCode == 404 or statusCode == 422 then
 			local errorMessage = extractV2ErrorMessage(res)
-			warnLog(('Bad request was sent to the V2 API. Response: %s'):format(tostring(errorMessage)))
+			warnLog('API_BAD_REQUEST', ('Bad request was sent to the V2 API. Response: %s'):format(tostring(errorMessage)))
 			if statusCode == 400 and (tostring(errorMessage) == 'INVALID COMMUNITY ID' or tostring(errorMessage) == 'API IS NOT ENABLED FOR THIS COMMUNITY' or string.find(tostring(errorMessage), 'IS NOT ENABLED FOR THIS COMMUNITY') or tostring(errorMessage) == 'INVALID API KEY') then
-				errorLog('Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(errorMessage))
+				errorLog('API_DISABLED_FATAL', 'Fatal: Disabling API - an error was encountered that must be resolved. Please restart the resource after resolving: ' .. tostring(errorMessage))
 				Config.critError = true
 			end
 			cb(errorMessage, false)
@@ -659,12 +1267,12 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 		end
 		if string.match(tostring(statusCode), '50') then
 			local errorMessage = extractV2ErrorMessage(res)
-			errorLog(('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
+			errorLog('API_SERVER_ERROR', ('API error returned (%s). Check status.sonoransoftware.com or our Discord to see if there\'s an outage.'):format(statusCode))
 			debugLog(('API_ERROR Error returned: %s %s'):format(statusCode, tostring(errorMessage)))
 			cb(errorMessage, false)
 			return
 		end
-		errorLog(('CMS API ERROR (from %s): %s %s'):format(url, statusCode, tostring(res)))
+		errorLog('API_REQUEST_UNEXPECTED', ('CMS API ERROR (from %s): %s %s'):format(url, statusCode, tostring(res)))
 		cb(res, false)
 	end, requestMethod, requestBody, headers)
 end
@@ -733,7 +1341,7 @@ function performApiRequest(postData, requestType, cb)
 	}
 	assert(requestType ~= nil, 'No type specified, invalid request.')
 	if Config.critError then
-		errorLog('API request failed: critical error encountered, API version too low, aborting request.')
+		errorLog('API_REQUEST_BLOCKED', 'API request failed: critical error encountered, API version too low, aborting request.')
 		return
 	end
 

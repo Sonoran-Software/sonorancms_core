@@ -42,7 +42,7 @@ AddEventHandler('playerConnecting', function()
 		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Security Center posted for ' .. identifier)
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to post to Security Center for ' .. identifier .. ' - ' .. data)
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'SECURITY_CENTER_POST_FAILED', 'Failed to post to Security Center for ' .. identifier .. ' - ' .. data)
 		end
 	end)
 end)

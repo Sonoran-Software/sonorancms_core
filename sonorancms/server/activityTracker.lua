@@ -21,7 +21,7 @@ AddEventHandler('playerJoining', function()
 		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker started for ' .. name .. ' (' .. identifier .. ')')
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to start activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. data)
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'ACTIVITY_TRACKER_START_FAILED', 'Failed to start activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. data)
 		end
 	end)
 end)
@@ -49,7 +49,7 @@ AddEventHandler('playerDropped', function()
 		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker stopped for ' .. name .. ' (' .. identifier .. ')')
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. json.encode(data))
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'ACTIVITY_TRACKER_STOP_FAILED', 'Failed to stop activity tracker for ' .. name .. ' (' .. identifier .. ') - ' .. json.encode(data))
 		end
 	end)
 end)
@@ -65,7 +65,7 @@ AddEventHandler('onResourceStart', function(resourceName)
 		if success then
 			TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Activity tracker stopped for all active activities - ' .. json.encode(data))
 		else
-			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to stop activity tracker for all active activities - ' .. json.encode(data))
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'ACTIVITY_TRACKER_RESET_FAILED', 'Failed to stop activity tracker for all active activities - ' .. json.encode(data))
 		end
 	end)
 end)
