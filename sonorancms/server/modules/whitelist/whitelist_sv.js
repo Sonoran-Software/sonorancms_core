@@ -21,6 +21,7 @@ const enabledConfig = JSON.parse(
     "./server/modules/whitelist/whitelist_config.json"
   )
 );
+const supportHint = (code) => `${code} More: https://sonorancms.com/error/${code}`;
 
 /**
  *
@@ -165,7 +166,7 @@ let addActivePlayer = async (apiId, src) => {
     );
   } catch (err) {
     errorLog(
-      `Error adding active player ${src} to activePlayers cache: ${err}`
+      `${supportHint("ERR-WL-101")} Error adding active player ${src} to activePlayers cache: ${err}`
     );
   }
 };
@@ -194,7 +195,7 @@ async function initialize() {
       );
       if (!apiId)
         return errorLog(
-          `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
+          `${supportHint("ERR-WL-102")} Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
         );
       if (data.key === whiteListapiKey) {
         exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
@@ -236,7 +237,7 @@ async function initialize() {
     );
     if (!apiId)
       return errorLog(
-        `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
+        `${supportHint("ERR-WL-102")} Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
       );
     deferrals.update("Checking whitelist...");
     updateBackup();
@@ -340,7 +341,7 @@ async function initialize() {
         );
         if (!apiId)
           return errorLog(
-            `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
+            `${supportHint("ERR-WL-102")} Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
           );
         await addActivePlayer(apiId, player);
       }

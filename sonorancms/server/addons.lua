@@ -48,7 +48,7 @@ RegisterNetEvent('SonoranCMS::Plugins::Loaded', function(pluginName)
 		ExecuteCommand('stop ' .. pluginName)
 		Wait(1000)
 		if GetResourceState(pluginName) == 'started' then
-			Utilities.Logging.logError('Failed to stop ' .. pluginName .. '. Please remove this addon as it is now bundled with SonoranCMS.')
+			Utilities.Logging.logError('ERR-PLUG-101 Failed to stop ' .. pluginName .. '. More: https://sonorancms.com/error/ERR-PLUG-101 Please remove this addon as it is now bundled with SonoranCMS.')
 			return
 		else
 			Utilities.Logging.logInfo('Stopped ' .. pluginName .. ' to prevent conflicts. Please remove this addon as it is now bundled with SonoranCMS')

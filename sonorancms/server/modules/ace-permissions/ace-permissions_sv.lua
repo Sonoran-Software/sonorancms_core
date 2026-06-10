@@ -99,7 +99,7 @@ AddEventHandler('playerConnecting', function(_, _, deferrals)
 	end
 	if identifier == nil then
 		deferrals.done('You must have a ' .. Config.apiIdType .. ' identifier to join this server.')
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'ACE_IDENTIFIER_MISSING', 'Player ' .. GetPlayerName(source) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
 		return
 	end
 	local reqData = {}
@@ -193,7 +193,7 @@ RegisterCommand('refreshpermissions', function(src, _, _)
 		payload['apiId'] = identifier
 	end
 	if identifier == nil then
-		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
+		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'ACE_IDENTIFIER_MISSING', 'Player ' .. GetPlayerName(src) .. ' was denied access due to not having a ' .. Config.apiIdType .. ' identifier.')
 		TriggerClientEvent('chat:addMessage', src, {
 			color = {
 				255,
@@ -375,7 +375,7 @@ AddEventHandler('onResourceStart', function(resource)
 					setRankList(resultDecoded.data.mappings)
 				end
 			else
-				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'Failed to get ACE permissions from CMS. Please check your API key and connection.')
+				TriggerEvent('SonoranCMS::core:writeLog', 'error', 'ACE_PERMISSIONS_FETCH_FAILED', 'Failed to get ACE permissions from CMS. Please check your API key and connection.')
 			end
 		end)
 	end

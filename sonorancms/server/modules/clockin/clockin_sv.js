@@ -6,6 +6,7 @@ cleanLuaConfig1.replace(/Config\.(\w+)\s*=\s*(.*?)(?=\n|$)/g, (match, key, value
 	serverConfig[key] = value.trim();
 });
 let apiIdType = serverConfig.apiIdType;
+const supportHint = (code) => `${code} More: https://sonorancms.com/error/${code}`;
 
 /**
  *
@@ -136,7 +137,7 @@ async function initialize() {
 									multiline: false,
 									args: [`^8^*Sonoran CMS:^7 You do not have permissions to use this command...`],
 								});
-								errorLog(`${GetPlayerName(source)} (${apiId}) did not have perms to clock in...`);
+								errorLog(`${supportHint("ERR-CLK-101")} ${GetPlayerName(source)} (${apiId}) did not have perms to clock in...`);
 							}
 						})
 						.catch((err) => {
@@ -145,7 +146,7 @@ async function initialize() {
 								multiline: false,
 								args: [`^8^*Sonoran CMS:^7 ${err || "An error occured while clocking in..."}`],
 							});
-							errorLog(`An error occured while clocking in ${GetPlayerName(source)} (${apiId})... ${err}`);
+							errorLog(`${supportHint("ERR-CLK-102")} An error occured while clocking in ${GetPlayerName(source)} (${apiId})... ${err}`);
 						});
 				},
 				config.useAcePermissions
@@ -178,18 +179,18 @@ async function initialize() {
 					emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
-						errorLog(`Failed to clock player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}...`);
+						errorLog(`${supportHint("ERR-CLK-103")} Failed to clock player ${GetPlayerName(src)} (${apiId}) ${inOrOut ? "out" : "in"}...`);
 					});
 			});
 		}
 		if (config?.cad?.use) {
 			if (GetResourceState("sonorancad") !== "started") {
-				errorLog(`[SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
+				errorLog(`${supportHint("ERR-CLK-104")} [SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
 				return
 			}
 			onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
 				if (!accID?.accId) {
-					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogin event... ignoring...`)
+					emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-101 No accId found in UnitLogin event... ignoring... More: https://sonorancms.com/error/WRN-CLK-101`)
 					return
 				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${accID.accId} based on UnitLogin event...`)
@@ -198,19 +199,19 @@ async function initialize() {
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${accID.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
-						emit('SonoranCMS::core:writeLog', 'warn', `Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}...`)
+						emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-104 Failed to clock player ${accID.accId} ${inOrOut ? "out" : "in"}... More: https://sonorancms.com/error/WRN-CLK-104`)
 				});
 			})
 			onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
 				if (!accID) {
-					emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogout event... ignoring...`)
+					emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-102 No accId found in UnitLogout event... ignoring... More: https://sonorancms.com/error/WRN-CLK-102`)
 					return
 				}
 				let unitId = exports.sonorancad.GetUnitById(accID);
 				let unitCache = exports.sonorancad.GetUnitCache();
 				let foundUnit = unitCache[unitId - 1];
 				if (!foundUnit && !foundUnit?.accId) {
-					emit('SonoranCMS::core:writeLog', 'warn', `No unit found in UnitLogout event... ignoring...`)
+					emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-103 No unit found in UnitLogout event... ignoring... More: https://sonorancms.com/error/WRN-CLK-103`)
 					return
 				}
 				emit('SonoranCMS::core:writeLog', 'debug', `Triggering clockPlayerInFromCad for ${foundUnit.accId} based on UnitLogout event...`)
@@ -219,19 +220,19 @@ async function initialize() {
 						emit('SonoranCMS::core:writeLog', 'debug', `Clocked player ${foundUnit.accId} ${inOrOut ? "out" : "in"}!`)
 					})
 					.catch((err) => {
-						emit('SonoranCMS::core:writeLog', 'warn', `Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}...`)
+						emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-104 Failed to clock player ${foundUnit.accId} ${inOrOut ? "out" : "in"}... More: https://sonorancms.com/error/WRN-CLK-104`)
 					});
 			});
 		}
 
 		// Updating ranks based on CAD status | Jordan 12/23/2024
 		if (GetResourceState("sonorancad") !== "started") {
-			errorLog(`[SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
+			errorLog(`${supportHint("ERR-CLK-104")} [SonoranCMS ClockIn] SonoranCAD resource is in a bad state (${GetResourceState("sonorancad")})... please ensure it is started or disable the CAD integration in the config...`);
 			return
 		}
 		onNet("SonoranCAD::pushevents:UnitLogin", async (accID) => {
 			if (!accID?.accId) {
-				emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogin event... ignoring adding CMS rank...`)
+				emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-105 No accId found in UnitLogin event... ignoring adding CMS rank... More: https://sonorancms.com/error/WRN-CLK-105`)
 				return
 			}
 			emit('SonoranCMS::core:writeLog', 'debug', `Triggering cmsUpdateRanksBasedOnCad for ${accID.accId} based on UnitLogin event...`)
@@ -240,19 +241,19 @@ async function initialize() {
 					emit('SonoranCMS::core:writeLog', 'debug', `Added CMS rank(s) for ${accID.accId}!`)
 				})
 				.catch((err) => {
-					emit('SonoranCMS::core:writeLog', 'warn', `Failed to add CMS rank(s) for ${accID.accId}...`)
+					emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-106 Failed to add CMS rank(s) for ${accID.accId}... More: https://sonorancms.com/error/WRN-CLK-106`)
 			});
 		})
 		onNet("SonoranCAD::pushevents:UnitLogout", async (accID) => {
 			if (!accID) {
-				emit('SonoranCMS::core:writeLog', 'warn', `No accId found in UnitLogout event... ignoring...`)
+				emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-107 No accId found in UnitLogout event... ignoring... More: https://sonorancms.com/error/WRN-CLK-107`)
 				return
 			}
 			let unitId = exports.sonorancad.GetUnitById(accID);
 			let unitCache = exports.sonorancad.GetUnitCache();
 			let foundUnit = unitCache[unitId - 1];
 			if (!foundUnit && !foundUnit?.accId) {
-				emit('SonoranCMS::core:writeLog', 'warn', `No unit found in UnitLogout event... ignoring adding CMS rank...`)
+				emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-108 No unit found in UnitLogout event... ignoring adding CMS rank... More: https://sonorancms.com/error/WRN-CLK-108`)
 				return
 			}
 			emit('SonoranCMS::core:writeLog', 'debug', `Triggering cmsUpdateRanksBasedOnCad for ${foundUnit.accId} based on UnitLogout event...`)
@@ -261,11 +262,11 @@ async function initialize() {
 					emit('SonoranCMS::core:writeLog', 'debug', `Removed CMS rank(s) for ${foundUnit.accId}!`)
 				})
 				.catch((err) => {
-					emit('SonoranCMS::core:writeLog', 'warn', `Failed to remove CMS rank(s) for ${foundUnit.accId}...`)
+					emit('SonoranCMS::core:writeLog', 'warn', `WRN-CLK-109 Failed to remove CMS rank(s) for ${foundUnit.accId}... More: https://sonorancms.com/error/WRN-CLK-109`)
 				});
 		});
 	} else {
-		errorLog("No config found... looked for clockin_config.json & server convars...");
+		errorLog(`${supportHint("ERR-CLK-105")} No config found... looked for clockin_config.json & server convars...`);
 	}
 }
 
