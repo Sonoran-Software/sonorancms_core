@@ -2,7 +2,9 @@ local plugin_handlers = {}
 local MessageBuffer = {}
 local DebugBuffer = {}
 local ErrorBuffer = {}
+local SupportErrorBuffer = {}
 local ERROR_DOC_BASE_URL = 'https://sonorancms.com/error/'
+local SupportRefCounter = 0
 
 SetHttpHandler(function(req, res)
 	local path = req.path
@@ -435,6 +437,10 @@ function getErrorBuffer()
 	return ErrorBuffer
 end
 
+function getSupportErrorBuffer()
+	return SupportErrorBuffer
+end
+
 function debugLog(message)
 	sendConsole('DEBUG', '^7', message)
 end
@@ -460,6 +466,7 @@ local WarningCodes = {
 	['LEGACY_RESOURCE_RUNNING'] = { code = 'WRN-GP-107', message = 'A legacy standalone SonoranCMS addon is still running alongside the bundled core module.' },
 	['ACE_IDENTIFIER_MISSING'] = { code = 'WRN-ACE-101', message = 'A player was denied ACE mapping because the configured identifier was missing.' },
 	['JOBSYNC_IDENTIFIER_MISSING'] = { code = 'WRN-JS-101', message = 'JobSync could not update CMS ranks because the configured identifier was missing.' },
+	['UNHANDLED_WARNING'] = { code = 'WRN-CORE-900', message = 'A non-fatal warning occurred.' },
 }
 
 local ErrorCodes = {
@@ -478,44 +485,587 @@ local ErrorCodes = {
 	['JOBSYNC_SET_RANKS_FAILED'] = { code = 'ERR-JS-101', message = 'JobSync could not update account ranks in SonoranCMS.' },
 	['GAME_PANEL_GARAGE_EXPORT_MISSING'] = { code = 'ERR-GP-201', message = 'A garage resource is missing the export SonoranCMS expects.' },
 	['LEGACY_RESOURCE_STOP_FAILED'] = { code = 'ERR-PLUG-101', message = 'A legacy standalone SonoranCMS addon could not be stopped automatically.' },
+	['UNHANDLED_SERVER_ERROR'] = { code = 'ERR-CORE-900', message = 'An unexpected server error occurred.' },
+	['UNHANDLED_WARNING'] = { code = 'ERR-CORE-901', message = 'A non-fatal warning occurred.' },
 }
 
 local function buildErrorDocUrl(code)
-	return ERROR_DOC_BASE_URL .. string.lower(tostring(code))
+	local resolvedCode = tostring(code or 'ERR-CORE-900')
+	return ERROR_DOC_BASE_URL .. string.lower(resolvedCode)
 end
 
-local function getLogMeta(level, key)
+local function normalize_log_entry(level, err)
 	local codeTable = level == 'WARNING' and WarningCodes or ErrorCodes
-	return codeTable[key] or ErrorCodes[key]
-end
-
-local function formatStructuredLog(level, key, message)
-	local meta = type(key) == 'string' and getLogMeta(level, key) or nil
-	if meta == nil then
-		return message or key
+	local entry = codeTable[err] or ErrorCodes[err]
+	if type(entry) == 'string' then
+		return {
+			key = err,
+			code = err,
+			message = entry,
+			shortlink = buildErrorDocUrl(err)
+		}
 	end
-	local resolvedMessage = message or meta.message or key
-	return ('%s %s More: %s'):format(meta.code, resolvedMessage, buildErrorDocUrl(meta.code))
+	if type(entry) == 'table' then
+		local resolvedCode = entry.code or err
+		return {
+			key = err,
+			code = resolvedCode,
+			message = entry.message or entry.text or '',
+			shortlink = entry.shortlink or buildErrorDocUrl(resolvedCode)
+		}
+	end
+	if type(err) == 'string' then
+		local inlinePrefix, inlineCode, inlineMessage, inlineDocs = err:match('^(.-)((?:ERR|WRN)%-%u+%-%d+)%s*:?%s*(.-)%s+More:%s+(https?://%S+)$')
+		if inlineCode ~= nil then
+			local resolvedMessage = inlineMessage ~= '' and inlineMessage or 'A SonoranCMS log event occurred.'
+			inlinePrefix = inlinePrefix and inlinePrefix:gsub('%s+$', '') or ''
+			if inlinePrefix ~= '' then
+				resolvedMessage = ('%s %s'):format(inlinePrefix, resolvedMessage)
+			end
+			return {
+				key = inlineCode,
+				code = inlineCode,
+				message = resolvedMessage,
+				shortlink = inlineDocs or buildErrorDocUrl(inlineCode)
+			}
+		end
+
+		local urlCode = err:match('/error/((?:ERR|WRN)%-%u+%-%d+)')
+		local prefixCode = err:match('(?:ERR|WRN)%-%u+%-%d+')
+		local resolvedCode = prefixCode or urlCode
+		if resolvedCode ~= nil then
+			local trimmedMessage = err
+			trimmedMessage = trimmedMessage:gsub('^.-' .. resolvedCode:gsub('%-', '%%-') .. '%s*:?%s*', '')
+			trimmedMessage = trimmedMessage:gsub('%s+More:%s+https?://%S+$', '')
+			trimmedMessage = trimmedMessage:gsub('^%s+', ''):gsub('%s+$', '')
+			if trimmedMessage == '' then
+				trimmedMessage = 'A SonoranCMS log event occurred.'
+			end
+			return {
+				key = resolvedCode,
+				code = resolvedCode,
+				message = trimmedMessage,
+				shortlink = buildErrorDocUrl(resolvedCode)
+			}
+		end
+	end
+	if type(err) == 'table' then
+		local resolvedCode = err.code or err.key or 'ERR-CORE-900'
+		if err.shortlink == nil then
+			err.shortlink = buildErrorDocUrl(resolvedCode)
+		end
+		return err
+	end
+	return nil
 end
 
-function RegisterErrorCode(key, code, message)
-	ErrorCodes[key] = { code = code, message = message }
+local function normalize_error_entry(err)
+	return normalize_log_entry('ERROR', err)
 end
 
-function RegisterWarningCode(key, code, message)
-	WarningCodes[key] = { code = code, message = message }
+local function normalize_warning_entry(err)
+	return normalize_log_entry('WARNING', err)
 end
 
-function logError(err, msg)
-	sendConsole('ERROR', '^1', formatStructuredLog('ERROR', err, msg))
+function RegisterErrorCode(key, code, message, shortlink)
+	ErrorCodes[key] = {
+		code = code,
+		message = message,
+		shortlink = shortlink or buildErrorDocUrl(code or key)
+	}
 end
 
-function errorLog(err, msg)
-	sendConsole('ERROR', '^1', formatStructuredLog('ERROR', err, msg))
+function RegisterWarningCode(key, code, message, shortlink)
+	WarningCodes[key] = {
+		code = code,
+		message = message,
+		shortlink = shortlink or buildErrorDocUrl(code or key)
+	}
 end
 
-function warnLog(err, msg)
-	sendConsole('WARNING', '^3', formatStructuredLog('WARNING', err, msg))
+function getErrorText(err)
+	local entry = normalize_error_entry(err)
+	return entry and entry.message or nil
+end
+
+function getErrorMeta(err)
+	return normalize_error_entry(err)
+end
+
+function getWarningText(err)
+	local entry = normalize_warning_entry(err)
+	return entry and entry.message or nil
+end
+
+function getWarningMeta(err)
+	return normalize_warning_entry(err)
+end
+
+local function nextSupportReference()
+	SupportRefCounter = (SupportRefCounter % 9999) + 1
+	local timestamp = os and os.date('%Y%m%d%H%M%S') or tostring(GetGameTimer and GetGameTimer() or 0)
+	return ('CMS-%s-%04d'):format(timestamp, SupportRefCounter)
+end
+
+local function safeStringFormat(template, ...)
+	if select('#', ...) == 0 then
+		return template
+	end
+	local ok, formatted = pcall(string.format, template, ...)
+	if ok then
+		return formatted
+	end
+	return template
+end
+
+local function sanitizeErrorDetail(value)
+	if value == nil then
+		return nil
+	end
+	local text = tostring(value):gsub('\r', ' '):gsub('\n', ' ')
+	text = text:gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+	if text == '' then
+		return nil
+	end
+	if #text > 400 then
+		text = text:sub(1, 397) .. '...'
+	end
+	return text
+end
+
+function SanitizeErrorDetail(value)
+	return sanitizeErrorDetail(value)
+end
+
+local function getPlayerLabel(playerId)
+	if type(playerId) ~= 'number' or playerId <= 0 or type(GetPlayerName) ~= 'function' then
+		return nil
+	end
+	local ok, playerName = pcall(GetPlayerName, playerId)
+	if not ok or playerName == nil or playerName == '' then
+		return nil
+	end
+	return playerName
+end
+
+local function summarizeArgs(args)
+	if type(args) ~= 'table' then
+		return nil
+	end
+
+	local values = {}
+	for i = 1, math.min(#args, 3) do
+		local text = sanitizeErrorDetail(args[i])
+		if text ~= nil then
+			values[#values + 1] = text
+		end
+	end
+
+	if #values == 0 then
+		return nil
+	end
+
+	return table.concat(values, ' ')
+end
+
+local function captureFrameLocals(level)
+	local captured = {}
+	local index = 1
+	while true do
+		local ok, name, value = pcall(debug.getlocal, level, index)
+		if not ok or name == nil then
+			break
+		end
+		if name ~= '(*temporary)' then
+			captured[name] = value
+		end
+		index = index + 1
+	end
+	return captured
+end
+
+local function splitResourceSource(info)
+	local infoSource = info and info.source or ''
+	if type(infoSource) ~= 'string' then
+		return nil, 'unknown'
+	end
+	if infoSource:find('^@@') then
+		infoSource = infoSource:gsub('^@@', '')
+	elseif infoSource:find('^@') then
+		infoSource = infoSource:gsub('^@', '')
+	end
+
+	local resourceName, relativePath = infoSource:match('^([^/\\]+)[/\\](.+)$')
+	if resourceName == nil or resourceName == '' then
+		resourceName = infoSource
+		relativePath = infoSource
+	end
+
+	return resourceName, relativePath
+end
+
+local function buildActionFrame(level)
+	local ok, info = pcall(debug.getinfo, level, 'nSl')
+	if not ok or type(info) ~= 'table' then
+		return nil
+	end
+
+	local infoSource = info.source or ''
+	if type(infoSource) ~= 'string' then
+		return nil
+	end
+	if not infoSource:find('@@sonorancms') then
+		return nil
+	end
+	local excludedFunctions = {
+		buildActionFrame = true,
+		captureActionTrace = true,
+		formatActionTrace = true,
+		buildErrorReport = true,
+		appendSupportError = true,
+		BuildSupportErrorMessage = true,
+		logError = true,
+		errorLog = true,
+		warnLog = true,
+		sendConsole = true,
+		debugLog = true
+	}
+	if excludedFunctions[info.name] == true then
+		return nil
+	end
+
+	local locals = captureFrameLocals(level)
+	local actionLabel = nil
+	local actionKind = nil
+	local numericSource = tonumber(locals.source)
+	local numericPlayerId = tonumber(locals.playerId)
+	local actorSource = numericSource or numericPlayerId
+	local actorLabel = nil
+	if actorSource == nil and tonumber(_G.source) ~= nil then
+		actorSource = tonumber(_G.source)
+	end
+	if actorSource ~= nil then
+		local playerLabel = getPlayerLabel(actorSource)
+		if playerLabel ~= nil then
+			actorLabel = ('%s (%s)'):format(actorSource, playerLabel)
+		else
+			actorLabel = tostring(actorSource)
+		end
+	end
+
+	local rawCommand = sanitizeErrorDetail(locals.rawCommand)
+	if rawCommand ~= nil then
+		actionKind = 'command'
+		actionLabel = rawCommand
+	elseif type(locals.commandName) == 'string' and locals.commandName ~= '' then
+		actionKind = 'command'
+		actionLabel = ('/%s'):format(locals.commandName)
+	elseif type(locals.action) == 'string' and locals.action ~= '' then
+		actionKind = 'action'
+		actionLabel = locals.action
+	end
+
+	local eventLabel = nil
+	if type(locals.eventType) == 'string' and locals.eventType ~= '' then
+		eventLabel = locals.eventType
+	elseif type(locals.eventName) == 'string' and locals.eventName ~= '' then
+		eventLabel = locals.eventName
+	end
+
+	local method = sanitizeErrorDetail(locals.method)
+	local path = sanitizeErrorDetail(locals.path)
+	local httpLabel = method ~= nil and path ~= nil and ('%s %s'):format(method, path) or nil
+
+	local requesterLabel = nil
+	if type(locals.requester) == 'number' and locals.requester > 0 then
+		local requesterName = getPlayerLabel(locals.requester)
+		if requesterName ~= nil then
+			requesterLabel = ('%s (%s)'):format(locals.requester, requesterName)
+		else
+			requesterLabel = tostring(locals.requester)
+		end
+	end
+
+	local argsSummary = summarizeArgs(locals.args)
+	local resourceName, relativePath = splitResourceSource(info)
+	local lineNumber = info and (info.currentline or info.linedefined) or nil
+	local functionName = sanitizeErrorDetail(info.name)
+	if actionLabel == nil and eventLabel == nil and httpLabel == nil and resourceName == nil and relativePath == nil then
+		return nil
+	end
+
+	return {
+		actionKind = actionKind,
+		actionLabel = actionLabel,
+		event = eventLabel,
+		http = httpLabel,
+		source = actorLabel,
+		requester = requesterLabel,
+		args = rawCommand == nil and argsSummary or nil,
+		resource = resourceName,
+		file = relativePath,
+		line = type(lineNumber) == 'number' and lineNumber > 0 and lineNumber or nil,
+		fn = functionName
+	}
+end
+
+local function captureActionTrace()
+	local frames = {}
+	for level = 4, 10 do
+		local frame = buildActionFrame(level)
+		if frame ~= nil then
+			frames[#frames + 1] = frame
+		end
+	end
+	return frames
+end
+
+local function formatActionTrace(frames)
+	if type(frames) ~= 'table' or #frames == 0 then
+		return nil
+	end
+
+	local function buildFrameHeader(frame)
+		if frame.actionLabel ~= nil then
+			return ('%s `%s`'):format(frame.actionKind == 'action' and 'Action' or 'Command', frame.actionLabel)
+		end
+		if frame.event ~= nil then
+			return ('Event `%s`'):format(frame.event)
+		end
+		if frame.http ~= nil then
+			return ('HTTP `%s`'):format(frame.http)
+		end
+		return 'Execution'
+	end
+
+	local function buildFrameMeta(frame)
+		local meta = {}
+		if frame.event ~= nil and frame.actionLabel ~= nil then
+			meta[#meta + 1] = ('event `%s`'):format(frame.event)
+		end
+		if frame.http ~= nil then
+			meta[#meta + 1] = ('via `%s`'):format(frame.http)
+		end
+		if frame.source ~= nil then
+			meta[#meta + 1] = ('player %s'):format(frame.source)
+		end
+		if frame.requester ~= nil then
+			meta[#meta + 1] = ('requester %s'):format(frame.requester)
+		end
+		if frame.args ~= nil then
+			meta[#meta + 1] = ('args `%s`'):format(frame.args)
+		end
+		if frame.resource ~= nil then
+			meta[#meta + 1] = ('resource `%s`'):format(frame.resource)
+		end
+		return meta
+	end
+
+	local function buildFrameLocation(frame)
+		local location = nil
+		if frame.file ~= nil and frame.line ~= nil then
+			location = ('%s:%s'):format(frame.file, tostring(frame.line))
+		else
+			location = frame.file
+		end
+		if location ~= nil and frame.fn ~= nil then
+			return ('%s in `%s`'):format(location, frame.fn)
+		end
+		if frame.fn ~= nil then
+			return ('function `%s`'):format(frame.fn)
+		end
+		return location
+	end
+
+	local formatted = {}
+	local causeSummary = nil
+	local contextSummary = nil
+	for index, frame in ipairs(frames) do
+		if type(frame) == 'table' then
+			local header = buildFrameHeader(frame)
+			local meta = buildFrameMeta(frame)
+			local location = buildFrameLocation(frame)
+
+			if causeSummary == nil and location ~= nil then
+				causeSummary = ('Likely cause: %s'):format(location)
+			end
+			if contextSummary == nil then
+				local contextParts = { header }
+				if #meta > 0 then
+					contextParts[#contextParts + 1] = ('(%s)'):format(table.concat(meta, ', '))
+				end
+				contextSummary = 'Started from: ' .. table.concat(contextParts, ' ')
+			end
+
+			local line = ('[%d] %s'):format(index, header)
+			if #meta > 0 then
+				line = ('%s (%s)'):format(line, table.concat(meta, ', '))
+			end
+			if location ~= nil then
+				line = ('%s\n    at %s'):format(line, location)
+			end
+			formatted[#formatted + 1] = line
+		elseif frame ~= nil then
+			formatted[#formatted + 1] = ('[%d] %s'):format(index, tostring(frame))
+		end
+	end
+
+	if #formatted == 0 then
+		return nil
+	end
+
+	local sections = {}
+	if causeSummary ~= nil then
+		sections[#sections + 1] = causeSummary
+	end
+	if contextSummary ~= nil then
+		sections[#sections + 1] = contextSummary
+	end
+	sections[#sections + 1] = 'Trace:'
+	sections[#sections + 1] = table.concat(formatted, '\n')
+
+	return table.concat(sections, '\n')
+end
+
+local function buildErrorReport(level, err, msg, ...)
+	local fallbackKey = level == 'WARNING' and 'UNHANDLED_WARNING' or 'UNHANDLED_SERVER_ERROR'
+	local entry = normalize_log_entry(level, err)
+	local rawDetail = nil
+
+	if entry == nil and type(err) == 'string' and msg == nil then
+		rawDetail = err
+		entry = normalize_log_entry(level, fallbackKey)
+	elseif entry == nil then
+		rawDetail = tostring(err)
+		entry = normalize_log_entry(level, fallbackKey)
+	end
+
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	local sanitizedDetail = sanitizeErrorDetail(rawDetail)
+	local supportRef = nextSupportReference()
+	local actionTrace = captureActionTrace()
+	local actionTraceText = formatActionTrace(actionTrace)
+	local userMessage = ('%s Support ref: %s Docs: %s'):format(formatted, supportRef, entry.shortlink)
+	local logMessage = ('%s: %s Support ref: %s Docs: %s'):format(entry.code, formatted, supportRef, entry.shortlink)
+	if sanitizedDetail ~= nil and sanitizedDetail ~= formatted then
+		logMessage = ('%s Details: %s'):format(logMessage, sanitizedDetail)
+	end
+	if actionTraceText ~= nil then
+		logMessage = ('%s\n%s'):format(logMessage, actionTraceText)
+	end
+
+	return {
+		level = level,
+		entry = entry,
+		formatted = formatted,
+		sanitizedDetail = sanitizedDetail,
+		supportRef = supportRef,
+		userMessage = userMessage,
+		logMessage = logMessage,
+		actionTrace = actionTrace,
+		actionTraceText = actionTraceText
+	}
+end
+
+local function appendSupportError(report)
+	if not IsDuplicityVersion() or type(report) ~= 'table' or type(report.entry) ~= 'table' then
+		return
+	end
+
+	local sourceName = 'SonoranCMS'
+	local info = debug.getinfo(4, 'nSl')
+	if info ~= nil and type(info) == 'table' then
+		local resourceName, relativePath = splitResourceSource(info)
+		local lineNumber = info.currentline or info.linedefined
+		local parts = {}
+		if resourceName ~= nil then
+			parts[#parts + 1] = ('resource=%s'):format(resourceName)
+		end
+		if relativePath ~= nil then
+			parts[#parts + 1] = ('file=%s'):format(relativePath)
+		end
+		if type(lineNumber) == 'number' and lineNumber > 0 then
+			parts[#parts + 1] = ('line=%s'):format(tostring(lineNumber))
+		end
+		if type(info.name) == 'string' and info.name ~= '' then
+			parts[#parts + 1] = ('fn=%s'):format(info.name)
+		end
+		if #parts > 0 then
+			sourceName = table.concat(parts, ' | ')
+		end
+	end
+
+	table.insert(SupportErrorBuffer, 1, {
+		timestamp = os and os.date('!%Y-%m-%dT%H:%M:%SZ') or tostring(GetGameTimer and GetGameTimer() or 0),
+		level = report.level,
+		key = report.entry.key,
+		code = report.entry.code,
+		message = report.formatted,
+		supportRef = report.supportRef,
+		docs = report.entry.shortlink,
+		details = report.sanitizedDetail,
+		source = sourceName,
+		actionTrace = report.actionTrace,
+		actionTraceText = report.actionTraceText
+	})
+
+	if #SupportErrorBuffer > 250 then
+		table.remove(SupportErrorBuffer)
+	end
+end
+
+function formatErrorMessage(err, msg, ...)
+	local entry = normalize_error_entry(err)
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	if entry == nil then
+		return formatted
+	end
+	return ('%s: %s More: %s'):format(entry.code, formatted, entry.shortlink)
+end
+
+function formatWarningMessage(err, msg, ...)
+	local entry = normalize_warning_entry(err)
+	local template = msg or (entry and entry.message) or tostring(err)
+	local formatted = safeStringFormat(template, ...)
+	if entry == nil then
+		return formatted
+	end
+	return ('%s: %s More: %s'):format(entry.code, formatted, entry.shortlink)
+end
+
+function BuildSupportErrorMessage(err, msg, ...)
+	local report = buildErrorReport('ERROR', err, msg, ...)
+	return ('%s: %s'):format(report.entry.code, report.userMessage), report
+end
+
+function logError(err, msg, ...)
+	local report = buildErrorReport('ERROR', err, msg, ...)
+	appendSupportError(report)
+	sendConsole('ERROR', '^1', report.logMessage)
+end
+
+function errorLog(err, msg, ...)
+	local report
+	if msg ~= nil or normalize_error_entry(err) ~= nil then
+		report = buildErrorReport('ERROR', err, msg, ...)
+	else
+		report = buildErrorReport('ERROR', err)
+	end
+	appendSupportError(report)
+	sendConsole('ERROR', '^1', report.logMessage)
+end
+
+function warnLog(err, msg, ...)
+	local report
+	if msg ~= nil or normalize_warning_entry(err) ~= nil or normalize_error_entry(err) ~= nil then
+		report = buildErrorReport('WARNING', err, msg, ...)
+	else
+		report = buildErrorReport('WARNING', err)
+	end
+	appendSupportError(report)
+	sendConsole('WARNING', '^3', report.logMessage)
 end
 
 function infoLog(message)
