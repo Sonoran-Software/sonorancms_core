@@ -1,5 +1,9 @@
 ManagedResources = {'sonorancms'}
 
+local function clearResourceFile(resourceName, filePath)
+	SaveResourceFile(resourceName, filePath, '', 0)
+end
+
 CreateThread(function()
 	local helperSignalKey = 'sonorancms_updatehelper_action'
 	local action = GetConvar(helperSignalKey, '')
@@ -9,10 +13,10 @@ CreateThread(function()
 	local validAction = (action == 'core' or action == 'plugin')
 
 	-- Check both convar signal and run.lock for compatibility during updater transitions.
-    if validAction or hasRunLock then
+	if validAction or hasRunLock then
 		local mode = validAction and action or runLock
 		SetConvar(helperSignalKey, '')
-		os.remove(GetResourcePath(res) .. '/run.lock')
+		clearResourceFile(res, 'run.lock')
 		ExecuteCommand('refresh')
 		Wait(1000)
         if mode:match('^core') then
@@ -35,7 +39,7 @@ CreateThread(function()
 			end
 		end
 	else
-		os.remove(GetResourcePath(res) .. '/run.lock')
+		clearResourceFile(res, 'run.lock')
 		print('sonorancms_updatehelper is for internal use and should not be started as a resource.')
 	end
 end)

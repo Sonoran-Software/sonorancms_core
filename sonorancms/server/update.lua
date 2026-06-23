@@ -3,6 +3,24 @@ local update_url = 'https://github.com/Sonoran-Software/sonorancms_core/releases
 local version_url = 'https://raw.githubusercontent.com/Sonoran-Software/sonorancms_core/master/sonorancms/version.json'
 local pendingRestart = false
 local helper_signal_key = 'sonorancms_updatehelper_action'
+
+local function normalizeResourcePath(path)
+	return (path or ''):gsub('^%.?/?', '')
+end
+
+local function readResourceFile(resourceName, filePath)
+	return LoadResourceFile(resourceName, normalizeResourcePath(filePath))
+end
+
+local function writeResourceFile(resourceName, filePath, contents)
+	SaveResourceFile(resourceName, normalizeResourcePath(filePath), contents or '', -1)
+end
+
+local function resourceFileExists(resourceName, filePath)
+	local contents = readResourceFile(resourceName, filePath)
+	return contents ~= nil and contents ~= ''
+end
+
 local function supportHint(code)
 	return code .. ' More: https://sonorancms.com/error/' .. code
 end
@@ -41,9 +59,7 @@ local function doUpdate(latest)
 	PerformHttpRequest(releaseUrl, function(code, data, _)
 		if code == 200 then
 			local savePath = GetResourcePath(GetCurrentResourceName()) .. '/update.zip'
-			local f = assert(io.open(savePath, 'wb'))
-			f:write(data)
-			f:close()
+			writeResourceFile(GetCurrentResourceName(), 'update.zip', data)
 			Utilities.Logging.logInfo('Saved file...')
 			Utilities.Logging.logInfo('Working our magic, this may take a moment, please be patient...')
 			doUnzip(savePath)
@@ -54,55 +70,45 @@ local function doUpdate(latest)
 
 end
 
-function FileExists(name)
-	local f = io.open(name, 'r')
-	return f ~= nil and io.close(f)
+function FileExists(resourceName, filePath)
+	return resourceFileExists(resourceName, filePath)
 end
 
-function CopyFile(old_path, new_path)
-	local old_file = io.open(old_path, 'rb')
-	local new_file = io.open(new_path, 'wb')
-	local old_file_sz, new_file_sz
-	if not old_file or not new_file then
+function CopyFile(oldPath, newPath)
+	local oldFile = readResourceFile(GetCurrentResourceName(), oldPath)
+	if oldFile == nil then
 		return false
 	end
-	while true do
-		local block = old_file:read(2 ^ 13)
-		if not block then
-			old_file_sz = old_file:seek('end')
-			break
-		end
-		new_file:write(block)
-	end
-	old_file:close()
-	new_file_sz = new_file:seek('end')
-	new_file:close()
-	return new_file_sz == old_file_sz
+	writeResourceFile(GetCurrentResourceName(), newPath, oldFile)
+	return true
 end
 
 RegisterNetEvent(GetCurrentResourceName() .. '::CheckConfig', function()
 	exports[GetCurrentResourceName()]:CheckConfigFiles(Config.debug_mode)
-	if not FileExists(GetResourcePath(GetCurrentResourceName()) .. '/config.lua') then
-		CopyFile(GetResourcePath(GetCurrentResourceName()) .. '/config.CHANGEME.lua', GetResourcePath(GetCurrentResourceName()) .. '/config.lua')
-		local c = assert(io.open(GetResourcePath(helper_name) .. '/config.lock', 'w+'))
-		c:write('core')
-		c:close()
-		local cc = assert(io.open(GetResourcePath(GetCurrentResourceName()) .. '/config.lua', 'a'))
-		cc:write('\n\n-- Remove this after configuring\nconfig.auto_config = true')
-		cc:close()
+	if not FileExists(GetCurrentResourceName(), 'config.lua') then
+		CopyFile('config.CHANGEME.lua', 'config.lua')
+		writeResourceFile(helper_name, 'config.lock', 'core')
+		local configFile = readResourceFile(GetCurrentResourceName(), 'config.lua')
+		if configFile ~= nil then
+			writeResourceFile(
+				GetCurrentResourceName(),
+				'config.lua',
+				configFile .. '\n\n-- Remove this after configuring\nconfig.auto_config = true'
+			)
+		end
 		ExecuteCommand('ensure ' .. helper_name)
 	end
 end)
 
 local function RunAutoUpdater()
-	local f = LoadResourceFile(GetResourcePath(helper_name), '/update.zip')
-	if f ~= nil then
+	local f = readResourceFile(helper_name, 'update.zip')
+	if f ~= nil and f ~= '' then
 		ExecuteCommand('stop ' .. helper_name)
-		os.remove(GetResourcePath(GetCurrentResourceName()) .. '/update.zip')
+		writeResourceFile(GetCurrentResourceName(), 'update.zip', '')
 		clearUpdateHelperSignal()
 	end
-	if FileExists(GetResourcePath(helper_name) .. '/config.lock') then
-		os.remove(GetResourcePath(helper_name) .. '/config.lock')
+	if FileExists(helper_name, 'config.lock') then
+		writeResourceFile(helper_name, 'config.lock', '')
 	end
 	local myVersion = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)
 

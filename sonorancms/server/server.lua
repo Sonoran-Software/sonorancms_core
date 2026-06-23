@@ -6,6 +6,14 @@ local SupportErrorBuffer = {}
 local ERROR_DOC_BASE_URL = 'https://sonorancms.com/error/'
 local SupportRefCounter = 0
 
+local function normalizeResourcePath(path)
+	return (path or ''):gsub('^%.?/?', '')
+end
+
+local function readResourceFile(resourceName, filePath)
+	return LoadResourceFile(resourceName, normalizeResourcePath(filePath))
+end
+
 SetHttpHandler(function(req, res)
 	local path = req.path
 	local method = req.method
@@ -54,37 +62,42 @@ SetHttpHandler(function(req, res)
 		path = req.path:gsub('/proxy.*', '')
 		method = req.method
 		if method == 'GET' then
+			local imageResource = nil
 			local imagePath = nil
+			local normalizedPath = normalizeResourcePath(path)
 			if GetResourceState('qb-inventory') == 'started' then
-				imagePath = GetResourcePath('qb-inventory') .. '/html/' .. path .. '.png'
+				imageResource = 'qb-inventory'
+				imagePath = 'html/' .. normalizedPath .. '.png'
 			elseif GetResourceState('ps-inventory') == 'started' then
-				imagePath = GetResourcePath('ps-inventory') .. '/html/' .. path .. '.png'
+				imageResource = 'ps-inventory'
+				imagePath = 'html/' .. normalizedPath .. '.png'
 			elseif GetResourceState('ox_inventory') == 'started' then
-				imagePath = GetResourcePath('ox_inventory') .. '/web/' .. path .. '.png'
+				imageResource = 'ox_inventory'
+				imagePath = 'web/' .. normalizedPath .. '.png'
 			elseif GetResourceState('qs-inventory') == 'started' then
-				imagePath = GetResourcePath('qs-inventory') .. '/html/' .. path .. '.png'
+				imageResource = 'qs-inventory'
+				imagePath = 'html/' .. normalizedPath .. '.png'
 			elseif GetResourceState('origen_inventory') == 'started' then
-				imagePath = GetResourcePath('origen_inventory') .. '/html/' .. path .. '.png'
+				imageResource = 'origen_inventory'
+				imagePath = 'html/' .. normalizedPath .. '.png'
 			elseif GetResourceState('core_inventory') == 'started' then
-				imagePath = GetResourcePath('core_inventory') .. '/html/' .. path .. '.png'
+				imageResource = 'core_inventory'
+				imagePath = 'html/' .. normalizedPath .. '.png'
 			end
-			if not path or not imagePath then
+			if not path or not imageResource or not imagePath then
 				res.send(json.encode({
 					error = 'Invalid path'
 				}))
 				return
 			end
-			local file = io.open(imagePath, 'rb')
-			if not file then
+			local content = readResourceFile(imageResource, imagePath)
+			if not content then
 				res.send(json.encode({
 					error = 'Image not found'
 				}))
 				return
-			else
-				local content = file:read('*all')
-				file:close()
-				res.send(content)
 			end
+			res.send(content)
 		end
 		if method == 'POST' then
 			local data = req.body
@@ -329,31 +342,22 @@ CreateThread(function()
 			return "missing"
 		end
 
-		local f = io.open(path, "r")
-		if f then
-			f:close()
+		local normalizedPath = normalizeResourcePath(path)
+		local resourceName, filePath = normalizedPath:match('^([^/]+)/(.+)$')
+		if not resourceName or not filePath then
+			return "missing"
+		end
+
+		local f = readResourceFile(resourceName, filePath)
+		if f ~= nil and f ~= '' then
 			return "found"
 		else
-			-- If io.open fails, check rename() just in case it's permissions
-			local ok, _, code = os.rename(path, path)
-			if code == 13 then
-				return "permission"
-			else
-				return "missing"
-			end
+			return "missing"
 		end
 	end
 
-	-- Check addonupdates folder
-	local addonStatus = exists(GetResourcePath('sonorancms') .. '/addonupdates')
-	if addonStatus == "found" then
-		infoLog('addonupdates folder was found! This folder is no longer used and can be deleted...')
-	elseif addonStatus == "permission" then
-		warnLog('LEGACY_ADDONUPDATES_PERMISSION', 'addonupdates folder exists but permission was denied when checking. Please verify permissions.')
-	end
-
 	-- Check config.NEW.lua
-	local configStatus = exists(GetResourcePath('sonorancms') .. '/config.NEW.lua')
+	local configStatus = exists('sonorancms/config.NEW.lua')
 	if configStatus == "found" then
 		errorLog('CONFIG_NEW_FOUND', 'config.NEW.lua was found! Please copy over the new config and then delete this file! See https://sonoran.link/cmsconfig for more information.')
 		return
