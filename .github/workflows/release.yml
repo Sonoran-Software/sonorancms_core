@@ -46,6 +46,14 @@ jobs:
           mkdir [sonorancms]
           mv sonorancms [sonorancms]/sonorancms
           mv sonorancms_updatehelper [sonorancms]/sonorancms_updatehelper
+          # node_modules is shipped with the resource, so omit the files that
+          # make FXServer's Yarn builder run based on modification timestamps.
+          rm -f \
+            [sonorancms]/sonorancms/package.json \
+            [sonorancms]/sonorancms/yarn.lock \
+            [sonorancms]/sonorancms/.yarn.installed
+          test -d [sonorancms]/sonorancms/node_modules
+          test ! -e [sonorancms]/sonorancms/package.json
           zip -r "sonorancms_core-$VERSION.zip" [sonorancms]/
           mv "sonorancms_core-$VERSION.zip" release/
           echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"
@@ -135,6 +143,14 @@ jobs:
           mkdir [sonorancms]
           mv sonorancms [sonorancms]/sonorancms
           mv sonorancms_updatehelper [sonorancms]/sonorancms_updatehelper
+          # node_modules is shipped with the resource, so omit the files that
+          # make FXServer's Yarn builder run based on modification timestamps.
+          rm -f \
+            [sonorancms]/sonorancms/package.json \
+            [sonorancms]/sonorancms/yarn.lock \
+            [sonorancms]/sonorancms/.yarn.installed
+          test -d [sonorancms]/sonorancms/node_modules
+          test ! -e [sonorancms]/sonorancms/package.json
           zip -r "sonorancms_core-$VERSION.zip" [sonorancms]/
           mv "sonorancms_core-$VERSION.zip" release/
           echo "Zipped sonorancms/ and sonorancms_updatehelper/ directories"

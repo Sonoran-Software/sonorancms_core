@@ -1,5 +1,27 @@
 ManagedResources = {'sonorancms'}
 
+local RuntimeBuildFiles = {'package.json', 'yarn.lock', '.yarn.installed'}
+
+local function removeRuntimeBuildFiles(resourceName)
+	local resourcePath = GetResourcePath(resourceName)
+	if not resourcePath then
+		print(('Unable to clean Yarn build files for resource %s: resource path was not found.'):format(resourceName))
+		return
+	end
+
+	for _, fileName in pairs(RuntimeBuildFiles) do
+		local filePath = resourcePath .. '/' .. fileName
+		local file = io.open(filePath, 'r')
+		if file then
+			file:close()
+			local removed, err = os.remove(filePath)
+			if not removed then
+				print(('Unable to remove %s before restarting %s: %s'):format(fileName, resourceName, tostring(err)))
+			end
+		end
+	end
+end
+
 CreateThread(function()
 	local helperSignalKey = 'sonorancms_updatehelper_action'
 	local action = GetConvar(helperSignalKey, '')
@@ -13,6 +35,11 @@ CreateThread(function()
 		local mode = validAction and action or runLock
 		SetConvar(helperSignalKey, '')
 		os.remove(GetResourcePath(res) .. '/run.lock')
+		if mode:match('^core') then
+			for _, v in pairs(ManagedResources) do
+				removeRuntimeBuildFiles(v)
+			end
+		end
 		ExecuteCommand('refresh')
 		Wait(1000)
         if mode:match('^core') then
