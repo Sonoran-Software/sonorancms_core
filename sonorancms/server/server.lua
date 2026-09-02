@@ -160,8 +160,8 @@ AddEventHandler('onResourceStart', function(resource)
 				return
 			end
 			if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
-							~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
-				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_GARAGE_DEPENDENCY_MISSING', 'qb-garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
+							~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' and GetResourceState('qbx_garages') ~= 'started' then
+				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_GARAGE_DEPENDENCY_MISSING', 'qb-garages, qbx_garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			end
 			if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
 				TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_DATABASE_DEPENDENCY_MISSING', 'Unable to send game panel data due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
