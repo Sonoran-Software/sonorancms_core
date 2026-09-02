@@ -2811,6 +2811,37 @@ local function requestGarageData()
 				message = 'qb-garages export getAllGarages() is not available.'
 			})
 		end
+	elseif GetResourceState('qbx_garages') == 'started' then
+		local success, garageData = pcall(function()
+			local garages = {}
+			for name, garage in pairs(exports['qbx_garages']:GetGarages()) do
+				local accessPoint = garage.accessPoints[1]
+				local blip = accessPoint.blip or {}
+				table.insert(garages, {
+					name = name,
+					label = garage.label,
+					takeVehicle = accessPoint.coords,
+					spawnPoint = accessPoint.spawn or accessPoint.coords,
+					putVehicle = accessPoint.dropPoint or accessPoint.spawn or accessPoint.coords,
+					showBlip = accessPoint.blip ~= nil,
+					blipName = blip.name or garage.label,
+					blipNumber = blip.sprite or 357,
+					blipColor = blip.color or 3,
+					type = garage.type or 'public',
+					vehicle = garage.vehicleType
+				})
+			end
+			return garages
+		end)
+		if success then
+			QBGarages = garageData
+		else
+			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_GARAGE_EXPORT_MISSING', 'Error getting garage data from qbx_garages, the export GetGarages() is not available. Please update your qbx_garages resource.')
+			table.insert(errors, {
+				code = 'ERR_GARAGE_EXPORT_NOT_FOUND',
+				message = 'qbx_garages export GetGarages() is not available.'
+			})
+		end
 	elseif GetResourceState('cd_garage') == 'started' then
 		local CDConfig = exports['cd_garage']:GetConfig()
 		for _, v in pairs(CDConfig.Locations) do
@@ -3153,10 +3184,10 @@ function handleDataRequest(data)
 			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
-						~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' then
+						~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' and GetResourceState('qbx_garages') ~= 'started' then
 			table.insert(errors, {
 				code = 'ERR_GARAGE_NOT_STARTED',
-				message = 'qb-garages, qs-advancedgarages, jg-advancedgarages and cd_garage are not started. The garage data will be sent as empty currently.'
+				message = 'qb-garages, qbx_garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty currently.'
 			})
 		end
 		if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
