@@ -40,6 +40,38 @@ infoLog = (message) => {
 };
 
 /**
+ * @param {Array<object>} data
+ * @param {string} requestType
+ * @returns {Promise<object>}
+ */
+const performApiRequest = (data, requestType) => {
+  return new Promise((resolve, reject) => {
+    exports.sonorancms.performApiRequest(
+      data,
+      requestType,
+      function (res, success) {
+        if (success === false) {
+          reject(res || "There was an error");
+          return;
+        }
+
+        try {
+          const parsedResponse =
+            typeof res === "string" ? JSON.parse(res) : res;
+          if (parsedResponse) {
+            resolve(parsedResponse);
+          } else {
+            reject("There was an error");
+          }
+        } catch (err) {
+          reject(`Unable to parse the CMS API response: ${err.message}`);
+        }
+      },
+    );
+  });
+};
+
+/**
  *
  * @param {string} apiId
  * @param {boolean} forceClockIn
@@ -49,20 +81,10 @@ const clockPlayerIn = (apiId, forceClockIn) => {
   if (!forceClockIn) {
     forceClockIn = false;
   }
-  return new Promise(async (resolve, reject) => {
-    exports.sonorancms.performApiRequest(
-      [{ apiId: apiId, forceClockIn: forceClockIn }],
-      "CLOCK_IN_OUT",
-      function (res) {
-        res = JSON.parse(res);
-        if (res) {
-          resolve(res.completed);
-        } else {
-          reject("There was an error");
-        }
-      },
-    );
-  });
+  return performApiRequest(
+    [{ apiId: apiId, forceClockIn: forceClockIn }],
+    "CLOCK_IN_OUT",
+  ).then((res) => res.completed);
 };
 
 /**
@@ -71,20 +93,10 @@ const clockPlayerIn = (apiId, forceClockIn) => {
  * @returns {Promise}
  */
 const clockPlayerInFromCad = (accID, intention) => {
-  return new Promise(async (resolve, reject) => {
-    exports.sonorancms.performApiRequest(
-      [{ accId: accID, intention: intention }],
-      "CLOCK_IN_OUT",
-      function (res) {
-        res = JSON.parse(res);
-        if (res) {
-          resolve(res.completed);
-        } else {
-          reject("There was an error");
-        }
-      },
-    );
-  });
+  return performApiRequest(
+    [{ accId: accID, intention: intention }],
+    "CLOCK_IN_OUT",
+  ).then((res) => res.completed);
 };
 
 /**
@@ -105,20 +117,10 @@ const cmsUpdateRanksBasedOnCad = (accID, intention) => {
       remove.push(rank);
     }
   }
-  return new Promise(async (resolve, reject) => {
-    exports.sonorancms.performApiRequest(
-      [{ accId: accID, add: add, remove: remove }],
-      "SET_ACCOUNT_RANKS",
-      function (res) {
-        res = JSON.parse(res);
-        if (res) {
-          resolve(res.completed);
-        } else {
-          reject("There was an error");
-        }
-      },
-    );
-  });
+  return performApiRequest(
+    [{ accId: accID, add: add, remove: remove }],
+    "SET_ACCOUNT_RANKS",
+  ).then((res) => res.completed);
 };
 
 async function initialize() {
