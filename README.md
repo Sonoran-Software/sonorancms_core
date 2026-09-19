@@ -8,4 +8,4 @@ This resource is a core resource required by first party Sonoran CMS integration
 
 ## Support diagnostics
 
-When requested by support, run `sonorancms support <ticket ID>` in the server console. The ticket must have debug uploads enabled by support. The upload includes configuration with credential fields redacted, the current console buffer, structured errors/warnings, and recent debug messages. Debug mode is left unchanged. Requires version 1.6.34 or newer.
+When requested by support, run `sonorancms support <ticket ID>` in the server console. The ticket must have debug uploads enabled by support. Version 1.6.35 adds effective core and module configurations with credential fields redacted, dependency states/versions, player count, uptime, API state, and console/error/debug buffers. File status and truncation markers identify unavailable or oversized data; large logs keep recent output instead of failing the upload. Debug mode is left unchanged. Requires version 1.6.34 or newer.

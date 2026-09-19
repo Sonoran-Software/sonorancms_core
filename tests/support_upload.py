@@ -19,9 +19,19 @@ def scenario():
         return {str(k): unpack(v) for k, v in value.items()}
     def decode(value):
         return lua.table_from(json.loads(value), recursive=True)
-    lua.globals().json = lua.table_from({'encode': lambda v: json.dumps(unpack(v)), 'decode': decode})
+    lua.globals().json = lua.table_from({'encode': lambda v, *args: json.dumps(unpack(v), indent=2 if args else None), 'decode': decode})
     lua.execute('''
-        requests = {}; messages = {}; commands = {}; timers = {}
+        requests = {}; messages = {}; commands = {}; timers = {}; fileReads = {}
+        function GetGameTimer() return 42000 end
+        function GetPlayers() return {'1', '2', '3'} end
+        function GetResourceState(name) return name == 'qb-core' and 'started' or 'missing' end
+        function LoadResourceFile(resource, path)
+            fileReads[#fileReads + 1] = path
+            if path:find('jammers.json', 1, true) or path:find('jobsync_config.json', 1, true) then return '{broken' end
+            if path:find('speakers.json', 1, true) or path:find('whitelist_config.json', 1, true) then return nil end
+            return '{"enabled":true,"password":"module-secret-value","setting":"visible setting"}'
+        end
+        function SaveResourceFile() error('Diagnostics must never write configs') end
         Config = {debug = true, debug_mode = true, APIKey = 'fake-secret-key', nested = {token = 'fake-token-value'}}
         Config.self = Config
         Config.callback = function() end
@@ -61,9 +71,16 @@ def run():
     for section in ['Configuration Information', 'Structured Error Buffer', 'Console Buffer', 'Last 50 Debug Messages']:
         assert section in request.body
     assert 'ERR-127' in request.body and 'debug message' in request.body
-    for secret in ['fake-secret-key', 'fake-token-value', 'SNRN_PRIV_fake-token']:
+    for secret in ['fake-secret-key', 'fake-token-value', 'SNRN_PRIV_fake-token', 'module-secret-value']:
         assert secret not in request.body
     assert '[REDACTED]' in request.body and '<recursive-table>' in request.body
+    assert 'Configuration Files' in request.body and 'visible setting' in request.body
+    assert 'invalid_json' in request.body and 'default_only' in request.body
+    assert '"playerCount": 3' in request.body and 'resourceUptimeSeconds' in request.body
+    assert len(g.fileReads) >= 4
+    config_secret = 'secret-with-"quotes"-and-back\\slash'
+    g.Config.APIKey = config_secret
+    g.Config.copyOfCredential = config_secret
     assert g.Config.debug and g.Config.debug_mode, 'Support must not change product behavior'
     upload(123)
     assert len(g.requests) == 1, 'Concurrent uploads should be suppressed'
@@ -84,10 +101,27 @@ def run():
     assert len(g.messages) == count, 'Ignore late responses'
     upload(123)
     g.requests[len(g.requests)].callback(200, '{"success":true}')
-    lua.execute("function GetConsoleBuffer() return string.rep('x', 1000001) end")
+    lua.execute("function GetConsoleBuffer() return string.rep('x', 1100000) .. ' NEWEST LOG' end")
     count = len(g.requests)
     upload(123)
-    assert len(g.requests) == count and 'TOO_LARGE' in g.messages[len(g.messages)]
+    assert len(g.requests) == count + 1
+    clipped = g.requests[len(g.requests)]
+    assert len(clipped.body.encode()) <= 1000000
+    assert 'Oldest console output omitted' in clipped.body and 'NEWEST LOG' in clipped.body
+    assert config_secret not in clipped.body
+    core_section = clipped.body.split('Core Configuration (effective in-memory values)\n')[1].split('Configuration Files')[0]
+    assert json.loads(core_section)['copyOfCredential'] == '[REDACTED]'
+    clipped.callback(200, '{"success":true}')
+    count = len(g.requests)
+    lua.execute("function LoadResourceFile(resource, path) if path:find('jammers') or path:find('jobsync') then return string.rep('x', 110000) end return '{\"setting\":\"other files still visible\"}' end")
+    lua.execute("function getSupportErrorBuffer() return {{level='ERROR', message=string.rep('x', 300000)}} end")
+    upload(123)
+    oversized = g.requests[len(g.requests)]
+    assert 'other files still visible' in oversized.body and 'omitted_too_large' in oversized.body
+    assert '"omittedEntries": 1' in oversized.body and '"uploadedEntries": 0' in oversized.body
+    assert len(oversized.body.encode()) <= 1000000
+    oversized.callback(200, '{"success":true}')
+    count = len(g.requests)
     lua.execute("function GetConsoleBuffer() error('native unavailable') end")
     upload(123)
     assert len(g.requests) == count and 'COLLECT_FAILED' in g.messages[len(g.messages)]
