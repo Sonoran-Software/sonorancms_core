@@ -470,6 +470,10 @@ local WarningCodes = {
 }
 
 local ErrorCodes = {
+	['SUPPORT_INVALID_ID'] = { code = 'ERR-SUP-101', message = 'The support ticket ID is invalid.' },
+	['SUPPORT_COLLECT_FAILED'] = { code = 'ERR-SUP-102', message = 'Support diagnostics could not be collected.' },
+	['SUPPORT_TOO_LARGE'] = { code = 'ERR-SUP-103', message = 'Support diagnostics exceed the upload size limit.' },
+	['SUPPORT_UPLOAD_FAILED'] = { code = 'ERR-SUP-104', message = 'Support diagnostics could not be uploaded.' },
 	['API_ERROR'] = { code = 'ERR-CORE-101', message = 'The CMS API version request failed during startup.' },
 	['CONFIG_NEW_FOUND'] = { code = 'ERR-CORE-102', message = 'config.NEW.lua was detected and the running configuration is out of date.' },
 	['API_ENDPOINT_INVALID'] = { code = 'ERR-CORE-103', message = 'The configured CMS API endpoint is invalid.' },
