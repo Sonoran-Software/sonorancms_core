@@ -2,6 +2,8 @@ local helper_name = 'sonorancms_updatehelper'
 local update_url = 'https://github.com/Sonoran-Software/sonorancms_core/releases/download/%s/sonorancms_core-%s.zip'
 local version_url = 'https://raw.githubusercontent.com/Sonoran-Software/sonorancms_core/master/sonorancms/version.json'
 local pendingRestart = false
+local updateState = 'idle'
+local updateLoopStarted = false
 local helper_signal_key = 'sonorancms_updatehelper_action'
 local function supportHint(code)
 	return code .. ' More: https://sonorancms.com/error/' .. code
@@ -20,37 +22,71 @@ function doUnzip(path)
 	exports[GetCurrentResourceName()]:UnzipFile(path, unzipPath, Config.debug_mode)
 end
 
+local function restartUpdatedResource()
+	pendingRestart = false
+	updateState = 'restarting'
+	SetTimeout(5000, function()
+		if GetNumPlayerIndices() > 0 and not Config.restartWithPlayers then
+			pendingRestart = true
+			updateState = 'pending_restart'
+			Utilities.Logging.logInfo('Update installed. Waiting until the server is empty to restart sonorancms.')
+			return
+		end
+		Utilities.Logging.logWarn(supportHint('WRN-UPD-101') .. ' Restarting the updated resource...')
+		signalUpdateHelper('core')
+		ExecuteCommand('ensure ' .. helper_name)
+	end)
+end
+
 exports('unzipCoreCompleted', function(success, error)
+	if updateState ~= 'extracting' then return end
 	if success then
 		if GetNumPlayerIndices() > 0 and not Config.restartWithPlayers then
 			pendingRestart = true
-			Utilities.Logging.logInfo('Delaying auto-update until server is empty.')
+			updateState = 'pending_restart'
+			Utilities.Logging.logInfo('Update installed. Waiting until the server is empty to restart sonorancms.')
 			return
 		end
-		Utilities.Logging.logWarn(supportHint('WRN-UPD-101') .. ' Auto-restarting...')
-		signalUpdateHelper('core')
-		Citizen.Wait(5000)
-		ExecuteCommand('ensure ' .. helper_name)
+		restartUpdatedResource()
 	else
-		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Failed to download core update. ' .. tostring(json.encode(error)))
+		updateState = 'idle'
+		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Failed to extract core update. ' .. tostring(error))
 	end
 end)
 
 local function doUpdate(latest)
 	local releaseUrl = (update_url):format(latest, latest)
-	PerformHttpRequest(releaseUrl, function(code, data, _)
-		if code == 200 then
-			local savePath = GetResourcePath(GetCurrentResourceName()) .. '/update.zip'
-			local f = assert(io.open(savePath, 'wb'))
-			f:write(data)
-			f:close()
-			Utilities.Logging.logInfo('Saved file...')
-			Utilities.Logging.logInfo('Working our magic, this may take a moment, please be patient...')
-			doUnzip(savePath)
-		else
-			Utilities.Logging.logWarn(supportHint('WRN-UPD-102') .. ' ' .. ('Failed to download from %s: %s %s'):format(releaseUrl, code, data))
+	updateState = 'downloading'
+	local requested, requestError = pcall(PerformHttpRequest, releaseUrl, function(code, data, _)
+		if tonumber(code) ~= 200 or type(data) ~= 'string' or data:sub(1, 2) ~= 'PK' then
+			updateState = 'idle'
+			Utilities.Logging.logWarn(supportHint('WRN-UPD-102') .. ' Failed to download a valid core update ZIP (HTTP ' .. tostring(code) .. ').')
+			return
+		end
+		local savePath = GetResourcePath(GetCurrentResourceName()) .. '/update.zip'
+		local saved, saveError = pcall(function()
+			local file = assert(io.open(savePath, 'wb'))
+			local wrote, writeError = file:write(data)
+			file:close()
+			assert(wrote, writeError)
+		end)
+		if not saved then
+			updateState = 'idle'
+			Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Could not save core update: ' .. tostring(saveError))
+			return
+		end
+		Utilities.Logging.logInfo('Core update downloaded. Extracting release...')
+		updateState = 'extracting'
+		local unzipStarted, unzipError = pcall(doUnzip, savePath)
+		if not unzipStarted then
+			updateState = 'idle'
+			Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Could not extract core update: ' .. tostring(unzipError))
 		end
 	end, 'GET')
+	if not requested then
+		updateState = 'idle'
+		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Could not request core update: ' .. tostring(requestError))
+	end
 
 end
 
@@ -94,85 +130,106 @@ RegisterNetEvent(GetCurrentResourceName() .. '::CheckConfig', function()
 	end
 end)
 
-local function RunAutoUpdater()
-	local f = LoadResourceFile(GetResourcePath(helper_name), '/update.zip')
-	if f ~= nil then
-		ExecuteCommand('stop ' .. helper_name)
-		os.remove(GetResourcePath(GetCurrentResourceName()) .. '/update.zip')
-		clearUpdateHelperSignal()
-	end
-	if FileExists(GetResourcePath(helper_name) .. '/config.lock') then
-		os.remove(GetResourcePath(helper_name) .. '/config.lock')
-	end
-	local myVersion = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)
-
-	PerformHttpRequest(version_url, function(code, data, _)
-		if code == 200 then
-			local remote = json.decode(data)
-			if remote == nil then
-				Utilities.Logging.logWarn(supportHint('WRN-UPD-103') .. ' ' .. ('Failed to get a valid response for ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' version file. Skipping.'))
-				Utilities.Logging.logDebug(('Raw output for %s: %s'):format('version.json', data))
-			else
-				Config.latestVersion = remote.resource
-				local _, _, v1, v2, v3 = string.find(myVersion, '(%d+)%.(%d+)%.(%d+)')
-				local _, _, r1, r2, r3 = string.find(remote.resource, '(%d+)%.(%d+)%.(%d+)')
-				Utilities.Logging.logDebug(('my: %s remote: %s'):format(myVersion, remote.resource))
-				local latestVersion = r3 + (r2 * 100) + (r1 * 1000)
-				local localVersion = v3 + (v2 * 100) + (v1 * 1000)
-
-				assert(localVersion ~= nil, 'Failed to parse local version. ' .. tostring(localVersion))
-				assert(latestVersion ~= nil, 'Failed to parse remote version. ' .. tostring(latestVersion))
-
-				if latestVersion > localVersion then
-					if os.getenv("OS"):match("^Windows") ~= nil then
-						-- Running on Windows
-						if not Config['allowAutoUpdate'] then
-							print('^3|===========================================================================|')
-							print('^3|                        ^5SonoranCMS Update Available                        ^3|')
-							print('^3|                             ^8Current : ' .. myVersion .. '                               ^3|')
-							print('^3|                             ^2Latest  : ' .. remote.resource .. '                               ^3|')
-							print('^3| Download at: ^4https://github.com/Sonoran-Software/sonorancms_core          ^3|')
-							print('^3|===========================================================================|^7')
-							if Config['allowAutoUpdate'] == nil then
-								Utilities.Logging.logWarn(supportHint('WRN-UPD-104') .. ' You have not configured the automatic updater. Please set allowAutoUpdate' .. ' in config.lua to allow updates.')
-							end
-						else
-							Utilities.Logging.logInfo('Running auto-update now...')
-							doUpdate(remote.resource)
-						end
-					else
-						-- Running on Linux
-						print('^3WARNING: Detected Linux Server OS, deferring auto-update until future bugfix update. Server maintainer manual update required...')
-						print('^3|===========================================================================|')
-						print('^3|                        ^5SonoranCMS Update Available                        ^3|')
-						print('^3|                             ^8Current : ' .. myVersion .. '                               ^3|')
-						print('^3|                             ^2Latest  : ' .. remote.resource .. '                               ^3|')
-						print('^3| Download at: ^4https://github.com/Sonoran-Software/sonorancms_core          ^3|')
-						print('^3|===========================================================================|^7')
-					end
-				end
-			end
-		end
-	end, 'GET')
+local function parseVersion(version)
+	if type(version) ~= 'string' then return nil end
+	local major, minor, patch = version:match('^(%d+)%.(%d+)%.(%d+)$')
+	if not major then return nil end
+	return { tonumber(major), tonumber(minor), tonumber(patch) }
 end
 
-RegisterNetEvent(GetCurrentResourceName() .. '::StartUpdateLoop')
+local function versionIsNewer(latest, current)
+	for index = 1, 3 do
+		if latest[index] > current[index] then return true end
+		if latest[index] < current[index] then return false end
+	end
+	return false
+end
+
+local function showAvailableUpdate(current, latest)
+	Utilities.Logging.logInfo(('SonoranCMS update available: %s -> %s. Run sonorancms update in the server console.'):format(current, latest))
+end
+
+function RequestCmsUpdate(manual)
+	manual = manual == true
+	if updateState ~= 'idle' then
+		Utilities.Logging.logInfo('An update is already ' .. updateState:gsub('_', ' ') .. '.')
+		return false
+	end
+	local helperPath = GetResourcePath(helper_name)
+	if not helperPath then
+		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' The sonorancms_updatehelper resource is missing.')
+		return false
+	end
+	local resourcePath = GetResourcePath(GetCurrentResourceName())
+	if FileExists(resourcePath .. '/update.zip') then
+		os.remove(resourcePath .. '/update.zip')
+		clearUpdateHelperSignal()
+	end
+	if FileExists(helperPath .. '/config.lock') then
+		os.remove(helperPath .. '/config.lock')
+	end
+	local currentVersion = GetResourceMetadata(GetCurrentResourceName(), 'version', 0)
+	updateState = 'checking'
+	if manual then Utilities.Logging.logInfo('Checking for SonoranCMS updates...') end
+	local requested, requestError = pcall(PerformHttpRequest, version_url, function(code, data, _)
+		if tonumber(code) ~= 200 then
+			updateState = 'idle'
+			Utilities.Logging.logWarn(supportHint('WRN-UPD-103') .. ' Could not check for updates (HTTP ' .. tostring(code) .. ').')
+			return
+		end
+		local decoded, remote = pcall(json.decode, data or '')
+		local latest = decoded and type(remote) == 'table' and remote.resource or nil
+		local parsedLatest = parseVersion(latest)
+		local parsedCurrent = parseVersion(currentVersion)
+		if not parsedLatest or not parsedCurrent then
+			updateState = 'idle'
+			Utilities.Logging.logWarn(supportHint('WRN-UPD-103') .. ' Invalid SonoranCMS version information; update skipped.')
+			return
+		end
+		Config.latestVersion = latest
+		if not versionIsNewer(parsedLatest, parsedCurrent) then
+			updateState = 'idle'
+			if manual then Utilities.Logging.logInfo('SonoranCMS is up to date (' .. currentVersion .. ').') end
+			return
+		end
+		if not manual then
+			local isWindows = (os.getenv('OS') or ''):match('^Windows') ~= nil
+			if not isWindows or not Config.allowAutoUpdate then
+				updateState = 'idle'
+				showAvailableUpdate(currentVersion, latest)
+				if not isWindows then
+					Utilities.Logging.logWarn('Linux automatic updates remain disabled. Run sonorancms update in the server console to install explicitly.')
+				elseif Config.allowAutoUpdate == nil then
+					Utilities.Logging.logWarn(supportHint('WRN-UPD-104') .. ' Set allowAutoUpdate in config.lua to enable automatic updates.')
+				end
+				return
+			end
+		end
+		Utilities.Logging.logInfo(('Installing SonoranCMS %s (current %s)...'):format(latest, currentVersion))
+		doUpdate(latest)
+	end, 'GET')
+	if not requested then
+		updateState = 'idle'
+		Utilities.Logging.logError(supportHint('ERR-UPD-101') .. ' Could not check for updates: ' .. tostring(requestError))
+	end
+	return requested
+end
+
 AddEventHandler(GetCurrentResourceName() .. '::StartUpdateLoop', function()
+	if updateLoopStarted then return end
+	updateLoopStarted = true
 	Citizen.CreateThread(function()
 		while true do
-			if pendingRestart then
-				if GetNumPlayerIndices() > 0 and not Config.restartWithPlayers then
-					Utilities.Logging.logWarn(supportHint('WRN-UPD-105') .. ' ' .. 'An update has been applied to ' .. GetResourceMetadata(GetCurrentResourceName(), 'real_name', 0) .. ' but requires a resource restart.'
-									                          .. ' Restart delayed until server is empty.')
-				else
-					Utilities.Logging.logInfo('Server is empty, restarting resources...')
-					signalUpdateHelper('core')
-					ExecuteCommand('ensure ' .. helper_name)
-				end
-			else
-				RunAutoUpdater()
-			end
+			RequestCmsUpdate(false)
 			Citizen.Wait(60000 * 60)
+		end
+	end)
+	Citizen.CreateThread(function()
+		while true do
+			if pendingRestart and (GetNumPlayerIndices() == 0 or Config.restartWithPlayers) then
+				restartUpdatedResource()
+			end
+			Citizen.Wait(15000)
 		end
 	end)
 end)

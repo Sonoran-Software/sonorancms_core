@@ -243,7 +243,9 @@ RegisterCommand('sonorancms', function(source, args)
     end
     if args[1] == 'support' then
         UploadCmsSupportLogs(args[2])
+    elseif args[1] == 'update' then
+        RequestCmsUpdate(true)
     else
-        print('Usage: sonorancms support <ticket ID>')
+        print('Usage: sonorancms support <ticket ID> | sonorancms update')
     end
 end, true)

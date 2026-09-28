@@ -86,15 +86,27 @@ exports("CheckConfigFiles", (debugMode) => {
 });
 
 exports("UnzipFile", (file, dest, debugMode) => {
-	unzipUpdateInChild(file, dest)
-		.then(() => {
-			const globalChanges = [];
-			syncConfigFiles(debugMode);
-			exports[GetCurrentResourceName()].unzipCoreCompleted(true, globalChanges.length > 0 ? globalChanges : "nil");
-		})
-		.catch((err) => {
-			exports[GetCurrentResourceName()].unzipCoreCompleted(false, err && err.message ? err.message : String(err));
+	const reportCompletion = (success, error) => {
+		// Child-process promises resume on Node's thread; FiveM exports and natives need the game thread.
+		setImmediate(() => {
+			if (success) {
+				try {
+					syncConfigFiles(debugMode);
+				} catch (err) {
+					success = false;
+					error = err && err.message ? err.message : String(err);
+				}
+			}
+			try {
+				exports[GetCurrentResourceName()].unzipCoreCompleted(success, error);
+			} catch (err) {
+				console.error("Failed to report core unzip completion:", err);
+			}
 		});
+	};
+	unzipUpdateInChild(file, dest)
+		.then(() => reportCompletion(true, "nil"))
+		.catch((err) => reportCompletion(false, err && err.message ? err.message : String(err)));
 });
 
 exports("makeDir", (dirPath) => {
