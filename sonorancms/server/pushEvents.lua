@@ -8,7 +8,6 @@ local freezeTime = false
 local blackout = false
 local newWeatherTimer = 10
 local dynamicWeather = true
-local errors = {} -- Stores errors to be sent to the panel
 local explosionTypes = {
 	'GRENADE',
 	'GRENADELAUNCHER',
@@ -2288,31 +2287,48 @@ local function getAllPlayers()
 	return activePlayers
 end
 
-local function getQBChars(callback)
+local function getQBChars()
 	-- Getting QBCore object
 	if GetResourceState('qb-core') ~= 'started' then
-		return;
+		return nil, 'qb-core is not started.'
 	end
-	local QBCore = exports['qb-core']:GetCoreObject()
+	local coreOk, QBCore = pcall(function()
+		return exports['qb-core']:GetCoreObject()
+	end)
+	if not coreOk or type(QBCore) ~= 'table' or type(QBCore.Functions) ~= 'table' or type(QBCore.Shared) ~= 'table' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_QBCORE_UNAVAILABLE', tostring(QBCore))
+		return nil, 'Unable to load the qb-core player API.'
+	end
 	-- Query the DB for QB Players rather than using the function because the function only returns active ones
-	MySQL.query('SELECT * FROM `players`', function(row)
-		local qbCharacters = {}
-		for _, v in ipairs(row) do
+	local queryOk, rows = pcall(function()
+		return MySQL.query.await('SELECT `citizenid`, `license`, `charinfo`, `job`, `money`, `inventory`, `metadata` FROM `players`')
+	end)
+	if not queryOk or type(rows) ~= 'table' then
+		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_CHARACTERS_QUERY_FAILED', tostring(rows))
+		return nil, 'Unable to load characters from the players table.'
+	end
+	local qbCharacters = {}
+	local skipped = 0
+	for _, v in ipairs(rows) do
+		local rowOk, rowError = pcall(function()
 			local qbCharInfo = QBCore.Functions.GetPlayerByCitizenId(v.citizenid)
 			local playerInventory = {}
 			v.charinfo = json.decode(v.charinfo)
 			v.job = json.decode(v.job)
 			v.money = json.decode(v.money)
-			v.inventory = json.decode(v.inventory)
-			v.metadata = json.decode(v.metadata)
-			if v.inventory == nil then
+			v.inventory = v.inventory and v.inventory ~= '' and json.decode(v.inventory) or {}
+			v.metadata = v.metadata and v.metadata ~= '' and json.decode(v.metadata) or {}
+			if type(v.inventory) ~= 'table' then
 				v.inventory = {}
 			end
-			sortArrayBy(v.inventory, 'slot')
+			if type(v.metadata) ~= 'table' then
+				v.metadata = {}
+			end
+			pcall(sortArrayBy, v.inventory, 'slot')
 			for _, item in pairs(v.inventory) do
-				local QBItems = QBCore.Shared.Items
+				local QBItems = QBCore.Shared.Items or {}
 				local QBItem = {}
-				if item.name then
+				if type(item) == 'table' and type(item.name) == 'string' then
 					QBItem = QBItems[item.name:lower()]
 				end
 				if item and QBItem and next(QBItem) ~= nil then
@@ -2372,6 +2388,9 @@ local function getQBChars(callback)
 				charInfo.source = qbCharInfo.PlayerData.source
 				local liveInv = {}
 				local playerInv = qbCharInfo.PlayerData.items
+				if type(playerInv) ~= 'table' then
+					playerInv = {}
+				end
 				charInfo.jobInfo = {
 					name = qbCharInfo.PlayerData.job.name,
 					grade = qbCharInfo.PlayerData.job.grade.name,
@@ -2380,9 +2399,9 @@ local function getQBChars(callback)
 					type = qbCharInfo.PlayerData.job.type or 'none'
 				}
 				for _, item in pairs(playerInv) do
-					local QBItems = QBCore.Shared.Items
+					local QBItems = QBCore.Shared.Items or {}
 					local QBItem = {}
-					if item.name then
+					if type(item) == 'table' and type(item.name) == 'string' then
 						QBItem = QBItems[item.name:lower()]
 					end
 					if item and QBItem and next(QBItem) ~= nil then
@@ -2413,9 +2432,22 @@ local function getQBChars(callback)
 				charInfo.inventory = liveInv
 			end
 			table.insert(qbCharacters, charInfo)
+		end)
+		if not rowOk then
+			skipped = skipped + 1
+			local citizenId = type(v) == 'table' and v.citizenid or 'unknown'
+			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_CHARACTER_ROW_SKIPPED',
+				'Could not read character ' .. tostring(citizenId) .. ': ' .. tostring(rowError))
 		end
-		callback(qbCharacters)
-	end)
+	end
+	if skipped > 0 then
+		local message = 'Could not read ' .. skipped .. ' of ' .. #rows .. ' character records. Check the FiveM console for details.'
+		if #qbCharacters == 0 then
+			return nil, message
+		end
+		return qbCharacters, message
+	end
+	return qbCharacters
 end
 
 local function getGamePool()
@@ -2615,7 +2647,7 @@ local function requestGangs()
 	return gangTable
 end
 
-local function requestFileJobs()
+local function requestFileJobs(errors)
 	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterJobs(jobs)
 		local validJobs = {}
@@ -2703,7 +2735,7 @@ local function requestFileJobs()
 	return validJobs
 end
 
-local function requestFileGangs()
+local function requestFileGangs(errors)
 	local validGangs = {}
 	local function filterGangs(gangs)
 		local validGangs = {}
@@ -2790,7 +2822,7 @@ local function requestFileGangs()
 	return validGangs
 end
 
-local function requestGarageData()
+local function requestGarageData(errors)
 	-- Request the garage data from qb-garages
 	local QBGarages = {}
 	if GetResourceState('qb-garages') == 'started' then
@@ -2964,7 +2996,7 @@ local function requestGarageData()
 	return QBGarages
 end
 
-local function requestItems()
+local function requestItems(errors)
 	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterItems(items)
 		local validItems = {}
@@ -3007,7 +3039,7 @@ local function requestItems()
 	return {}
 end
 
-local function requestFileItems()
+local function requestFileItems(errors)
 	if Config.framework ~= 'qb-core' and Config.framework ~= 'qbox' then return {} end
 	local function filterItems(items)
 		local validItems = {}
@@ -3107,6 +3139,10 @@ local function requestJobRankList()
 end
 
 function handleDataRequest(data)
+	local errors = {}
+	local inventoryMissing = false
+	Config.critErrorGamestate = false
+	Config.gameStateError = nil
 	if GetCurrentResourceName() ~= 'sonorancms' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'RESOURCE_NAME_INVALID', 'The current resource name is ' .. GetCurrentResourceName() .. ' however it should be named sonorancms. Please rename this resource to sonorancms')
 		table.insert(errors, {
@@ -3175,13 +3211,12 @@ function handleDataRequest(data)
 		if GetResourceState('qb-inventory') ~= 'started' and GetResourceState('ox_inventory') ~= 'started' and GetResourceState('qs-inventory') ~= 'started' and GetResourceState('ps-inventory') ~= 'started'
 						and GetResourceState('origen_inventory') ~= 'started' and GetResourceState('core_inventory') ~= 'started' and GetResourceState('tgiann-inventory') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_INVENTORY_DEPENDENCY_MISSING',
-			             'Skipping payload send due to qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
-			Config.critErrorGamestate = true
+			             'Inventory data is unavailable because no supported inventory resource is started.')
+			inventoryMissing = true
 			table.insert(errors, {
 				code = 'ERR_INVENTORY_NOT_STARTED',
-				message = 'qb-inventory, qs-inventory, ps-inventory, ox_inventory, origen_inventory and core_inventory are not started.'
+				message = 'No supported inventory resource is started.'
 			})
-			return
 		end
 		if GetResourceState('qb-garages') ~= 'started' and GetResourceState('cd_garage') ~= 'started' and GetResourceState('qs-advancedgarages') ~= 'started' and GetResourceState('jg-advancedgarages')
 						~= 'started' and GetResourceState('ak47_qb_garage') ~= 'started' and GetResourceState('qbx_garages') ~= 'started' then
@@ -3190,15 +3225,15 @@ function handleDataRequest(data)
 				message = 'qb-garages, qbx_garages, qs-advancedgarages, jg-advancedgarages, ak47_qb_garage and cd_garage are not started. The garage data will be sent as empty currently.'
 			})
 		end
-		if GetResourceState('oxmysql') ~= 'started' and GetResourceState('mysql-async') ~= 'started' and GetResourceState('ghmattimysql') ~= 'started' then
+		if GetResourceState('oxmysql') ~= 'started' then
 			TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_DATABASE_DEPENDENCY_MISSING',
-			             'Skipping payload send due to oxmysql, mysql-async, and ghmattimysql not being started. If you do not use the SonoranCMS Game Panel you can ignore this.')
-			Config.critErrorGamestate = true
+			             'Skipping payload send because oxmysql is not started. If you do not use the SonoranCMS Game Panel you can ignore this.')
 			table.insert(errors, {
 				code = 'ERR_MYSQL_NOT_STARTED',
-				message = 'oxmysql, mysql-async, and ghmattimysql are not started.'
+				message = 'oxmysql is not started.'
 			})
-			return
+			Config.gameStateError = errors[#errors]
+			Config.critErrorGamestate = true
 		end
 	end
 	if Config.critErrorGamestate then
@@ -3208,6 +3243,9 @@ function handleDataRequest(data)
 			consoleErrorString = consoleErrorString .. ' ' .. error.code .. ' ' .. error.message
 		end
 		TriggerEvent('SonoranCMS::core:writeLog', 'warn', 'GAME_PANEL_PAYLOAD_BLOCKED_DETAILS', 'Error codes: ' .. consoleErrorString)
+		for _, dataKey in pairs(data.dataKeys) do
+			table.insert(errors, { code = dataKey, message = Config.gameStateError.message })
+		end
 		local errPayload = {
 			data = {},
 			errors = errors
@@ -3246,12 +3284,11 @@ function handleDataRequest(data)
 			payload.data[v] = requestResources()
 		end
 		if v == 'characters' then
-			local qbChars = {}
-			getQBChars(function(characters)
-				qbChars = characters
-			end)
-			Wait(3000)
-			payload.data[v] = qbChars
+			local characters, characterError = getQBChars()
+			payload.data[v] = characters
+			if characterError then
+				table.insert(errors, { code = v, message = characterError })
+			end
 		end
 		if v == 'aceMappings' then
 			payload.data[v] = requestAcePerms()
@@ -3274,19 +3311,27 @@ function handleDataRequest(data)
 			payload.data[v] = requestGangs()
 		end
 		if v == 'fileJobs' then
-			payload.data[v] = requestFileJobs()
+			payload.data[v] = requestFileJobs(errors)
 		end
 		if v == 'fileGangs' then
-			payload.data[v] = requestFileGangs()
+			payload.data[v] = requestFileGangs(errors)
 		end
 		if v == 'items' then
-			payload.data[v] = requestItems()
+			if inventoryMissing then
+				table.insert(errors, { code = v, message = 'No supported inventory resource is started.' })
+			else
+				payload.data[v] = requestItems(errors)
+			end
 		end
 		if v == 'fileItems' then
-			payload.data[v] = requestFileItems()
+			if inventoryMissing then
+				table.insert(errors, { code = v, message = 'No supported inventory resource is started.' })
+			else
+				payload.data[v] = requestFileItems(errors)
+			end
 		end
 		if v == 'garages' then
-			payload.data[v] = requestGarageData()
+			payload.data[v] = requestGarageData(errors)
 		end
 		if v == 'config' then
 			payload.data[v] = {
