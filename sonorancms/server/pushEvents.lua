@@ -288,7 +288,7 @@ CreateThread(function()
 					end
 					PlayerDataMoney = json.encode(PlayerDataMoney)
 					if validType then
-						MySQL.update('UPDATE players SET money = ? WHERE citizenid = ?', {
+						MySQL.update('UPDATE players SET money = ? WHERE citizenid = ? LIMIT 1', {
 							PlayerDataMoney,
 							data.data.citizenId
 						})
@@ -319,7 +319,7 @@ CreateThread(function()
 				end
 				PlayerDataMoney = json.encode(PlayerDataMoney)
 				if validType then
-					MySQL.update('UPDATE players SET money = ? WHERE citizenid = ?', {
+					MySQL.update('UPDATE players SET money = ? WHERE citizenid = ? LIMIT 1', {
 						PlayerDataMoney,
 						data.data.citizenId
 					})
@@ -429,7 +429,7 @@ CreateThread(function()
 					PlayerData.charinfo.phone = data.data.charInfo.phoneNumber
 				end
 				local NewCharInfo = json.encode(PlayerData.charinfo)
-				MySQL.update('UPDATE players SET charinfo = ? WHERE citizenid = ?', {
+				MySQL.update('UPDATE players SET charinfo = ? WHERE citizenid = ? LIMIT 1', {
 					NewCharInfo,
 					PlayerData.citizenid
 				}, function(affectedRows)
@@ -487,7 +487,7 @@ CreateThread(function()
 						vehData.financetime = data.data.financeTime
 					end
 					MySQL.update(
-						'UPDATE player_vehicles SET plate = ?, garage = ?, fuel = ?, engine = ?, body = ?, state = ?, drivingdistance = ?, balance = ?, paymentamount = ?, paymentsleft = ?, financetime = ? WHERE id = ?',
+						'UPDATE player_vehicles SET plate = ?, garage = ?, fuel = ?, engine = ?, body = ?, state = ?, drivingdistance = ?, balance = ?, paymentamount = ?, paymentsleft = ?, financetime = ? WHERE id = ? LIMIT 1',
 						{
 							vehData.plate,
 							vehData.garage,
@@ -548,7 +548,7 @@ CreateThread(function()
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the vehicle with ID ' .. data.data.vehicleId .. ' was not found')
 					return
 				else
-					MySQL.update('UPDATE player_vehicles SET citizenid = ? WHERE id = ?', {
+					MySQL.update('UPDATE player_vehicles SET citizenid = ? WHERE id = ? LIMIT 1', {
 						data.data.newCitizenId,
 						data.data.vehicleId
 					}, function(affectedRows)
@@ -568,7 +568,7 @@ CreateThread(function()
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the vehicle with ID ' .. data.data.vehicleId .. ' was not found')
 					return
 				else
-					MySQL.update('UPDATE player_vehicles SET engine = ?, body = ? WHERE id = ?', {
+					MySQL.update('UPDATE player_vehicles SET engine = ?, body = ? WHERE id = ? LIMIT 1', {
 						1000,
 						1000,
 						data.data.vehicleId
@@ -589,7 +589,7 @@ CreateThread(function()
 					TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Received push event: ' .. data.type .. ' but the vehicle with ID ' .. data.data.vehicleId .. ' was not found')
 					return
 				else
-					MySQL.query('DELETE FROM player_vehicles WHERE id = ?', {
+					MySQL.query('DELETE FROM player_vehicles WHERE id = ? LIMIT 1', {
 						data.data.vehicleId
 					}, function(affectedRows)
 						TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'Deleted vehicle with ID ' .. data.data.vehicleId .. ' with ' .. affectedRows .. ' rows affected')
@@ -2061,7 +2061,7 @@ CreateThread(function()
 								end
 							end
 					else
-						MySQL.query('UPDATE `players` SET inventory = ? WHERE citizenid = ?', {
+						MySQL.query('UPDATE `players` SET inventory = ? WHERE citizenid = ? LIMIT 1', {
 							json.encode(data.data.slots),
 							data.data.citizenId
 						})
@@ -2108,7 +2108,7 @@ CreateThread(function()
 						PlayerData.job.type = data.data.type or 'none'
 						PlayerData.job.isboss = data.data.isBoss or false
 						PlayerData.job = json.encode(PlayerData.job)
-						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ?', {
+						MySQL.update('UPDATE players SET job = ? WHERE citizenid = ? LIMIT 1', {
 							PlayerData.job,
 							data.data.citizenId
 						})
@@ -2287,25 +2287,126 @@ local function getAllPlayers()
 	return activePlayers
 end
 
-local function getQBChars()
+-- Every database-backed panel collection is read one requested page at a time.
+-- Values remain bound parameters; only the column expressions below can enter SQL.
+-- Malformed JSON must reach the per-character error handler instead of aborting SQL.
+local panelCharacterInfo = "CASE WHEN JSON_VALID(`charinfo`) THEN `charinfo` ELSE '{}' END"
+local panelCharacterJob = "CASE WHEN JSON_VALID(`job`) THEN `job` ELSE '{}' END"
+local panelSortColumns = {
+	characters = {
+		citizenid = '`citizenid`',
+		name = "CONCAT(JSON_UNQUOTE(JSON_EXTRACT(" .. panelCharacterInfo .. ", '$.firstname')), ' ', JSON_UNQUOTE(JSON_EXTRACT(" .. panelCharacterInfo .. ", '$.lastname')))",
+		license = '`license`', job = "JSON_UNQUOTE(JSON_EXTRACT(" .. panelCharacterJob .. ", '$.name'))"
+	},
+	characterVehicles = {
+		id = '`id`', citizenid = '`citizenid`', citizenId = '`citizenid`', plate = '`plate`',
+		vehicle = '`vehicle`', model = '`vehicle`', state = '`state`', garage = '`garage`'
+	},
+	garages = { name = '`gid`', label = '`name`' }
+}
+
+local function panelPageOptions(options)
+	options = type(options) == 'table' and options or {}
+	local function text(value, maximum)
+		if type(value) ~= 'string' then return nil end
+		local length = utf8.len(value)
+		if not length then error('Invalid UTF-8 in game panel query') end
+		if length <= maximum then return value end
+		return value:sub(1, utf8.offset(value, maximum + 1) - 1)
+	end
+	local function integer(value, default, maximum)
+		value = tonumber(value)
+		if not value or value ~= value or value == math.huge or value == -math.huge then return default end
+		return math.max(1, math.min(maximum, math.floor(value)))
+	end
+	return {
+		page = integer(options.page, 1, 1000000),
+		pageSize = integer(options.pageSize, 25, 100),
+		search = text(options.search, 100) or '',
+		sortBy = options.sortBy,
+		descending = options.descending == true,
+		citizenId = text(options.citizenId, 100),
+		vehicleId = tonumber(options.vehicleId), source = tonumber(options.source),
+		onlineOnly = options.onlineOnly == true
+	}
+end
+
+local function panelPageMetadata(options, total)
+	return { page = options.page, pageSize = options.pageSize, total = total, hasMore = options.page * options.pageSize < total }
+end
+
+local function queryPanelPage(key, requestedOptions, QBCore)
+	local options = panelPageOptions(requestedOptions)
+	local tables = { characters = '`players`', characterVehicles = '`player_vehicles`', garages = '`ak47_qb_garage`' }
+	local primaryKeys = { characters = '`citizenid`', characterVehicles = '`id`', garages = '`gid`' }
+	local conditions, parameters = {}, {}
+	local function condition(sql, value)
+		table.insert(conditions, sql)
+		if value ~= nil then table.insert(parameters, value) end
+	end
+	if key ~= 'garages' and options.citizenId then condition('`citizenid` = ?', options.citizenId) end
+	if key == 'characterVehicles' and options.vehicleId then condition('`id` = ?', options.vehicleId) end
+	if key == 'characters' and options.source then
+		local player = QBCore.Functions.GetPlayer(options.source)
+		condition('`citizenid` = ?', player and player.PlayerData.citizenid or '')
+	end
+	if key == 'characters' and options.onlineOnly then
+		local placeholders = {}
+		for _, player in pairs(QBCore.Functions.GetQBPlayers()) do
+			if player.PlayerData and player.PlayerData.citizenid then
+				table.insert(placeholders, '?')
+				table.insert(parameters, player.PlayerData.citizenid)
+			end
+		end
+		condition(#placeholders > 0 and '`citizenid` IN (' .. table.concat(placeholders, ', ') .. ')' or '1 = 0')
+	end
+	if options.search ~= '' then
+		-- Escape LIKE wildcards so a literal player/plate search cannot match every row.
+		local search = '%' .. options.search:gsub('!', '!!'):gsub('%%', '!%%'):gsub('_', '!_') .. '%'
+		local columns = key == 'characters' and { panelSortColumns.characters.name, '`citizenid`', '`license`' }
+			or key == 'characterVehicles' and { '`plate`', '`vehicle`', '`citizenid`', '`garage`' } or { '`gid`', '`name`' }
+		local matches = {}
+		for _, column in ipairs(columns) do
+			table.insert(matches, column .. " LIKE ? ESCAPE '!'")
+			table.insert(parameters, search)
+		end
+		condition('(' .. table.concat(matches, ' OR ') .. ')')
+	end
+	local where = #conditions > 0 and ' WHERE ' .. table.concat(conditions, ' AND ') or ''
+	local tableName, primaryKey = tables[key], primaryKeys[key]
+	local total = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM ' .. tableName .. where .. ' LIMIT 1', parameters)) or 0
+	local sortColumn = panelSortColumns[key][options.sortBy] or primaryKey
+	local order = sortColumn .. (options.descending and ' DESC' or ' ASC')
+	if sortColumn ~= primaryKey then order = order .. ', ' .. primaryKey .. ' ASC' end
+	local detail = key == 'characters' and (options.citizenId ~= nil or options.source ~= nil)
+		or key == 'characterVehicles' and options.vehicleId ~= nil
+	table.insert(parameters, detail and 1 or options.pageSize)
+	table.insert(parameters, (options.page - 1) * options.pageSize)
+	local columns = key == 'characters' and '`citizenid`, `license`, `charinfo`, `job`, `money`, `inventory`, `metadata`' or '*'
+	local rows = MySQL.query.await('SELECT ' .. columns .. ' FROM ' .. tableName .. where .. ' ORDER BY ' .. order .. ' LIMIT ? OFFSET ?', parameters)
+	if type(rows) ~= 'table' then error('The database did not return a game panel page') end
+	return rows, panelPageMetadata(options, total)
+end
+
+local function getQBChars(options)
 	-- Getting QBCore object
-	if GetResourceState('qb-core') ~= 'started' then
-		return nil, 'qb-core is not started.'
+	if (GetResourceState('qb-core') ~= 'started' and GetResourceState('qbx_core') ~= 'started') or GetResourceState('oxmysql') ~= 'started' then
+		return nil, nil, 'The QBCore/Qbox framework or oxmysql is not started.'
 	end
 	local coreOk, QBCore = pcall(function()
 		return exports['qb-core']:GetCoreObject()
 	end)
 	if not coreOk or type(QBCore) ~= 'table' or type(QBCore.Functions) ~= 'table' or type(QBCore.Shared) ~= 'table' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_QBCORE_UNAVAILABLE', tostring(QBCore))
-		return nil, 'Unable to load the qb-core player API.'
+		return nil, nil, 'Unable to load the qb-core player API.'
 	end
 	-- Query the DB for QB Players rather than using the function because the function only returns active ones
-	local queryOk, rows = pcall(function()
-		return MySQL.query.await('SELECT `citizenid`, `license`, `charinfo`, `job`, `money`, `inventory`, `metadata` FROM `players`')
+	local queryOk, rows, pagination = pcall(function()
+		return queryPanelPage('characters', options, QBCore)
 	end)
 	if not queryOk or type(rows) ~= 'table' then
 		TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_CHARACTERS_QUERY_FAILED', tostring(rows))
-		return nil, 'Unable to load characters from the players table.'
+		return nil, nil, 'Unable to load characters from the players table.'
 	end
 	local qbCharacters = {}
 	local skipped = 0
@@ -2442,12 +2543,9 @@ local function getQBChars()
 	end
 	if skipped > 0 then
 		local message = 'Could not read ' .. skipped .. ' of ' .. #rows .. ' character records. Check the FiveM console for details.'
-		if #qbCharacters == 0 then
-			return nil, message
-		end
-		return qbCharacters, message
+		return qbCharacters, pagination, message
 	end
-	return qbCharacters
+	return qbCharacters, pagination
 end
 
 local function getGamePool()
@@ -2479,12 +2577,12 @@ local function requestResources()
 	return resourceList
 end
 
-local function getCharVehicles(callback)
-	if GetResourceState('qb-core') ~= 'started' or GetResourceState('oxmysql') ~= 'started' then
-		return;
+local function getCharVehicles(options)
+	if (GetResourceState('qb-core') ~= 'started' and GetResourceState('qbx_core') ~= 'started') or GetResourceState('oxmysql') ~= 'started' then
+		return {}, panelPageMetadata(panelPageOptions(options), 0)
 	end
 	local characterVehicles = {}
-	MySQL.query('SELECT * FROM player_vehicles', function(row)
+	local row, pagination = queryPanelPage('characterVehicles', options)
 		for _, v in ipairs(row) do
 			local vehicle = {}
 			vehicle.id = v.id
@@ -2505,8 +2603,7 @@ local function getCharVehicles(callback)
 			vehicle.displayName = v.vehicle
 			table.insert(characterVehicles, vehicle)
 		end
-		callback(characterVehicles)
-	end)
+		return characterVehicles, pagination
 end
 
 local function requestJobs()
@@ -2822,9 +2919,11 @@ local function requestFileGangs(errors)
 	return validGangs
 end
 
-local function requestGarageData(errors)
+local function requestGarageData(errors, requestedOptions)
 	-- Request the garage data from qb-garages
+	local options = panelPageOptions(requestedOptions)
 	local QBGarages = {}
+	local pagination
 	if GetResourceState('qb-garages') == 'started' then
 		-- Safely check if the export exists
 		local success, garageData = pcall(function()
@@ -2958,7 +3057,8 @@ local function requestGarageData(errors)
 			TriggerEvent('SonoranCMS::core:writeLog', 'error', 'GAME_PANEL_GARAGE_EXPORT_MISSING', 'Error getting garage data from jg-advancedgarages, the export getAllGarages() is not available. Please update your jg-advancedgarages resource.')
 		end
 	elseif GetResourceState('ak47_qb_garage') == 'started' then
-		local sqlData = MySQL.query('SELECT * FROM `ak47_qb_garage`', function(row)
+		local row
+		row, pagination = queryPanelPage('garages', options)
 			if not row then
 				TriggerEvent('SonoranCMS::core:writeLog', 'debug', 'No garages found in ak47_qb_garage')
 			else
@@ -2991,9 +3091,28 @@ local function requestGarageData(errors)
 					})
 				end
 			end
-		end)
 	end
-	return QBGarages
+	if pagination then return QBGarages, pagination end
+	-- Export/config-backed garages follow the same page contract as SQL garages.
+	local garages = {}
+	for name, garage in pairs(QBGarages or {}) do
+		local item = {}
+		for key, value in pairs(garage) do item[key] = value end
+		item.name = item.name or name
+		local searchable = (tostring(item.name) .. ' ' .. tostring(item.label or '')):lower()
+		if options.search == '' or searchable:find(options.search:lower(), 1, true) then table.insert(garages, item) end
+	end
+	local sortBy = options.sortBy == 'label' and 'label' or 'name'
+	table.sort(garages, function(a, b)
+		local left, right = tostring(a[sortBy] or ''), tostring(b[sortBy] or '')
+		if left == right then return tostring(a.name) < tostring(b.name) end
+		if options.descending then return left > right end
+		return left < right
+	end)
+	local page = {}
+	local offset = (options.page - 1) * options.pageSize
+	for index = offset + 1, math.min(offset + options.pageSize, #garages) do table.insert(page, garages[index]) end
+	return page, panelPageMetadata(options, #garages)
 end
 
 local function requestItems(errors)
@@ -3254,8 +3373,10 @@ function handleDataRequest(data)
 	end
 	local payload = {
 		data = {},
-		errors = {}
+		errors = {},
+		pagination = {}
 	}
+	local pagination = type(data.pagination) == 'table' and data.pagination or {}
 	for _, v in pairs(data.dataKeys) do
 		if v == 'info' then
 			local systemInfo = getSystemInfo()
@@ -3284,8 +3405,8 @@ function handleDataRequest(data)
 			payload.data[v] = requestResources()
 		end
 		if v == 'characters' then
-			local characters, characterError = getQBChars()
-			payload.data[v] = characters
+			local characters, characterPagination, characterError = getQBChars(pagination[v])
+			payload.data[v], payload.pagination[v] = characters, characterPagination
 			if characterError then
 				table.insert(errors, { code = v, message = characterError })
 			end
@@ -3297,12 +3418,7 @@ function handleDataRequest(data)
 			payload.data[v] = requestJobRankList()
 		end
 		if v == 'characterVehicles' then
-			local charVehs = {}
-			getCharVehicles(function(vehicles)
-				charVehs = vehicles
-			end)
-			Wait(3000)
-			payload.data[v] = charVehs
+			payload.data[v], payload.pagination[v] = getCharVehicles(pagination[v])
 		end
 		if v == 'jobs' then
 			payload.data[v] = requestJobs()
@@ -3331,7 +3447,7 @@ function handleDataRequest(data)
 			end
 		end
 		if v == 'garages' then
-			payload.data[v] = requestGarageData(errors)
+			payload.data[v], payload.pagination[v] = requestGarageData(errors, pagination[v])
 		end
 		if v == 'config' then
 			payload.data[v] = {

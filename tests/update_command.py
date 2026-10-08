@@ -42,6 +42,11 @@ def scenario(*, auto_update=False, restart_with_players=False, os_name='Windows_
         function GetResourceMetadata(_, key) return key == 'version' and '1.6.36' or 'Sonoran CMS' end
         function GetNumPlayerIndices() return playerCount or 0 end
         function LoadResourceFile() return nil end
+        function SaveResourceFile(resource, path, contents, length)
+            assert(length == -1, 'Resource writes must preserve the complete ZIP/config')
+            savedFiles['C:/fake/' .. resource .. '/' .. path] = contents
+            return true
+        end
         function GetConvar(_, fallback) return fallback end
         function SetConvar(key, value) convars[key] = value end
         function RegisterNetEvent() end
@@ -70,13 +75,7 @@ def scenario(*, auto_update=False, restart_with_players=False, os_name='Windows_
                 end }
             end,
         })
-        io.open = function(path, mode)
-            if mode ~= 'wb' then return nil end
-            local file = {data = ''}
-            function file:write(chunk) self.data = self.data .. chunk; return self end
-            function file:close() savedFiles[path] = self.data end
-            return file
-        end
+        io.open = function() error('Updater files must use FiveM resource IO') end
         os.remove = function(path) return true end
     ''')
     lua.globals().Config.allowAutoUpdate = auto_update
@@ -198,7 +197,7 @@ def check_errors_release_lock():
     lua = scenario()
     issue(lua)
     requests(lua)[1].callback(200, '{"resource":"1.6.37"}', lua.table())
-    lua.execute('io.open = function() return nil end')
+    lua.execute('SaveResourceFile = function() return false end')
     requests(lua)[2].callback(200, 'PK-test-zip', lua.table())
     assert len(lua.globals().unzipCalls) == 0
     issue(lua)

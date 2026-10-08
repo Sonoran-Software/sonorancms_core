@@ -1,5 +1,9 @@
 ManagedResources = {'sonorancms'}
 
+local function clearResourceFile(resourceName, filePath)
+	SaveResourceFile(resourceName, filePath, '', 0)
+end
+
 local RuntimeBuildFiles = {'package.json', 'yarn.lock', '.yarn.installed'}
 
 local function removeRuntimeBuildFiles(resourceName)
@@ -34,7 +38,7 @@ CreateThread(function()
     if validAction or hasRunLock then
 		local mode = validAction and action or runLock
 		SetConvar(helperSignalKey, '')
-		os.remove(GetResourcePath(res) .. '/run.lock')
+		clearResourceFile(res, 'run.lock')
 		if mode:match('^core') then
 			for _, v in pairs(ManagedResources) do
 				removeRuntimeBuildFiles(v)
@@ -62,7 +66,7 @@ CreateThread(function()
 			end
 		end
 	else
-		os.remove(GetResourcePath(res) .. '/run.lock')
+		clearResourceFile(res, 'run.lock')
 		print('sonorancms_updatehelper is for internal use and should not be started as a resource.')
 	end
 end)
