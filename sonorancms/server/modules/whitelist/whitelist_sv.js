@@ -1,351 +1,266 @@
-const whiteListLuaConfig = LoadResourceFile(
-  GetCurrentResourceName(),
-  "./config.lua"
-);
-const whitelistCleanLuaConfig = whiteListLuaConfig.replace(
-  /--.*(?:\r?\n|$)/g,
-  ""
-);
-const regexPattern =
-  /Config\.(\w+)\s*=\s*(?:'([^']*)'|"([^"]*)"|(.*?))(?=\s*(?:\-\-|\n|$))/g;
-let activePlayers = {};
-const whiteListConfig = {};
-whitelistCleanLuaConfig.replace(regexPattern, (match, key, value) => {
-  whiteListConfig[key] = value?.trim();
-});
-let whiteListapiKey = whiteListConfig.APIKey;
-let whiteListapiIdType = whiteListConfig.apiIdType;
-const enabledConfig = JSON.parse(
-  LoadResourceFile(
-    GetCurrentResourceName(),
-    "./server/modules/whitelist/whitelist_config.json"
-  )
-);
-
-/**
- *
- * @param {string} message
- * @param  {errStack} args
- * @returns
- */
-let errorLog = (message, ...args) => {
-  return console.log(
-    `^1[ERROR - Sonoran CMS Whitelist - ${new Date().toLocaleString()}] ${message}`,
-    args + "^0"
+(() => {
+  const fs = require("fs");
+  const path = require("path");
+  const resource = GetCurrentResourceName();
+  const directory = "server/modules/whitelist/";
+  const config = JSON.parse(
+    LoadResourceFile(resource, directory + "whitelist_config.json") ||
+      LoadResourceFile(resource, directory + "whitelist_config.dist.json")
   );
-};
+  if (!config?.enabled) return;
 
-/**
- *
- * @param {string} message
- * @returns {string}
- */
-let infoLog = (message) => {
-  return console.log(
-    `[INFO - Sonoran CMS Whitelist - ${new Date().toLocaleString()}] ${message}`
+  let context;
+  const backupFile = path.join(
+    GetResourcePath(resource),
+    directory,
+    "whitelist_backup.json"
   );
-};
+  const log = (message) => console.log(`[Sonoran CMS Whitelist] ${message}`);
+  const validIds = (ids) =>
+    Array.isArray(ids) &&
+    ids.every((id) => typeof id === "string" && id.trim() !== "");
+  let backup = null;
+  let backupRevision = 0;
+  let refresh = null;
+  let nextJoinRefreshAt = 0;
 
-/**
- *
- * @param {int} subInt
- * @returns {string}
- */
-let subIntToName = (subInt) => {
-  switch (subInt) {
-    case 0:
-      return "FREE";
-    case 1:
-      return "STARTER";
-    case 2:
-      return "STANDARD";
-    case 3:
-      return "PLUS";
-    case 4:
-      return "PRO";
-    case 5:
-      return "SONORANONE";
-  }
-};
-
-/**
- *
- * @param {string} apiMsg
- * @returns {string}
- */
-let apiMsgToEnglish = (apiMsg) => {
-  switch (apiMsg) {
-    case "UNKNOWN_ACC_API_ID":
-      return "unable to find a valid account with the provided API ID and account ID";
-    case "INVALID_SERVER_ID":
-      return "an invalid server ID was provided, please check your config and try again";
-    case "SERVER_CONFIG_ERROR":
-      return "an unexpected error occured while trying to retrieve the server's info";
-    case "BLOCKED FOR WHITELIST":
-      return "this user has a Sonoran CMS role that is preventing them from joining the server";
-    case "NOT ALLOWED ON WHITELIST":
-      return "this user does not have a Sonoran CMS with whitelist permissions";
-    default:
-      return `unknown whitelist error: ${apiMsg}`;
-  }
-};
-
-// /**
-//  *
-//  * @param {int} ms
-//  * @returns {Promise}
-//  */
-// sleep = (ms) => {
-//     return new Promise(resolve => setTimeout(resolve, ms));
-// }
-
-/**
- *
- * returns {Promise}
- */
-let updateBackup = () => {
-  exports.sonorancms.getFullWhitelist(function (fullWhitelist) {
-    if (fullWhitelist.success) {
-      const idArray = [];
-      fullWhitelist.data.forEach((fW) => {
-        idArray.push(...fW.apiIds);
-      });
-      backup = idArray;
-      SaveResourceFile(
-        GetCurrentResourceName(),
-        "/server/modules/whitelist/whitelist_backup.json",
-        JSON.stringify(backup)
-      );
-    }
-  });
-};
-
-/**
- *
- * @param {string} apiId
- * @returns {boolean}
- */
-let checkBackup = (apiId) => {
-  const backup = JSON.parse(
-    LoadResourceFile(
-      GetCurrentResourceName(),
-      "/server/modules/whitelist/whitelist_backup.json"
-    )
-  );
-  return backup.includes(apiId);
-};
-
-/**
- * @param {string} source
- * @returns {string}
- */
-async function findPlayerBySource(source) {
-  for (let accId in activePlayers) {
-    if (activePlayers[accId] === source) {
-      return accId;
-    }
-  }
-  return null;
-}
-
-/**
- * @param {string} apiId
- * @param {string} src
- * @returns {Promise}
- */
-let addActivePlayer = async (apiId, src) => {
-  try {
-    exports.sonorancms.performApiRequest(
-      [{ apiId: apiId }],
-      "GET_COM_ACCOUNT",
-      function (data) {
-        data = JSON.parse(data);
-        activePlayers[data[0]?.accId] = src;
-      }
-    );
-  } catch (err) {
-    errorLog(
-      `Error adding active player ${src} to activePlayers cache: ${err}`
-    );
-  }
-};
-
-async function initialize() {
-  if (!enabledConfig?.enabled) return;
-  TriggerEvent("sonorancms::RegisterPushEvent", "ACCOUNT_CREATED", () => {
-    TriggerEvent("sonoran_whitelist::rankupdate");
-  });
-  await exports.sonorancms.sleep(2000);
-  let backup = JSON.parse(
-    LoadResourceFile(
-      GetCurrentResourceName(),
-      "/server/modules/whitelist/whitelist_backup.json"
-    )
-  );
-  updateBackup();
-  RegisterNetEvent("sonoran_whitelist::rankupdate");
-  on("sonoran_whitelist::rankupdate", async (data) => {
-    const accountID = data.data.accId;
-    if (activePlayers[accountID]) {
-      let apiId;
-      apiId = exports.sonorancms.getAppropriateIdentifier(
-        activePlayers[accountID],
-        whiteListapiIdType.toLowerCase()
-      );
-      if (!apiId)
-        return errorLog(
-          `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
-        );
-      if (data.key === whiteListapiKey) {
-        exports.sonorancms.checkCMSWhitelist(apiId, function (whitelist) {
-          if (whitelist.success) {
-            infoLog(
-              `After role update, ${
-                data.data.accName
-              } (${accountID}) is still whitelisted, username returned: ${JSON.stringify(
-                whitelist.reason
-              )} `
-            );
-          } else {
-            DropPlayer(
-              activePlayers[accountID],
-              "After SonoranCMS role update, you were no longer whitelisted: " +
-                apiMsgToEnglish(whitelist.reason)
-            );
-            infoLog(
-              `After SonoranCMS role update ${
-                data.data.accName
-              } (${accountID}) was no longer whitelisted, reason returned: ${apiMsgToEnglish(
-                whitelist.reason
-              )}`
-            );
-            activePlayers[accountID] = null;
-          }
-        });
-      }
-    }
-  });
-  on("playerConnecting", async (name, setNickReason, deferrals) => {
-    const src = source;
-    let apiId;
-    deferrals.defer();
-    deferrals.update("Grabbing API ID to check against the whitelist...");
-    apiId = exports.sonorancms.getAppropriateIdentifier(
-      src,
-      whiteListapiIdType.toLowerCase()
-    );
-    if (!apiId)
-      return errorLog(
-        `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
-      );
-    deferrals.update("Checking whitelist...");
-    updateBackup();
+  // Cross-runtime exports are ready after the first scheduler tick. Register joins immediately,
+  // but wait for the real Lua configuration before reading or writing a server-scoped backup.
+  const ready = new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
+    context = exports.sonorancms.getWhitelistContext();
     try {
-      await exports.sonorancms.checkCMSWhitelist(
-        apiId,
-        async function (whitelist) {
-          if (whitelist?.success) {
-            deferrals.done();
-            infoLog(
-              `Successfully allowed ${name} (${apiId}) through whitelist, username returned: ${JSON.stringify(
-                whitelist.reason
-              )} `
-            );
-          } else if (whitelist?.backendError) {
-            let backupWhitelisted = checkBackup(apiId);
-            if (backupWhitelisted) {
-              deferrals.done();
-              infoLog(
-                `Successfully allowed ${name} (${apiId}) through whitelist, ${whiteListapiIdType.toUpperCase()} ID was found in the whitelist backup. API ID used to check: ${apiId}`
-              );
-            } else {
-              deferrals.done(
-                `Failed whitelist check: Not found in whitelist backup\n\nAPI ID used to check: ${apiId}`
-              );
-              DropPlayer(
-                src,
-                "You are not whitelisted: APIID was not found in the whitelist backup"
-              );
-              infoLog(
-                `Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`
-              );
-            }
+      const saved = JSON.parse(
+        LoadResourceFile(resource, directory + "whitelist_backup.json")
+      );
+      // Never apply another community/server's rules, or infer disabled mode from an empty ID list.
+      if (
+        saved?.version === 1 &&
+        typeof saved.enabled === "boolean" &&
+        validIds(saved.apiIds) &&
+        Number.isFinite(Date.parse(saved.updatedAt)) &&
+        Object.keys(context).every((key) => saved[key] === context[key])
+      )
+        backup = saved;
+      else if (saved)
+        log(
+          "Ignoring an old or mismatched whitelist backup; a successful CMS sync is required."
+        );
+    } catch {
+      log("No readable whitelist backup; a successful CMS sync is required.");
+    }
+  });
+
+  function saveBackup(next) {
+    backup = next;
+    backupRevision++;
+    try {
+      // Replace the JSON only after the full write succeeds. A failed write leaves the previous file intact.
+      fs.writeFileSync(
+        backupFile + ".tmp",
+        JSON.stringify(next, null, 2),
+        "utf8"
+      );
+      fs.renameSync(backupFile + ".tmp", backupFile);
+    } catch (error) {
+      log(
+        `Could not save whitelist backup; the current in-memory copy is still available: ${error.message}`
+      );
+    }
+  }
+
+  function updateBackup(force = false) {
+    if (refresh) return refresh;
+    // Share recent attempts across joins (including failures) instead of hitting the 15/minute snapshot limit.
+    if (!force && Date.now() < nextJoinRefreshAt)
+      return Promise.resolve(backup);
+    nextJoinRefreshAt = Date.now() + 30000;
+    const revision = backupRevision;
+    refresh = new Promise((resolve) => {
+      exports.sonorancms.getFullWhitelist((result) => {
+        if (
+          !result?.success ||
+          typeof result.enabled !== "boolean" ||
+          !Array.isArray(result.data) ||
+          !result.data.every((player) => validIds(player?.apiIds))
+        ) {
+          log(
+            "CMS snapshot unavailable; keeping the last good whitelist backup."
+          );
+          resolve(null);
+          return;
+        }
+        // A full-list request must not overwrite a newer individual allow/deny decision.
+        if (revision !== backupRevision) {
+          resolve(null);
+          return;
+        }
+        const next = {
+          version: 1,
+          ...context,
+          enabled: result.enabled,
+          updatedAt: new Date().toISOString(),
+          apiIds: [...new Set(result.data.flatMap((player) => player.apiIds))],
+        };
+        saveBackup(next);
+        resolve(next);
+      }, true);
+    })
+      .catch((error) => {
+        log(`Could not refresh whitelist backup: ${error.message}`);
+        return null;
+      })
+      .finally(() => {
+        refresh = null;
+      });
+    return refresh;
+  }
+
+  function playerIdentifier(src) {
+    const id = exports.sonorancms.getAppropriateIdentifier(
+      src,
+      context.apiIdType
+    );
+    return typeof id === "string" && id !== "NOT FOUND" && id.trim() !== ""
+      ? id
+      : null;
+  }
+
+  function cachedAllows(apiId) {
+    return (
+      backup !== null &&
+      (!backup.enabled || (apiId !== null && backup.apiIds.includes(apiId)))
+    );
+  }
+
+  function rememberDecision(apiId, allow) {
+    if (allow && backup?.enabled === false) return;
+    const ids = new Set(backup?.apiIds || []);
+    if (allow) ids.add(apiId);
+    else ids.delete(apiId);
+    if (
+      backup?.enabled === true &&
+      ids.size === backup.apiIds.length &&
+      backup.apiIds.every((id) => ids.has(id))
+    )
+      return;
+    // Explicit online denials always win over cached membership and cached disabled mode.
+    saveBackup({
+      version: 1,
+      ...context,
+      enabled: true,
+      updatedAt: new Date().toISOString(),
+      apiIds: [...ids],
+    });
+  }
+
+  const check = (apiId) =>
+    new Promise((resolve) =>
+      exports.sonorancms.checkCMSWhitelist(apiId, resolve)
+    );
+  const outageReason = () =>
+    backup
+      ? "CMS is unavailable and you are not in this server's saved whitelist."
+      : "CMS is unavailable and this server has no valid whitelist backup. Please try again later.";
+
+  on("playerConnecting", async (name, setKickReason, deferrals) => {
+    const src = source;
+    let apiId = null;
+    let reason;
+    deferrals.defer();
+    await exports.sonorancms.sleep(0);
+    deferrals.update("Checking CMS whitelist...");
+    try {
+      await ready;
+      // Fetch explicit enabled/disabled state before requiring a player identifier.
+      if (!backup || !backup.enabled) await updateBackup();
+      if (backup?.enabled !== false) {
+        apiId = playerIdentifier(src);
+        if (!apiId) {
+          // A recently disabled whitelist must also stop requiring identifiers.
+          await updateBackup();
+          if (backup?.enabled !== false)
+            reason = `A ${context.apiIdType} identifier is required to check this server's CMS whitelist.`;
+        } else {
+          const result = await check(apiId);
+          if (result?.success) {
+            rememberDecision(apiId, true);
+          } else if (result?.backendError) {
+            if (!cachedAllows(apiId)) reason = outageReason();
           } else {
-            deferrals.done(
-              `Failed whitelist check: ${apiMsgToEnglish(
-                whitelist.reason
-              )} \n\nAPI ID used to check: ${apiId}`
-            );
-            DropPlayer(
-              src,
-              "You are not whitelisted: " + apiMsgToEnglish(whitelist.reason)
-            );
-            infoLog(
-              `Denied ${name} (${apiId}) through whitelist, reason returned: ${apiMsgToEnglish(
-                whitelist.reason
-              )}`
-            );
+            if (result?.denied) rememberDecision(apiId, false);
+            reason = `CMS whitelist denied access: ${
+              result?.reason || "Unknown whitelist denial"
+            }`;
           }
         }
-      );
+      }
     } catch (error) {
-      let backupWhitelisted = checkBackup(apiId);
-      if (backupWhitelisted) {
-        deferrals.done();
-        infoLog(
-          `Successfully allowed ${name} (${apiId}) through whitelist, ${whiteListapiIdType.toUpperCase()} ID was found in the whitelist backup. API ID used to check: ${apiId}`
-        );
-      } else {
-        deferrals.done(
-          `Failed whitelist check: Not found in whitelist backup\n\nAPI ID used to check: ${apiId}`
-        );
-        DropPlayer(
-          src,
-          "You are not whitelisted: APIID was not found in the whitelist backup"
-        );
-        infoLog(
-          `Denied ${name} (${apiId}) through whitelist, reason returned: Not found in whitelist backup`
-        );
-      }
+      log(`Whitelist check failed: ${error.message}`);
+      if (!cachedAllows(apiId)) reason = outageReason();
     }
+    // FiveM requires a tick between deferral operations, including locally cached decisions.
+    await exports.sonorancms.sleep(0);
+    deferrals.done(reason);
+    log(
+      `${reason ? "Denied" : "Allowed"} ${name}${reason ? ": " + reason : ""}`
+    );
   });
-  on("playerDropped", async (reason) => {
-    const src = source;
-    let accId = await findPlayerBySource(src);
-    if (accId) {
-      if (activePlayers.hasOwnProperty(accId)) {
-        delete activePlayers[accId];
-      }
-    }
-  });
-  setInterval(() => {
-    updateBackup();
-  }, 1800000);
 
-  setInterval(async () => {
-    let allPlayers = exports.sonorancms.jsGetPlayers();
-    // Saftey check in the event of backend outage to keep activePlayers up to date
-    // activePlayers is used for role updates from CMS push events to ensure the player is still whitelisted
-    if (allPlayers.length === 0) {
-      activePlayers = {};
-      return;
+  let rechecking = false;
+  let recheckPending = false;
+  // The core forwards authenticated CMS account updates locally; this is deliberately not a net event.
+  async function recheckPlayers() {
+    recheckPending = true;
+    if (rechecking) return;
+    rechecking = true;
+    try {
+      // An update arriving during a request gets another pass instead of being dropped.
+      do {
+        recheckPending = false;
+        await ready;
+        const current = await updateBackup(true);
+        if (current?.enabled === false) continue;
+        for (const player of exports.sonorancms.jsGetPlayers()) {
+          const apiId = playerIdentifier(player);
+          if (!apiId) {
+            if (current?.enabled && GetPlayerName(player))
+              DropPlayer(
+                player,
+                `CMS whitelist requires a ${context.apiIdType} identifier.`
+              );
+            continue;
+          }
+          if (current?.apiIds.includes(apiId)) continue;
+          const result = await check(apiId);
+          // An unavailable API is never evidence that a connected player lost access.
+          if (result?.backendError) break;
+          if (result?.success) rememberDecision(apiId, true);
+          else if (result?.denied) {
+            rememberDecision(apiId, false);
+            if (GetPlayerName(player) && playerIdentifier(player) === apiId) {
+              DropPlayer(
+                player,
+                `CMS whitelist access revoked: ${result.reason}`
+              );
+            }
+          }
+        }
+      } while (recheckPending);
+    } catch (error) {
+      log(`Could not recheck whitelist after account update: ${error.message}`);
+    } finally {
+      rechecking = false;
     }
-    for (let player of allPlayers) {
-      let test = await findPlayerBySource(player);
-      if (!test) {
-        let apiId;
-        apiId = exports.sonorancms.getAppropriateIdentifier(
-          player,
-          whiteListapiIdType.toLowerCase()
-        );
-        if (!apiId)
-          return errorLog(
-            `Could not find the correct API ID to cross check with the whitelist... Requesting type: ${whiteListapiIdType.toUpperCase()}`
-          );
-        await addActivePlayer(apiId, player);
-      }
-    }
-  }, 20 * 1000);
-}
+  }
+  on("sonoran_whitelist::rankupdate", recheckPlayers);
 
-initialize();
+  const refreshWhenReady = () =>
+    ready
+      .then(() => updateBackup(true))
+      .catch((error) =>
+        log(`Whitelist initialization failed: ${error.message}`)
+      );
+  refreshWhenReady();
+  // Revisit deferred revocations when CMS recovers, without repeatedly checking listed players.
+  setInterval(recheckPlayers, 5 * 60 * 1000);
+})();

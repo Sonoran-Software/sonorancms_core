@@ -156,7 +156,8 @@ SetHttpHandler(function(req, res)
 	end
 end)
 
-RegisterNetEvent('sonorancms::RegisterPushEvent', function(type, event)
+-- Push handlers are registered by server resources, never by game clients.
+AddEventHandler('sonorancms::RegisterPushEvent', function(type, event)
 	plugin_handlers[type] = event
 end)
 
@@ -316,7 +317,7 @@ CreateThread(function()
 	performApiRequest({}, 'GET_SUB_VERSION', function(result, ok)
 		if not ok then
 			logError('API_ERROR')
-			Config.critError = true
+			-- A transient startup outage must not permanently block later whitelist refreshes.
 			return
 		end
 		local subVersionData = json.decode(result)
@@ -335,6 +336,7 @@ CreateThread(function()
 	TriggerEvent('sonorancms::RegisterPushEvent', 'ACCOUNT_UPDATED', function(data)
 		TriggerEvent('sonoran_permissions::rankupdate', data)
 		TriggerEvent('sonoran_jobsync::rankupdate', data)
+		TriggerEvent('sonoran_whitelist::rankupdate', data)
 	end)
 	-- Returns: "found", "permission", or "missing"
 	function exists(path)
@@ -1096,6 +1098,12 @@ exports('getCmsVersion', function()
 	return Config.apiVersion
 end)
 
+-- Read the actual Lua settings so backup identity cannot diverge from quoted/configured values.
+exports('getWhitelistContext', function()
+	return { communityId = tostring(Config.CommID), serverId = tostring(Config.serverId),
+		apiIdType = tostring(Config.apiIdType or 'discord'):lower(), apiUrl = Config.apiUrl }
+end)
+
 --[[
 	Sonoran CMS API Wrapper
 ]]
@@ -1244,6 +1252,15 @@ local function requestCmsV2(requestMethod, path, body, query, requestType, cb)
 			debugLog(('type %s called with v2 body %s to url %s'):format(requestType, requestBody ~= '' and requestBody or '{}', url))
 		end
 		if statusCode == 200 or statusCode == 201 or statusCode == 204 then
+			-- Do not treat an HTML/proxy error or an error envelope as whitelist approval.
+			if requestType == 'VERIFY_WHITELIST' or requestType == 'FULL_WHITELIST' then
+				local decoded = decodeJsonBody(res)
+				if _G.type(decoded) ~= 'table' or decoded.success ~= true or decoded.data == nil
+					or (requestType == 'VERIFY_WHITELIST' and (_G.type(decoded.data) ~= 'string' or decoded.data == '')) then
+					cb('Invalid whitelist API response', false)
+					return
+				end
+			end
 			cb(normalizeResponseValue(unwrapV2ResponseBody(res)), true)
 			return
 		end
@@ -1415,7 +1432,8 @@ function performApiRequest(postData, requestType, cb)
 
 	if requestType == 'FULL_WHITELIST' then
 		local data = normalizeRequestData(postData)
-		requestCmsV2('GET', ('community/servers/%s/whitelist'):format(tostring(data.serverId or Config.serverId)), nil, nil, requestType, cb)
+		local query = data.snapshot == true and { snapshot = true } or nil
+		requestCmsV2('GET', ('community/servers/%s/whitelist'):format(tostring(data.serverId or Config.serverId)), nil, query, requestType, cb)
 		return
 	end
 

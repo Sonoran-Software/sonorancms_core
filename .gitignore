@@ -3,3 +3,5 @@
 sonorancms/node_modules/.yarn-integrity
 BACKUP.lua
 sonorancms/apiPayload.json
+sonorancms/server/modules/whitelist/whitelist_backup.json
+sonorancms/server/modules/whitelist/whitelist_backup.json.tmp
