@@ -16,6 +16,13 @@ Starting with version 1.6.37, run `sonorancms update` in the **server console** 
 
 Servers on an older resource version must first install 1.6.37 or newer through the existing updater or the [release download](https://github.com/Sonoran-Software/sonorancms_core/releases); older versions do not have this console command. Automatic updates on Linux remain disabled.
 
+Version 1.6.40 fixes a binary ZIP write bug in 1.6.37–1.6.39 that can cause
+`Failed to extract core update. FILE_ENDED`. Those older updaters cannot install
+the fix themselves: install the latest release manually while preserving your
+configuration and whitelist backup, or change `writeResourceFile` in
+`sonorancms/server/update.lua` to pass `#contents` instead of `-1`, restart the
+resource, and then run `sonorancms update` again.
+
 ## Whitelist outage backup
 
 With the whitelist module enabled, version 1.6.39 keeps its last successful CMS snapshot in

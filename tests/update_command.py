@@ -43,8 +43,12 @@ def scenario(*, auto_update=False, restart_with_players=False, os_name='Windows_
         function GetNumPlayerIndices() return playerCount or 0 end
         function LoadResourceFile() return nil end
         function SaveResourceFile(resource, path, contents, length)
-            assert(length == -1, 'Resource writes must preserve the complete ZIP/config')
-            savedFiles['C:/fake/' .. resource .. '/' .. path] = contents
+            -- Match the native: automatic length stops at the first NUL, even for a ZIP.
+            if length == -1 or length == 0 then
+                local zero = contents:find(string.char(0), 1, true)
+                length = zero and zero - 1 or #contents
+            end
+            savedFiles['C:/fake/' .. resource .. '/' .. path] = contents:sub(1, length)
             return true
         end
         function GetConvar(_, fallback) return fallback end
@@ -146,6 +150,17 @@ def check_linux_manual_update():
     requests(lua)[1].callback(200, '{"resource":"1.6.37"}', lua.table())
     assert len(requests(lua)) == 2
     requests(lua)[2].callback(200, 'PK-test-zip', lua.table())
+    assert len(lua.globals().unzipCalls) == 1
+
+
+def check_binary_zip_write():
+    lua = scenario()
+    issue(lua)
+    requests(lua)[1].callback(200, '{"resource":"1.6.40"}', lua.table())
+    archive = 'PK\x03\x04\x0a\x00binary\x00data\x00end'
+    requests(lua)[2].callback(200, archive, lua.table())
+    assert lua.globals().savedFiles['C:/fake/sonorancms/update.zip'] == archive, \
+        'The ZIP must be written completely, including bytes after its first NUL'
     assert len(lua.globals().unzipCalls) == 1
 
 
@@ -270,6 +285,7 @@ def run():
     check_same_version_and_config_override()
     check_newer_release_and_duplicate_requests()
     check_linux_manual_update()
+    check_binary_zip_write()
     check_errors_release_lock()
     check_restart_policy()
     print('sonorancms update: console, version, override, duplicate, error, and restart checks passed')

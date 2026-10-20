@@ -15,7 +15,9 @@ local function readResourceFile(resourceName, filePath)
 end
 
 local function writeResourceFile(resourceName, filePath, contents)
-	return SaveResourceFile(resourceName, normalizeResourcePath(filePath), contents or '', -1)
+	contents = contents or ''
+	-- ZIPs contain NUL bytes; -1 uses C-string length and silently truncates the download.
+	return SaveResourceFile(resourceName, normalizeResourcePath(filePath), contents, #contents)
 end
 
 local function resourceFileExists(resourceName, filePath)
